@@ -1,0 +1,66 @@
+{# templates/base.html #}
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Excel 分析系統{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/FrontEndCss.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  {% block head %}{% endblock %}
+</head>
+<body class="dark-mode">
+  <div class="sidebar" id="sidebar">
+    <h4>功能選單</h4>
+    <ul>
+      <li onclick="navigateTo1('upload')"><i class="fas fa-upload"></i> 上傳分析</li>
+      <li onclick="navigateTo1('result')"><i class="fas fa-chart-line"></i> 分析結果</li>
+      <li onclick="navigateTo1('history')"><i class="fas fa-history"></i> 歷史紀錄</li>
+    </ul>
+    <div class="sidebar-bottom">
+      <button type="button" id="toggleDarkMode" class="dark-mode-btn">🌙 深色模式</button>
+    </div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle">←</button>
+  </div>
+
+  <div class="container">
+    {% block content %}
+    <!-- 子模板內容將會被插入這裡 -->
+    {% endblock %}
+  </div>
+
+  <!-- JS scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script>
+    function navigateTo1(page) {
+      if (page === 'upload') {
+        window.location.href = '/';
+      } else if (page === 'result') {
+        window.location.href = '/result';
+      } else if (page === 'history') {
+        window.location.href = '/history';
+      }
+    }
+    function toggleSidebar() {
+      document.body.classList.toggle('sidebar-collapsed');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.textContent = document.body.classList.contains('sidebar-collapsed') ? '→' : '←';
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      let isDark = localStorage.getItem('dark-mode') || 'true';
+      document.body.classList.toggle('dark-mode', isDark === 'true');
+      document.getElementById('toggleDarkMode').innerText = isDark === 'true' ? '🌞 淺色模式' : '🌙 深色模式';
+      document.getElementById('toggleDarkMode').addEventListener('click', () => {
+        const dark = document.body.classList.toggle('dark-mode');
+        document.getElementById('toggleDarkMode').innerText = dark ? '🌞 淺色模式' : '🌙 深色模式';
+        localStorage.setItem('dark-mode', dark);
+      });
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

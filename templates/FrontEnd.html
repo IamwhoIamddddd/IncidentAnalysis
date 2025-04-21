@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>Excel 分析系統</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/FrontEndCss.css') }}">
+    <!-- Bootstrap CSS + JS for Modal -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- 加入 Font Awesome 的 CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="dark-mode">
+    <div class="sidebar" id="sidebar">
+        <h4>功能選單</h4>
+
+        <!-- 側邊欄 -->
+        <ul>
+            <li onclick="navigateTo1('upload')"><i class="fas fa-upload"></i> 上傳分析</li>
+            <li onclick="navigateTo1('result')"><i class="fas fa-chart-line"></i> 分析結果</li>
+            <li onclick="navigateTo1('history')"><i class="fas fa-history"></i> 歷史紀錄</li>
+        </ul>
+
+      
+        <!-- 🌙 深色模式切換按鈕放在最下方 -->
+        <div class="sidebar-bottom">
+          <button type="button" id="toggleDarkMode" class="dark-mode-btn">🌙 深色模式</button>
+        </div>
+      
+        <!-- ← 收合按鈕 -->
+        <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle">←</button>
+      </div>
+      <div class="container">
+        <h2 class="main-title">📊 Excel 分析系統</h2>
+
+        <!-- 📂 拖曳上傳區塊 -->
+        <div id="dropArea" class="drop-area">
+            <p>📂 拖曳檔案到這裡，或點擊下方按鈕選擇</p>
+        </div>
+
+        <!-- 原本表單 -->
+        <form id="uploadForm">
+            <label for="excelFile" class="file-label">📎 選擇 .xlsx 檔案</label>
+            <input type="file" id="excelFile" name="file" accept=".xlsx">
+            <p id="fileInfo" style="font-size: 14px; color: #666;"></p>
+            <p>檔案大小限制：10MB</p>
+            <p>檔案格式：.xlsx</p>            
+            <button type="submit" id="submitBtn" disabled>🚀 上傳並分析</button>
+        </form>
+
+        <!-- ✅ 上傳進度條 -->
+        <div id="uploadProgress" class="progress-container" style="display: none;">
+            <p>上傳進度：<span id="progressPercent">0%</span></p>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+        </div>
+
+        <!-- ⏳ 處理中 Spinner -->
+        <div id="spinner" class="spinner">
+            <div class="spinner-border"></div>
+            <p>處理中，請稍候...</p>
+        </div>
+
+        <!-- ✅ 分析結果與摘要 -->
+        <div id="result" class="result"></div>
+
+        <div id="summary" class="summary-box"></div>
+
+        <!-- 📜 歷史上傳記錄 -->
+        <div id="history" class="history-box">
+            <h3 id="historytitle">📜 歷史紀錄</h3>
+            <ul id="historyList"></ul>
+        </div>
+      </div>
+      
+      <div id="toast" class="toast" style="display: none;">
+          ✅ 分析完成！
+          <button id="copyResult" style="margin-top: 10px;">📋 複製結果</button>
+      </div>
+
+
+
+
+<!-- ----------------------------------------------------------------------------------------------------------------------------------------- -->
+
+      <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">詳細內容預覽</h5>
+              </div>
+              <div class="modal-body" id="modalContent"></div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+              </div>
+            </div>
+          </div>
+        </div>
+<!-- -------------------------------------------------------------------------------------------------------------------------------------------->
+
+
+<!-- ✅ 正確順序！jQuery 要放在 DataTables 前面 -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+<!-- 你自己的 JS 檔放最後 -->
+<script src="{{ url_for('static', filename='js/FrontEnd.js') }}"></script>
+
+
+
+
+</body>
+</html>
+
+
+
+                
