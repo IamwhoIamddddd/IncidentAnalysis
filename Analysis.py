@@ -329,4 +329,4 @@ def perform_action():
 
 # 啟動 Flask 應用
 if __name__ == '__main__':
-    app.run(debug=True)  # 啟用除錯模式
+    app.run(debug=False)  # 啟用除錯模式
