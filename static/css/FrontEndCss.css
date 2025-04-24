@@ -675,3 +675,140 @@ body.sidebar-collapsed .card {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+
+
+.history-item {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.history-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.history-header {
+    border-bottom: 1px solid #f1f1f1;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+}
+
+.history-header h5 {
+    font-size: 1.1rem;
+    color: #3f51b5;
+}
+
+.history-header small {
+    font-size: 0.85rem;
+}
+
+.history-item p {
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+
+
+
+
+
+
+.btn-outline-info, 
+.btn-outline-success, 
+.btn-outline-secondary {
+    padding: 10px 20px;
+    font-weight: 600;
+    border-width: 2px;
+    border-radius: 6px;
+    transition: all 0.3s ease-in-out;
+    background-color: transparent;
+    box-shadow: 0 0 0 transparent;
+}
+
+/* Info Button */
+.btn-outline-info {
+    border-color: #82b1ff;
+    color: #3f51b5;
+}
+.btn-outline-info:hover {
+    background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+    border-color: #64b5f6;
+    color: #1e88e5;
+    box-shadow: 0 4px 12px rgba(100, 181, 246, 0.4);
+}
+
+/* Success Button */
+.btn-outline-success {
+    border-color: #a5d6a7;
+    color: #388e3c;
+}
+.btn-outline-success:hover {
+    background: linear-gradient(145deg, #e8f5e9, #c8e6c9);
+    border-color: #81c784;
+    color: #2e7d32;
+    box-shadow: 0 4px 12px rgba(129, 199, 132, 0.4);
+}
+
+/* Secondary Button */
+.btn-outline-secondary {
+    border-color: #b0bec5;
+    color: #546e7a;
+}
+.btn-outline-secondary:hover {
+    background: linear-gradient(145deg, #eceff1, #cfd8dc);
+    border-color: #90a4ae;
+    color: #37474f;
+    box-shadow: 0 4px 12px rgba(144, 164, 174, 0.4);
+}
+.btn-outline-info, 
+.btn-outline-success, 
+.btn-outline-secondary {
+    padding: 10px 20px;
+    font-weight: 600;
+    border-width: 2px;
+    border-radius: 6px;
+    transition: all 0.3s ease-in-out;
+    background-color: transparent;
+    box-shadow: 0 0 0 transparent;
+}
+
+/* Info Button */
+.btn-outline-info {
+    border-color: #82b1ff;
+    color: #3f51b5;
+}
+.btn-outline-info:hover {
+    background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+    border-color: #64b5f6;
+    color: #1e88e5;
+    box-shadow: 0 4px 12px rgba(100, 181, 246, 0.4);
+}
+
+/* Success Button */
+.btn-outline-success {
+    border-color: #a5d6a7;
+    color: #388e3c;
+}
+.btn-outline-success:hover {
+    background: linear-gradient(145deg, #e8f5e9, #c8e6c9);
+    border-color: #81c784;
+    color: #2e7d32;
+    box-shadow: 0 4px 12px rgba(129, 199, 132, 0.4);
+}
+
+/* Secondary Button */
+.btn-outline-secondary {
+    border-color: #b0bec5;
+    color: #546e7a;
+}
+.btn-outline-secondary:hover {
+    background: linear-gradient(145deg, #eceff1, #cfd8dc);
+    border-color: #90a4ae;
+    color: #37474f;
+    box-shadow: 0 4px 12px rgba(144, 164, 174, 0.4);
+}
+

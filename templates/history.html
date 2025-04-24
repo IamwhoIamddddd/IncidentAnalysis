@@ -2,12 +2,17 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Excel 分析系統-歷史頁面</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/FrontEndCss.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/history.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- 加入 Font Awesome 的 CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 </head>
 <body class="dark-mode">
     <div class="sidebar" id="sidebar">
@@ -31,17 +36,24 @@
       
         
       
-    <div class="container">
-        <h2 class="main-title">歷史頁面</h2>
+        <div class="container">
+            <h2 class="main-title">歷史頁面</h2>
 
-       
-        <!-- 📜 歷史上傳記錄 -->
-        <div id="history" class="history-box">
-            <h3 id="historytitle">📜 歷史紀錄</h3>
-            <button id="clearHistoryBtn" class="btn btn-sm btn-danger" style="margin-left: 10px;">🗑️ 清除紀錄</button>
-            <ul id="historyList"></ul>
+            <!-- 📜 歷史上傳記錄 -->
+            <div id="history" class="history-box">
+                <h3 id="historytitle"  class="text-center">📜 歷史紀錄</h3>
+                <hr class="my-3">
+                <div class="mb-3 text-start">
+                    <button id="clearHistoryBtn" class="btn btn-sm btn-danger">🗑️ 清除紀錄</button>
+                </div>
+                <p id="no-history-msg" class="text-center text-muted mt-4" style="display: none;">
+                    📭 目前沒有任何歷史紀錄唷～請先上傳檔案分析！
+                </p>
+                <div id="historyList" class="row gx-3 gy-3"></div>
+            </div>
         </div>
-    </div>
+
+
 
 
     <!-- 在 JS 渲染區顯示結果時這樣包裝 -->
@@ -58,26 +70,6 @@
 
     <!-- 你自己的 JS 檔放最後 -->
     <script src="{{ url_for('static', filename='js/History.js') }}"></script>
-
-<!-- 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const historyList = document.getElementById('historyList');
-        
-            const savedHistory = JSON.parse(localStorage.getItem('historyData') || '[]');
-        
-            if (savedHistory.length === 0) {
-                historyList.innerHTML = '<li>⚠️ 尚無歷史紀錄。</li>';
-                return;
-            }
-        
-            savedHistory.forEach(item => {
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${item.file}</strong> - ${item.time}<br><span>${item.summary}</span>`;
-                historyList.appendChild(li);
-            });
-        });
-        </script> -->
 
 </body>
 </html>

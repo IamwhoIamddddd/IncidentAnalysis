@@ -2,6 +2,7 @@
 from flask import Flask, request, jsonify, render_template, session, send_file
 # 匯入數學運算模組
 import math
+import json
 # 匯入 pandas 用於處理 Excel 資料
 import pandas as pd
 # 匯入 os 模組處理檔案與路徑
@@ -22,6 +23,7 @@ from SmartScoring import bert_model  # 確保你有從 SmartScoring 載入模型
 from tqdm import tqdm
 from sentence_transformers import util
 # ✅ 匯入關鍵字抽取模組
+from datetime import datetime
 
 
 print("🔥 預熱語意模型中...")
@@ -36,68 +38,21 @@ app.secret_key = 'gwegweqgt22e'
 app.config['SESSION_TYPE'] = 'filesystem'
 
 # ------------------------------------------------------------------------------
-
-# 定義函數：標準化文字（移除多餘空格並轉為小寫）
-# def normalize_text(text):
-#     return re.sub(r'\s+', ' ', text.strip().lower())
-
-# 定義多人／多設備受影響的關鍵字
-# multi_user_keywords = [
-#     'two meeting rooms', 'multiple rooms', 'both', 'colleague and I',
-#     'staff', 'users', 'employees', 'team', 'group', '全體', '多人'
-# ]
-
-# 根據描述文字判斷是否多人受影響
-# def get_user_impact_score(text):
-#     if not isinstance(text, str):  # 如果輸入不是字串，回傳 0
-#         return 0
-#     normalized = normalize_text(text)  # 標準化文字
-#     text = re.sub(r'\d+', '', normalized)  # 移除數字
-#     return int(any(k in text for k in multi_user_keywords))  # 若包含關鍵字回傳 1，否則回傳 0
-
-# ------------------------------------------------------------------------------
-# 定義升級處理的關鍵字
-# escalation_keywords = [
-#     'escalation approved', 'escalated', 'escalate to', 
-#     'SME', 'senior engineer', 'escalation path',
-#     'Rashdan Ismail'
-# ]
-
-# # 根據描述判斷是否有升級處理紀錄
-# def get_escalation_score(text):
-#     if not isinstance(text, str):  # 如果輸入不是字串，回傳 0
-#         return 0
-#     normalized = normalize_text(text)  # 標準化文字
-#     text = re.sub(r'\d+', '', normalized)  # 移除數字
-#     return int(any(k in text for k in escalation_keywords))  # 若包含關鍵字回傳 1，否則回傳 0
-
-# # 定義高風險情境的關鍵字
-# high_risk_keywords = [
-#     'cannot sign in', 'login failed', 'unable to login', 'access denied',
-#     'offline', 'not pingable', 'disconnect', 'network error',
-#     'disabled by admin', 'environment creation blocked',
-#     'blocked by conditional access',
-#     'error', 'failed', 'crash', 'freeze', 'hang', 'exception',
-#     '登入失敗', '封鎖', '權限不足', '連線失敗', '無法連線', '故障', '卡住'
-# ]
-# ---------------------------------------------------------------------------------
-
-# 根據描述判斷是否含高風險錯誤字眼
-# def get_keyword_score(text):
-#     if not isinstance(text, str):  # 如果輸入不是字串，回傳 0
-#         return 0
-#     normalized = normalize_text(text)  # 標準化文字
-#     text = re.sub(r'\d+', '', normalized)  # 移除數字
-#     return int(any(k in text for k in high_risk_keywords))  # 若包含關鍵字回傳 1，否則回傳 0
-
 # 設定上傳資料夾與大小限制（10MB）
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 限制檔案大小為 10MB
 ALLOWED_EXTENSIONS = {'xlsx'}  # 僅允許上傳 xlsx 檔案
 
+
+basedir = os.path.abspath(os.path.dirname(__file__))  # 取得當前 app.py 的絕對目錄
+
+
 # 確保上傳資料夾存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(os.path.join(basedir, 'json_data'), exist_ok=True)
+os.makedirs(os.path.join(basedir, 'excel_result'), exist_ok=True)
+
 
 # 判斷是否允許的檔案格式
 def allowed_file(filename):
@@ -128,6 +83,8 @@ def analyze_excel(filepath):
     results = []  # 儲存分析結果
     configuration_item_counts = df['Configuration item'].value_counts()  # 計算每個配置項的出現次數
     configuration_item_max = configuration_item_counts.max()  # 找出配置項的最大出現次數
+    analysis_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print(f"📅 分析時間：{analysis_time}")
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="📊 分析進度"):
         print(f"\n🔍 第 {idx + 1} 筆分析中...")
@@ -205,7 +162,8 @@ def analyze_excel(filepath):
             'impactScore': safe_value(impact_score),
             'riskLevel': safe_value(get_risk_level(impact_score)),
             'solution': safe_value(row.get('Close notes') or '無提供解法'),
-            'location': safe_value(row.get('Location'))
+            'location': safe_value(row.get('Location')),
+            'analysisTime': analysis_time
         })
         solution_text = row.get('Close notes') or '無提供解法'
         recommended = recommend_solution(short_description_text)
@@ -279,26 +237,136 @@ def upload_file():
     if not allowed_file(file.filename):  # 檢查檔案格式是否允許
         print("⚠️ 檔案類型不符")
         return jsonify({'error': '請上傳 .xlsx 檔案'}), 400
+    
 
-    filename = secure_filename(file.filename)  # 確保檔案名稱安全
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)  # 組合檔案路徑
+
+        # 產生時間戳記與檔名
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    uid = f"result_{timestamp}" # 例如 result_20250423_152301 分析結果檔名稱
+    original_filename = f"original_{timestamp}.xlsx" # 例如 original_20250423_152301.xlsx 原始黨名稱
+    original_path = os.path.join('uploads', original_filename)
 
     try:
-        file.save(filepath)  # 儲存檔案
-        print(f"✅ 檔案已儲存：{filepath}")
+        file.save(original_path)  # 儲存原始檔案
+        print(f" 原始檔已儲存：{original_path}")
     except Exception as e:
-        print(f"❌ 儲存檔案時錯誤：{e}")
-        return jsonify({'error': f'檔案儲存錯誤：{str(e)}'}), 500
+        return jsonify({'error': f'儲存原始檔失敗：{str(e)}'}), 500
 
     try:
-        result = analyze_excel(filepath)  # 分析檔案
+        result = analyze_excel(original_path)  # 分析檔案
+
+        save_analysis_files(result, uid)  # 同時儲存 JSON + Excel
+
         print(f"✅ 分析完成，共 {len(result)} 筆")
         session['analysis_data'] = result  # 儲存分析結果到 session
-        return jsonify({'data': result}), 200
+
+        return jsonify({'data': result, 'uid': uid}), 200
+    
+
+
     except Exception as e:
         print(f"❌ 分析時發生錯誤：{e}")
         traceback.print_exc()  # 印出完整錯誤堆疊
         return jsonify({'error': str(e)}), 500
+    
+
+
+
+
+
+def save_analysis_files(result, uid):
+    # 儲存 JSON
+    json_path = os.path.join(basedir, 'json_data', f"{uid}.json")
+    print(f"📝 預計儲存 JSON：{json_path}")  # ✅ 加在這邊
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+    print("✅ JSON 檔案已寫入成功")
+
+
+    # 儲存分析報表 Excel
+    df = pd.DataFrame(result)
+    excel_path = os.path.join(basedir, 'excel_result', f"{uid}.xlsx")
+    df.to_excel(excel_path, index=False)
+    if os.path.exists(json_path):
+        print("✅ JSON 檔案已成功儲存")
+    else:
+        print("❌ JSON 檔案儲存失敗！")
+    print(f"✅ 分析報表已儲存：{excel_path}")  # ✅ 加在這邊
+
+    print("📁 JSON 絕對路徑：", os.path.abspath(json_path))
+    print("📁 Excel 絕對路徑：", os.path.abspath(excel_path))
+
+
+
+@app.route('/get-results')
+def get_results():
+    folder = 'json_data'  # 資料夾名稱
+    results = []
+
+    if not os.path.exists(folder):
+        return jsonify({'error': f'資料夾不存在：{folder}'}), 404
+
+    for filename in os.listdir(folder):
+        if filename.endswith('.json'):
+            filepath = os.path.join(folder, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        results.extend(data)
+                    else:
+                        print(f"⚠️ {filename} 格式錯誤（非 list），已略過")
+            except Exception as e:
+                print(f"❌ 讀取 {filename} 時錯誤：{e}")
+
+    return jsonify(results)
+
+
+
+
+# ✅ JSON 預覽路由：提供 `/get-json?file=xxxx.json`
+@app.route('/get-json', methods=['GET'])
+def get_json_file():
+    filename = request.args.get('file')  # e.g., result_20250423_152301.json
+    if not filename:
+        return jsonify({'error': '缺少 file 參數'}), 400
+
+    json_path = os.path.join('json_data', filename)
+    if os.path.exists(json_path):
+        return send_file(json_path, as_attachment=False)
+    else:
+        return jsonify({'error': '找不到對應的 JSON 檔案'}), 404
+
+
+# ✅ 分析 Excel 下載路由：提供 `/download-excel?uid=xxxx`
+@app.route('/download-excel', methods=['GET'])
+def download_excel_file():
+    uid = request.args.get('uid')  # e.g., result_20250423_152301
+    if not uid:
+        return jsonify({'error': '缺少 uid 參數'}), 400
+
+    excel_path = os.path.join('excel_result', f"{uid}.xlsx")
+    if os.path.exists(excel_path):
+        return send_file(excel_path, as_attachment=True)
+    else:
+        return jsonify({'error': '找不到對應的 Excel 檔案'}), 404
+
+@app.route('/download-original', methods=['GET'])
+def download_original_excel():
+    uid = request.args.get('uid')  # uid = result_20250423_152301
+    if not uid:
+        return jsonify({'error': '缺少 uid 參數'}), 400
+
+    # 取出對應的時間戳
+    timestamp = uid.replace('result_', '')
+    original_filename = f'original_{timestamp}.xlsx'
+    original_path = os.path.join('uploads', original_filename)
+
+    if os.path.exists(original_path):
+        return send_file(original_path, as_attachment=True)
+    else:
+        return jsonify({'error': '找不到對應的原始檔案'}), 404
+
 
 # ------------------------------------------------------------------------------
 
@@ -329,4 +397,4 @@ def perform_action():
 
 # 啟動 Flask 應用
 if __name__ == '__main__':
-    app.run(debug=False)  # 啟用除錯模式
+    app.run(debug=True, use_reloader=True)

@@ -1,0 +1,832 @@
+.main-title {
+    font-size: 40px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 30px;
+}
+body {
+    font-family: "Arial", sans-serif;
+    background-color: #f5f6fa;
+    margin: 0;
+    padding: 0;
+    font-size: 18px;  /* ⬅️ 這行加了整體字體放大 */
+}
+
+.container {
+    max-width: 700px;  /* 原本 600，拉寬一點比較舒適 */
+    margin: 50px auto;
+    padding: 40px;     /* 增加 padding */
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    animation: fadeIn 0.8s ease;
+}
+
+.main-title {
+    font-size: 42px;         /* 再大一點點 */
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 35px;
+}
+
+h2 {
+    font-size: 28px;         /* 原本 h2 一起放大 */
+    color: #333333;
+    margin-bottom: 25px;
+}
+
+input[type="file"] {
+    font-size: 16px;         /* 檔案選擇器字體大小 */
+    margin-bottom: 25px;
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px 30px;      /* 按鈕變大 */
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+.result {
+    margin-top: 35px;
+    text-align: left;
+    font-size: 16px;        /* 輸出結果更易讀 */
+    color: #444444;
+}
+
+/* ✅ 結果區塊換行與捲軸 */
+.result {
+    margin-top: 35px;
+    text-align: left;
+    font-size: 16px;
+    color: #444444;
+    background-color: #f0f0f0;
+    padding: 15px;
+    border-radius: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* ✅ Spinner */
+.spinner {
+    margin-top: 20px;
+    display: none;
+}
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border: 5px solid #ccc;
+    border-top: 5px solid #4CAF50;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: auto;
+}
+
+
+
+/* ✅ 動畫效果 */
+/* 這裡是淡入動畫，讓整個 container 在載入時有個淡入的效果 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ✅ 自動偵測深色模式 */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #121212;
+        color: #e0e0e0;
+    }
+
+    .container {
+        background-color: #1e1e1e;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+    }
+
+    .result {
+        background-color: #2a2a2a;
+        color: #dddddd;
+    }
+
+    input[type="file"] {
+        color: #e0e0e0;
+    }
+
+    button {
+        background-color: #4CAF50;
+    }
+
+    button:hover {
+        background-color: #66bb6a;
+    }
+}
+
+
+
+/* 新增卡片美化（根據主題動態切換） */
+.card {
+    padding: 20px 25px;
+    border-left: 6px solid #4CAF50;
+    border-radius: 10px;
+    margin: AUTO; /* ⬅️ 左邊加上 100px 來右移 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    color: #333;
+
+    max-width: 600px;
+    text-align: left;
+    font-family: 'Inter', sans-serif;
+    animation: fadeIn 0.6s ease;
+    transition: 0.3s ease;
+    background: linear-gradient(145deg, #ffffff, #f1f3f9);
+}
+
+.card h3 {
+    margin-bottom: 12px;
+    font-size: 22px;
+    color: #2c3e50;
+}
+
+.card p {
+    margin: 4px 0;
+    font-size: 16px;
+    color: #444;
+}
+
+.card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+
+.toast {
+    position: fixed;
+    top: 30px;
+    right: 30px;
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    display: none;
+    box-shadow: 0 0 12px rgba(0,0,0,0.3);
+    z-index: 9999;
+}
+
+
+.toast.show {
+    animation: fadeIn 1s, fadeOut 1s 4s; /* 延遲 fadeOut 發生時間為 4 秒後 */
+}
+
+
+
+/* ✅ 其他樣式 */
+
+
+/* 使用 Inter 字體更現代感 */
+body {
+    font-family: 'Inter', Arial, sans-serif;
+}
+
+/* Label 美化 */
+.file-label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    font-size: 16px;
+    color: #555;
+}
+
+
+
+
+/* 切換按鈕樣式 */
+.dark-mode-btn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #333;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+}
+.dark-mode-btn:hover {
+    background-color: #555;
+}
+
+/* 🌌 深色科技風主題 */
+body.dark-mode .main-title {
+    color: #aab8ff; /* 淡紫藍，未來科技感 */
+    text-shadow: 0 0 8px rgba(160, 180, 255, 0.5);
+}
+
+body.dark-mode {
+    background-color: #0f1020;
+    color: #c7cfff;
+}
+
+body.dark-mode .container {
+    background-color: #1a1d3a;
+    box-shadow: 0 0 30px rgba(100, 120, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode input[type="file"] {
+    color: #c7cfff;
+    background-color: #2a2d4a;
+    border: 1px solid #444;
+    padding: 8px;
+    border-radius: 5px;
+}
+
+body.dark-mode button {
+    background: linear-gradient(135deg, #6a5acd, #4f59d4);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(106, 90, 205, 0.6);
+    transition: 0.3s ease;
+}
+body.dark-mode button:hover {
+    background: linear-gradient(135deg, #7a6af0, #5c6ae6);
+    box-shadow: 0 0 15px rgba(130, 110, 255, 0.8);
+}
+
+body.dark-mode .result {
+    background-color: #202346;
+    color: #ddddff;
+    border: 1px solid #555;
+}
+
+body.dark-mode .spinner-border {
+    border: 5px solid #444;
+    border-top: 5px solid #7a6af0;
+}
+
+/* 深色模式下的深色按鈕 */
+.dark-mode-btn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #5765b5, #6a78cc); /* 淺一些的藍紫色 */
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 0 10px rgba(80, 100, 250, 0.3);
+    transition: 0.3s ease;
+}
+
+/* 按鈕 hover 狀態 */
+.dark-mode-btn:hover {
+    background: linear-gradient(135deg, #7880d9, #8a97e1); /* 當按鈕被懸停時使用更亮的過渡顏色 */
+    box-shadow: 0 0 12px rgba(100, 120, 255, 0.6);
+}
+
+
+
+
+/* 深色模式下的卡片樣式覆蓋 */
+body.dark-mode .card {
+    background: linear-gradient(145deg, #1e213f, #2a2d4d);
+    border-left: 6px solid #7a6af0;
+    box-shadow: 0 4px 12px rgba(90, 100, 255, 0.2);
+    color: #f0f0f0;
+}
+
+body.dark-mode .card h3 {
+    color: #c0c8ff;
+}
+
+body.dark-mode .card p {
+    color: #e0e0f0;
+}
+
+
+/* Spinner 置中 + 說明文字 */
+.spinner {
+    display: none;
+    margin-top: 25px;
+    text-align: center;
+}
+
+.spinner-border {
+    width: 40px;
+    height: 40px;
+    border: 5px solid #ddd;
+    border-top: 5px solid #4CAF50;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+.spinner p {
+    margin: 0;
+    font-size: 16px;
+    color: #666;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ✅ 上傳進度條樣式 */
+.progress-container {
+    margin-top: 20px;
+    text-align: left;
+}
+
+.progress-bar {
+    width: 100%;
+    background-color: #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 20px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background-color: #4CAF50;
+    transition: width 0.4s ease;
+}
+
+/* 🌙 深色模式樣式 */
+body.dark-mode .progress-bar {
+    background-color: #444;
+}
+
+body.dark-mode .progress-fill {
+    background-color: #7a6af0;
+}
+
+
+.summary-box {
+    margin-top: 20px;
+    background-color: #fff4e6;
+    border-left: 5px solid #ffa726;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 16px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+}
+
+body.dark-mode .summary-box {
+    background-color: #2a2540;
+    border-left: 5px solid #fbc02d;
+    color: #ffecb3;
+}
+
+
+
+/* 📂 拖曳上傳樣式 */
+.drop-area {
+    border: 2px dashed #aaa;
+    padding: 30px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    background-color: #f8f8f8;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.drop-area:hover,
+.drop-area.dragover {
+    background-color: #e6f4ea;
+    border-color: #4CAF50;
+}
+
+body.dark-mode .drop-area {
+    background-color: #2a2d4a;
+    border-color: #666;
+    color: #ccc;
+}
+
+body.dark-mode .drop-area.dragover {
+    background-color: #3a3f6b;
+    border-color: #7a6af0;
+}
+
+/* 📜 歷史紀錄樣式 */
+.history-box {
+    margin-top: 40px;
+    text-align: center;
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.05);
+}
+
+.history-box h3 {
+    margin-bottom: 15px;
+    font-size: 20px;
+    color: #302e2e;
+}
+body.dark-mode .history-box h3 {
+    color: #ebe0e0;
+}
+
+.history-box ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.history-box li {
+    padding: 10px 0;
+    border-bottom: 1px solid #ddd;
+    font-size: 15px;
+}
+
+body.dark-mode .history-box {
+    background-color: #1e203a;
+    color: #ddd;
+    border: 1px solid #444;
+}
+
+body.dark-mode .history-box li {
+    border-color: #444;
+}
+
+
+
+/* ✅ 錯誤與成功訊息樣式 */
+#error {
+    color: red;
+    margin-top: 20px;
+}
+
+#success {
+    color: green;
+    margin-top: 20px;
+}
+
+input[type="file"] {
+    display: none; /* 隱藏原生按鈕 */
+}
+
+.file-label {
+    display: inline-block;
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px 25px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: background-color 0.3s;
+}
+
+.file-label:hover {
+    background-color: #45a049;
+}
+
+/* 深色模式下的樣式 */
+body.dark-mode .file-label {
+    background: linear-gradient(135deg, #6a5acd, #4f59d4);
+    box-shadow: 0 0 8px rgba(106, 90, 205, 0.4);
+    color: white;
+}
+
+body.dark-mode .file-label:hover {
+    background: linear-gradient(135deg, #7a6af0, #5c6ae6);
+}
+
+body.dark-mode #error {
+    color: #ff4d4d;
+}
+body.dark-mode #success {
+    color: #4CAF50;
+}
+
+
+/* 側邊欄樣式 */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 240px;
+    background-color: #2d2f6d;
+    color: #fff;
+    padding: 20px 15px;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* 上下對齊 */
+}
+
+
+.sidebar-bottom {
+    margin-top: auto;
+    padding: 20px 10px 60px;  /* 上、左右、下邊距 */
+    text-align: center;
+  }
+  
+
+.sidebar h4 {
+    font-size: 20px;
+    margin-bottom: 50px;
+    color: #fff;
+    text-align: center;
+}
+
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar ul li {
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: #3c3f85;
+    transition: 0.2s;
+}
+
+.sidebar ul li:hover {
+    background-color: #5559d1;
+}
+
+/* 增加圖標與文字間距 */
+.sidebar ul li i {
+    margin-right: 10px; /* 讓圖標與文字有一些間隔 */
+}
+
+/* 你可以根據需要設置顏色 */
+.sidebar ul li i {
+    color: #fff; /* 設置圖標顏色為白色 */
+}
+
+.sidebar ul li:hover i {
+    color: #ffd700; /* 當鼠標懸停時，圖標變為金色 */
+}
+
+
+/* 切換按鈕貼在側邊欄右邊 */
+.sidebar-toggle {
+    position: absolute;
+    width: 100px;
+    height: 55px;
+    top: 50%;
+    right: -50px;
+
+    transform: translateY(-50%);
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    font-size: 18px;
+    padding: 8px 12px;
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+.sidebar-toggle:hover {
+    background-color: #45a049;
+    transform: translateX(10px);  /* 推出按鈕，改變 10px 的位移距離 */
+}
+
+
+body.sidebar-collapsed .sidebar {
+    transform: translateX(-100%);
+}
+
+body.sidebar-collapsed .sidebar-toggle {
+    left: 250px;
+    right: -100px;
+}
+
+body.dark-mode .sidebar {
+    background-color: #1e213f;
+}
+
+body.dark-mode .sidebar ul li {
+    background-color: #2a2d4a;
+    color: #ddd;
+}
+
+body.dark-mode .sidebar ul li:hover {
+    background-color: #444a9f;
+}
+
+body.dark-mode .sidebar-toggle {
+    background: linear-gradient(135deg, #6a5acd, #4f59d4);
+}
+
+.container,
+.card {
+    transform: translateX(0); /* 初始位置稍微右移 */
+    transition: transform 0.5s ease;
+}
+
+body.sidebar-collapsed .container,
+body.sidebar-collapsed .card {
+    transform: translateX(-300px);
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+  }
+  .badge.高風險 { background-color: #e53935; }
+  .badge.中風險 { background-color: #fb8c00; }
+  .badge.低風險 { background-color: #43a047; }
+  .badge.忽略   { background-color: #90a4ae; }
+
+
+      
+  .modal {
+    z-index: 1055 !important;
+  }
+  
+  .modal-backdrop {
+    z-index: 1040 !important;
+  }
+  .modal-body {
+    max-height: 70vh;     /* 限制高度：視窗高度 70% */
+    overflow-y: auto;     /* 超出時可以垂直捲動 */
+    overflow-x: auto;     /* 超出時可以水平捲動（針對表格） */
+  }
+  
+  
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+
+/* === 卡片區塊 === */
+.history-item {
+    background: linear-gradient(145deg, #ffffff, #f9f9f9);
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.history-item:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* 上標題區塊 */
+.history-header {
+    border-bottom: 1px solid #e6e6e6;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.history-header h5 {
+    font-size: 1.15rem;
+    color: #2c387e;
+    font-weight: 600;
+    margin: 0;
+}
+
+.history-header small {
+    font-size: 0.85rem;
+    color: #9e9e9e;
+}
+
+/* 摘要段落 */
+.history-item p {
+    font-size: 0.96rem;
+    color: #424242;
+    line-height: 1.5;
+    flex-grow: 1;
+    margin-bottom: 15px;
+}
+
+.text-extra-muted {
+    color: #807e7e !important; /* 比 text-muted 更淡 */
+        font-size: 0.8rem;
+    letter-spacing: 0.5px;
+}
+
+.dark-mode .text-extra-muted {
+    color: #b0bec5 !important; /* 深色模式下的亮灰 */
+        font-size: 0.8rem;
+    letter-spacing: 0.5px;
+}
+
+
+
+/* 🌙 深色模式下 */
+.dark-mode .history-item {
+    background-color: #2e2e2e;
+    border-color: #444;
+}
+
+.dark-mode .history-item h5,
+.dark-mode .history-item small,
+.dark-mode .history-item p {
+    color: #d1d1d1;
+}
+
+/* === 美化按鈕 === */
+.btn-group .btn {
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    margin-right: 6px;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+/* 🌐 INFO BUTTON - 活潑藍紫 */
+.btn-outline-info {
+    border-color: #7c4dff;
+    color: #5e35b1;
+    background-color: transparent;
+}
+.btn-outline-info:hover {
+    background: linear-gradient(135deg, #ede7f6, #d1c4e9);
+    border-color: #7c4dff;
+    color: #4a148c;
+    box-shadow: 0 6px 14px rgba(124, 77, 255, 0.4);
+}
+
+/* ✅ SUCCESS BUTTON - 青翠綠 */
+.btn-outline-success {
+    border-color: #66bb6a;
+    color: #2e7d32;
+    background-color: transparent;
+}
+.btn-outline-success:hover {
+    background: linear-gradient(135deg, #e8f5e9, #c5e1a5);
+    border-color: #66bb6a;
+    color: #1b5e20;
+    box-shadow: 0 6px 14px rgba(102, 187, 106, 0.4);
+}
+
+/* 📄 SECONDARY BUTTON - 沉穩灰 */
+.btn-outline-secondary {
+    border-color: #90a4ae;
+    color: #455a64;
+    background-color: transparent;
+}
+.btn-outline-secondary:hover {
+    background: linear-gradient(135deg, #eceff1, #cfd8dc);
+    border-color: #78909c;
+    color: #263238;
+    box-shadow: 0 6px 14px rgba(144, 164, 174, 0.4);
+}
+
+
+.dark-mode .btn-outline-info,
+.dark-mode .btn-outline-success,
+.dark-mode .btn-outline-secondary {
+    color: #e0e0e0;
+    border-color: #777;
+}
+
+.dark-mode .btn-outline-info:hover {
+    background: linear-gradient(135deg, #3a3a3a, #5a5a5a);
+    color: #90caf9;
+}
+
+.dark-mode .btn-outline-success:hover {
+    background: linear-gradient(135deg, #37474f, #4caf50);
+    color: #a5d6a7;
+}
+
+.dark-mode .btn-outline-secondary:hover {
+    background: linear-gradient(135deg, #455a64, #607d8b);
+    color: #cfd8dc;
+}
+
+hr {
+    border-top: 1px solid #ccc;
+    opacity: 0.5;
+}
+.dark-mode hr {
+    border-top: 1px solid #555;
+    opacity: 0.5;
+}

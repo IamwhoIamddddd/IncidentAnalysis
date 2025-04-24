@@ -4,19 +4,46 @@ window.addEventListener('DOMContentLoaded', () => {
     const historyList = document.getElementById('historyList');
     // 從 localStorage 取得歷史紀錄資料，若無資料則設為空陣列
     const savedHistory = JSON.parse(localStorage.getItem('historyData') || '[]');
+    const noHistoryMsg = document.getElementById('no-history-msg');
+    if (savedHistory.length === 0) {
+        noHistoryMsg.style.display = 'block';
+    } else {
+        noHistoryMsg.style.display = 'none';
+    }
+
 
     // 清空原本的內容
     historyList.innerHTML = '';
 
     // 遍歷歷史紀錄資料，將每一項添加到列表中
     savedHistory.forEach(item => {
-        // 創建一個新的列表項目
-        const li = document.createElement('li');
-        // 設定列表項目的 HTML，包含檔案名稱、時間和摘要
-        li.innerHTML = `<strong>${item.file}</strong> - ${item.time}<br><span>${item.summary}</span>`;
-        // 將列表項目添加到歷史紀錄列表中
+        const li = document.createElement('div');
+        li.className = "col-12 col-sm-6 col-md-4"; // ⭐⭐ 加上這個很關鍵！
+
+        li.innerHTML = `
+            <div class="history-item card p-3 h-100 shadow-sm">
+                <div class="history-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-1">${item.file}</h5>
+                    <small class="text-extra-muted">${item.time}</small>
+
+                </div>
+                <p class="mb-2 text-secondary">${item.summary}</p>
+                <div class="btn-group mt-auto" role="group">
+                    <a href="/get-json?file=${item.uid}.json" target="_blank"
+                    class="btn btn-sm btn-outline-info">🧾 預覽 JSON</a>
+                    <a href="/download-excel?uid=${item.uid}" download
+                    class="btn btn-sm btn-outline-success">📥 分析 Excel</a>
+                    <a href="/download-original?uid=${item.uid}" download
+                    class="btn btn-sm btn-outline-secondary">📤 原始 Excel</a>
+                </div>
+            </div>
+        `;
         historyList.appendChild(li);
     });
+
+
+
+
 
     // 初始化深色模式
     const isDark = localStorage.getItem('dark-mode') === 'true'; // 從 localStorage 取得深色模式狀態
@@ -84,8 +111,47 @@ document.getElementById('clearHistoryBtn').addEventListener('click', () => {
         localStorage.removeItem('historyData');
         localStorage.removeItem('historyHTML');
         // 清空歷史紀錄列表的內容
-        historyList.innerHTML = '';
+        document.getElementById('historyList').innerHTML = '';
+        noHistoryMsg.style.display = 'block';
+        if (savedHistory.length === 0) {
+        noHistoryMsg.style.display = 'block';
+        setTimeout(() => noHistoryMsg.classList.add('show'), 10);
+        } 
+        else {
+        noHistoryMsg.classList.remove('show');
+        setTimeout(() => noHistoryMsg.style.display = 'none', 300);
+}
+
+
         // 顯示清除成功的提示訊息
         alert('✅ 歷史紀錄已清除！');
     }
 });
+
+
+function addHistoryItem(uid, fileName, summaryText) {
+    const now = new Date();
+    const time = now.toLocaleTimeString();
+    const record = {
+        uid,
+        file: fileName,
+        time,
+        summary: summaryText
+    };
+
+    const stored = JSON.parse(localStorage.getItem('historyData') || '[]');
+    stored.unshift(record);
+    localStorage.setItem('historyData', JSON.stringify(stored));
+
+    const li = document.createElement('li');
+    li.innerHTML = `
+        <strong>${fileName}</strong> - ${time}<br>
+        <span>${summaryText}</span><br>
+        <a href="/get-json?file=${uid}.json" target="_blank">🧾 預覽 JSON</a> |
+        <a href="/download-excel?uid=${uid}" download>📥 分析 Excel</a> |
+        <a href="/download-original?uid=${uid}" download>📤 原始 Excel</a>
+    `;
+    historyList.prepend(li);
+    console.log("📦 加入歷史記錄，UID =", uid);
+    console.log("📦 檔案名稱 =", fileName);
+}

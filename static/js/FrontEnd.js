@@ -1,76 +1,11 @@
 const summaryBox = document.getElementById('summary'); // 取得顯示統計摘要的 DOM 元素
 const historyList = document.getElementById('historyList'); // 取得顯示歷史記錄的 DOM 元素
 const dropArea = document.getElementById('dropArea'); // 取得拖曳上傳區域的 DOM 元素
+const HISTORY_MINUTES_LIMIT = 60 * 24 * 30; // ✅ 這代表 30 天（60 分鐘 * 24 小時 * 30 天）
 let droppedFile = null; // 用來暫存拖曳上傳的檔案
 let previewModalInstance = null; // 用來保存 Bootstrap Modal 的實例
 
-// 這裡是用來顯示上傳的檔案資訊的區域
-// 分析統計摘要（根據後端資料）
 
-//---------------------------------------------------
-// 更新統計摘要的函數，根據後端傳回的資料進行統計
-function updateSummary(data) {
-    const total = data.length; // 總記錄數
-    const high = data.filter(d => d.riskLevel === '高風險').length; // 高風險數量
-    const medium = data.filter(d => d.riskLevel === '中風險').length; // 中風險數量
-    const low = data.filter(d => d.riskLevel === '低風險').length; // 低風險數量
-    const ignore = data.filter(d => d.riskLevel === '忽略').length; // 忽略數量
-
-    // 更新統計摘要的 HTML 內容
-    summaryBox.innerHTML = `
-        共 <strong>${total}</strong> 筆紀錄：<br>
-        🚨 高風險：<strong>${high}</strong> 筆<br>
-        ⚠️ 中風險：<strong>${medium}</strong> 筆<br>
-        ✅ 低風險：<strong>${low}</strong> 筆<br>
-        🟢 忽略：<strong>${ignore}</strong> 筆
-    `;
-}
-
-//---------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-//---------------------------------------------------
-// 新增歷史記錄項目的函數
-function addHistoryItem(fileName, summaryText) {
-    const now = new Date(); // 取得當前時間
-    const time = now.toLocaleTimeString(); // 格式化時間為本地時間字串
-    const record = {
-        file: fileName, // 檔案名稱
-        time: time, // 上傳時間
-        summary: summaryText // 統計摘要
-    };
-
-    // 從 localStorage 取得歷史記錄，若無則初始化為空陣列
-    const stored = JSON.parse(localStorage.getItem('historyData') || '[]');
-    stored.unshift(record); // 將新記錄插入到陣列的最前面
-    localStorage.setItem('historyData', JSON.stringify(stored)); // 更新 localStorage
-    //localStorage.setItem('historyHTML', historyList.innerHTML);
-
-    // 同時更新畫面上的歷史記錄列表
-    const li = document.createElement('li');
-    li.innerHTML = `<strong>${fileName}</strong> - ${time}<br><span>${summaryText}</span>`;
-    historyList.prepend(li); // 插入到歷史記錄列表的最前面
-}
-//---------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-//---------------------------------------------------
 // 設置拖曳上傳事件的監聽器
 ['dragenter', 'dragover'].forEach(eventName => {
     dropArea.addEventListener(eventName, e => {
@@ -90,22 +25,15 @@ function addHistoryItem(fileName, summaryText) {
 dropArea.addEventListener('drop', e => {
     e.preventDefault();
     dropArea.classList.remove('dragover');
-
     droppedFile = e.dataTransfer.files[0];
     document.getElementById('excelFile').files = e.dataTransfer.files;
     document.getElementById('fileInfo').innerText = `已拖曳檔案：${droppedFile.name}`;
-
-    // ✅ 自動啟用上傳按鈕
-    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').disabled = false;    // ✅ 自動啟用上傳按鈕
 });
 
-//---------------------------------------------------
-
-// --------------------------------------------------------------------------------------
-// 設置表單提交事件的監聽器
+// 表單提交事件
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault(); // 阻止表單的預設提交行為（避免整頁刷新）
-
     const fileInput = document.getElementById('excelFile'); // 取得檔案輸入框
     const file = droppedFile || fileInput.files[0]; // 優先使用拖曳的檔案，否則使用輸入框選擇的檔案
     const spinner = document.getElementById('spinner'); // 取得加載指示器
@@ -135,7 +63,6 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
 
     const formData = new FormData(); // 建立表單資料物件
     formData.append('file', file); // 將檔案加入表單資料
-    //--------------------------------------------------
     const xhr = new XMLHttpRequest(); // 建立 XMLHttpRequest 物件
     xhr.open('POST', '/upload', true); // 設定請求方法和目標 URL
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); // 設定請求標頭，表明這是 AJAX 請求
@@ -148,173 +75,15 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
             progressPercent.innerText = percent.toFixed(0) + '%'; // 更新進度百分比文字
         }
     };
-//--------------------------------------------------
-
-//---------------------------------------------------
-// 處理上傳完成的回應
-xhr.onload = function () {
-    spinner.style.display = 'none'; // 隱藏加載指示器
-    progressContainer.style.display = 'none'; // 隱藏進度條容器
-
-    // 儲存分析結果與歷史記錄到 localStorage
-    localStorage.setItem('resultHTML', resultDiv.innerHTML); // 儲存結果 HTML
-    localStorage.setItem('summaryHTML', summaryBox.innerHTML); // 儲存統計摘要 HTML
-    // localStorage.setItem('historyHTML', historyList.innerHTML); // 儲存歷史記錄 HTML
-
-    if (xhr.status === 200) {
-        const data = JSON.parse(xhr.responseText); // 解析伺服器回應的 JSON 資料
-        if (data.error) {
-            resultDiv.innerHTML = `<p style="color:red">錯誤：${data.error}</p>`; // 顯示錯誤訊息
-            console.error('伺服器回傳錯誤：', data.error); // 在控制台輸出錯誤訊息
-            return;
-        }
-
-        const resultText = JSON.stringify(data.data, null, 2); // 將結果資料轉為格式化的 JSON 字串
-
-        // 渲染表格 HTML
-        const tableHtml = `
-          <div class="table-responsive">
-            <table id="resultTable" class="display">
-              <thead>
-                <tr>
-                  <th>Incident</th>
-                  <th>Config Item</th>
-                  <th>Severity</th>
-                  <th>Frequency</th>
-                  <th>Impact</th>
-                  <th>Risk Level</th>
-                  <th>Solution</th>
-                  <th>Location</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${data.data.map(item => `
-                  <tr>
-                    <td>${item.id || ''}</td>
-                    <td>${item.configurationItem || ''}</td>
-                    <td>${item.severityScore}</td>
-                    <td>${item.frequencyScore}</td>
-                    <td>${item.impactScore}</td>
-                    <td><span class="badge ${item.riskLevel}">${item.riskLevel}</span></td>
-                    <td>${item.solution || '—'}</td>
-                    <td>${item.location || '—'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-            </div>
-        `;
-        resultDiv.innerHTML = tableHtml; // 更新結果區域的 HTML
-
-        // 初始化 DataTable 並插入按鈕
-        $(document).ready(function () {
-            const table = $('#resultTable').DataTable({
-                pageLength: 10, // 每頁顯示 10 筆資料
-                language: {
-                    search: "🔍 搜尋：", // 搜尋框的提示文字
-                    lengthMenu: "顯示 _MENU_ 筆資料", // 每頁顯示筆數的選單文字
-                    info: "第 _START_ 到 _END_ 筆，共 _TOTAL_ 筆", // 資訊文字
-                    paginate: {
-                        previous: "上一頁", // 分頁的上一頁文字
-                        next: "下一頁" // 分頁的下一頁文字
-                    }
-                },
-                initComplete: function () {
-                    // 建立並插入按鈕
-                    const previewBtn = document.createElement('button');
-                    previewBtn.className = 'btn btn-outline-primary'; // 設定按鈕樣式
-                    previewBtn.id = 'previewAllBtn'; // 設定按鈕 ID
-                    previewBtn.innerText = '📋 預覽所有資料'; // 設定按鈕文字
-                    previewBtn.style.marginLeft = '12px'; // 設定按鈕的左邊距
-
-                    const lengthControl = document.querySelector('.dataTables_length'); // 取得 DataTable 的長度控制區域
-                    lengthControl.appendChild(previewBtn); // 將按鈕插入到長度控制區域
-
-                    // 綁定按鈕的點擊事件
-                    previewBtn.onclick = function () {
-                        const modalContent = document.getElementById('modalContent'); // 取得 Modal 的內容區域
-                        const headers = ["Incident", "Config Item", "Severity", "Frequency", "Impact", "Risk Level", "Solution", "Location"]; // 表格標題
-
-                        let html = `<table class="table table-bordered table-sm"><thead><tr>`;
-                        headers.forEach(h => html += `<th>${h}</th>`); // 生成表格標題列
-                        html += `</tr></thead><tbody>`;
-
-                        data.data.forEach(item => {
-                            html += `
-                                <tr>
-                                  <td>${item.id || ''}</td>
-                                  <td>${item.configurationItem || ''}</td>
-                                  <td>${item.severityScore}</td>
-                                  <td>${item.frequencyScore}</td>
-                                  <td>${item.impactScore}</td>
-                                  <td><span class="badge ${item.riskLevel}">${item.riskLevel}</span></td>
-                                  <td>${item.solution || '—'}</td>
-                                  <td>${item.location || '—'}</td>
-                                </tr>
-                            `;
-                        });
-                        html += `</tbody></table>`;
-                        modalContent.innerHTML = html; // 更新 Modal 的內容
-
-                        // 顯示 Modal
-                        const modal = new bootstrap.Modal(document.getElementById('previewModal'));
-                        modal.show();
-                    };
-                }
-            });
-        });
-
-        updateSummary(data.data); // 更新統計摘要
-        toast.classList.add('show'); // 顯示提示訊息
-        setTimeout(() => toast.classList.remove('show'), 6000); // 6 秒後隱藏提示訊息
-
-        addHistoryItem(file.name, summaryBox.innerText); // 新增歷史記錄
-// ---------------------------------------------------尚未實做出來-------------------------------------------------------------------------------------
-        document.getElementById('copyResult').onclick = () => {
-            navigator.clipboard.writeText(resultText).then(() => {
-                alert('✅ 結果已複製到剪貼簿！'); // 成功複製提示
-            }).catch(err => {
-                alert('❌ 複製失敗：' + err); // 複製失敗提示
-            });
-        };
-
-        fileInput.value = ''; // 清空檔案輸入框
-        droppedFile = null; // 清空拖曳檔案暫存
-
-        fileInfo.style.transition = 'opacity 0.5s'; // 設定檔案資訊的淡出效果
-        fileInfo.style.opacity = '0'; // 開始淡出
-        setTimeout(() => fileInfo.innerText = '', 500); // 0.5 秒後清空文字
-
-        resultDiv.scrollIntoView({ behavior: 'smooth' }); // 平滑滾動到結果區域
-// ---------------------------------------------------尚未實做出來-------------------------------------------------------------------------------------
-
-    } else {
-        resultDiv.innerHTML = '<p style="color:red">伺服器錯誤，請稍後再試。</p>'; // 顯示伺服器錯誤訊息
-        console.error('HTTP 狀態碼：', xhr.status); // 在控制台輸出 HTTP 狀態碼
-        console.log('📦 Response Text:', xhr.responseText); // 在控制台輸出伺服器回應文字
-    }
-};
- //--------------------------------------------------- sperate
-    
-
-    xhr.onerror = function() {
-        spinner.style.display = 'none'; // 隱藏加載指示器
-        progressContainer.style.display = 'none'; // 隱藏進度條容器
-        resultDiv.innerHTML = '<p style="color:red">發生錯誤，請稍後再試。</p>'; // 顯示錯誤訊息
-    };
-
 
     // 在送出前檢查是否重複上傳
     const filename = file.name;// 取得檔案名稱
-
-
     const checkDuplicateAndUpload = () => {
         const xhrCheck = new XMLHttpRequest(); // 建立 XMLHttpRequest 物件
         xhrCheck.open('GET', '/files', true); // 發送 GET 請求到伺服器以檢查檔案是否已存在
         xhrCheck.onload = function () {
             if (xhrCheck.status === 200) { // 如果伺服器回應成功
                 const existingFiles = JSON.parse(xhrCheck.responseText).files; // 解析伺服器回應的檔案列表
-
                 if (existingFiles.includes(filename)) { // 如果檔案已存在
                     spinner.style.display = 'none'; // 隱藏加載指示器
                     progressContainer.style.display = 'none'; // 隱藏進度條容器
@@ -323,10 +92,9 @@ xhr.onload = function () {
                     fileInfo.style.color = 'red'; // 設定文字顏色為紅色
                     return; // 結束函數執行
                 }
-
-                // ✅ 如果檔案不存在，正式上傳
                 xhr.send(formData); // 發送檔案到伺服器
-            } else {
+            } 
+            else {
                 alert('⚠️ 無法檢查檔案是否重複，請稍後再試'); // 顯示錯誤提示
             }
         };
@@ -336,19 +104,268 @@ xhr.onload = function () {
         xhrCheck.send(); // 發送檢查請求
     };
 
-    // 👉 取代 xhr.send(formData)
+    // 處理上傳完成的回應
+    xhr.onload = function () {
+        spinner.style.display = 'none'; // 隱藏加載指示器
+        progressContainer.style.display = 'none'; // 隱藏進度條容器
+
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText); // 解析伺服器回應的 JSON 資料
+            console.log("✅ 後端回傳內容：", data);
+            localStorage.setItem('lastResult', JSON.stringify({
+            uid: data.uid,
+            file: file.name,
+            summary: summaryBox.innerHTML,
+            analysisTime: data.data[0]?.analysisTime || new Date().toISOString(),
+            data: data.data
+        })); // 儲存最後的結果到 localStorage
+
+
+            if (data.error) {
+                resultDiv.innerHTML = `<p style="color:red">錯誤：${data.error}</p>`; // 顯示錯誤訊息
+                console.error('伺服器回傳錯誤：', data.error); // 在控制台輸出錯誤訊息
+                return;
+            }
+
+            const resultText = JSON.stringify(data.data, null, 2); // 將結果資料轉為格式化的 JSON 字串
+
+            // 渲染表格 HTML
+            const tableHtml = `
+            <div class="table-responsive">
+                <table id="resultTable" class="display">
+                <thead>
+                    <tr>
+                    <th>Incident</th>
+                    <th>Config Item</th>
+                    <th>Severity</th>
+                    <th>Frequency</th>
+                    <th>Impact</th>
+                    <th>Risk Level</th>
+                    <th>Solution</th>
+                    <th>Location</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.data.map(item => `
+                    <tr>
+                        <td>${item.id || ''}</td>
+                        <td>${item.configurationItem || ''}</td>
+                        <td>${item.severityScore}</td>
+                        <td>${item.frequencyScore}</td>
+                        <td>${item.impactScore}</td>
+                        <td><span class="badge ${item.riskLevel}">${item.riskLevel}</span></td>
+                        <td>${item.solution || '—'}</td>
+                        <td>${item.location || '—'}</td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+                </table>
+                </div>
+            `;
+            resultDiv.innerHTML = tableHtml; // 更新結果區域的 HTML
+
+            // 初始化 DataTable 並插入按鈕
+            $(document).ready(function () {
+                const table = $('#resultTable').DataTable({
+                    pageLength: 10, // 每頁顯示 10 筆資料
+                    language: {
+                        search: "🔍 搜尋：", // 搜尋框的提示文字
+                        lengthMenu: "顯示 _MENU_ 筆資料", // 每頁顯示筆數的選單文字
+                        info: "第 _START_ 到 _END_ 筆，共 _TOTAL_ 筆", // 資訊文字
+                        paginate: {
+                            previous: "上一頁", // 分頁的上一頁文字
+                            next: "下一頁" // 分頁的下一頁文字
+                        }
+                    },
+                    initComplete: function () {
+                        // 建立並插入按鈕
+                        const previewBtn = document.createElement('button');
+                        previewBtn.className = 'btn btn-outline-primary'; // 設定按鈕樣式
+                        previewBtn.id = 'previewAllBtn'; // 設定按鈕 ID
+                        previewBtn.innerText = '📋 預覽所有資料'; // 設定按鈕文字
+                        previewBtn.style.marginLeft = '12px'; // 設定按鈕的左邊距
+
+                        const lengthControl = document.querySelector('.dataTables_length'); // 取得 DataTable 的長度控制區域
+                        lengthControl.appendChild(previewBtn); // 將按鈕插入到長度控制區域
+
+                        // 綁定按鈕的點擊事件
+                        previewBtn.onclick = function () {
+                            const modalContent = document.getElementById('modalContent'); // 取得 Modal 的內容區域
+                            const headers = ["Incident", "Config Item", "Severity", "Frequency", "Impact", "Risk Level", "Solution", "Location"]; // 表格標題
+
+                            let html = `<table class="table table-bordered table-sm"><thead><tr>`;
+                            headers.forEach(h => html += `<th>${h}</th>`); // 生成表格標題列
+                            html += `</tr></thead><tbody>`;
+
+                            data.data.forEach(item => {
+                                html += `
+                                    <tr>
+                                    <td>${item.id || ''}</td>
+                                    <td>${item.configurationItem || ''}</td>
+                                    <td>${item.severityScore}</td>
+                                    <td>${item.frequencyScore}</td>
+                                    <td>${item.impactScore}</td>
+                                    <td><span class="badge ${item.riskLevel}">${item.riskLevel}</span></td>
+                                    <td>${item.solution || '—'}</td>
+                                    <td>${item.location || '—'}</td>
+                                    </tr>
+                                `;
+                            });
+                            html += `</tbody></table>`;
+                            modalContent.innerHTML = html; // 更新 Modal 的內容
+
+                            // 顯示 Modal
+                            const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+                            modal.show();
+                        };
+                    }
+                });
+            });
+
+            updateSummary(data.data); // 更新統計摘要
+            toast.classList.add('show'); // 顯示提示訊息
+            setTimeout(() => toast.classList.remove('show'), 6000); // 6 秒後隱藏提示訊息
+            const analysisTime = data.data[0]?.analysisTime || '未知時間';
+            addHistoryItem(data.uid, file.name, summaryBox.innerText, analysisTime);
+
+          // ---------------------------------------------------尚未實做出來-------------------------------------------------------------------------------------
+            // document.getElementById('copyResult').onclick = () => {
+            //             navigator.clipboard.writeText(resultText).then(() => {
+            //                 alert('✅ 結果已複製到剪貼簿！'); // 成功複製提示
+            //             }).catch(err => {
+            //                 alert('❌ 複製失敗：' + err); // 複製失敗提示
+            //             });
+            //         };
+
+            // fileInput.value = ''; // 清空檔案輸入框
+            // droppedFile = null; // 清空拖曳檔案暫存
+
+            // fileInfo.style.transition = 'opacity 0.5s'; // 設定檔案資訊的淡出效果
+            // fileInfo.style.opacity = '0'; // 開始淡出
+            // setTimeout(() => fileInfo.innerText = '', 500); // 0.5 秒後清空文字
+
+            // resultDiv.scrollIntoView({ behavior: 'smooth' }); // 平滑滾動到結果區域
+         // ---------------------------------------------------尚未實做出來-------------------------------------------------------------------------------------
+
+        } 
+        else 
+        {
+            resultDiv.innerHTML = '<p style="color:red">伺服器錯誤，請稍後再試。</p>'; // 顯示伺服器錯誤訊息
+            console.error('HTTP 狀態碼：', xhr.status); // 在控制台輸出 HTTP 狀態碼
+            console.log('📦 Response Text:', xhr.responseText); // 在控制台輸出伺服器回應文字
+        }
+    };
+
+    xhr.onerror = function() {
+        spinner.style.display = 'none'; // 隱藏加載指示器
+        progressContainer.style.display = 'none'; // 隱藏進度條容器
+        resultDiv.innerHTML = '<p style="color:red">發生錯誤，請稍後再試。</p>'; // 顯示錯誤訊息
+    };
+
     checkDuplicateAndUpload();  // 啟動檢查並上傳流程
+}
+);
+
+
+function addHistoryItem(uid, fileName, summaryText, analysisTime) {
+    const time = analysisTime || new Date().toISOString(); // 統一用 ISO 格式
+    const record = {
+        uid,
+        file: fileName,
+        time,
+        summary: summaryText
+    };
+
+    // 更新 localStorage
+    let historyData = JSON.parse(localStorage.getItem("historyData") || "[]");
+    historyData.unshift(record);
+    localStorage.setItem("historyData", JSON.stringify(historyData));
+    console.log("📦 儲存後的 historyData：", historyData);
+
+    // 顯示時間用可讀格式
+    const displayTime = new Date(time).toLocaleString("zh-TW", {
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit"
+    });
+
+    // 渲染 HTML
+    const li = document.createElement('li');
+    li.innerHTML = `
+        <strong>${fileName}</strong> - ${displayTime}<br>
+        <span>${summaryText}</span><br>
+    `;
+    historyList.prepend(li);
+}
+
+
+// 更新統計摘要的函數，根據後端傳回的資料進行統計
+function updateSummary(data) {
+    const total = data.length; // 總記錄數
+    const high = data.filter(d => d.riskLevel === '高風險').length; // 高風險數量
+    const medium = data.filter(d => d.riskLevel === '中風險').length; // 中風險數量
+    const low = data.filter(d => d.riskLevel === '低風險').length; // 低風險數量
+    const ignore = data.filter(d => d.riskLevel === '忽略').length; // 忽略數量
+
+    // 更新統計摘要的 HTML 內容
+    summaryBox.innerHTML = `
+        共 <strong>${total}</strong> 筆紀錄：<br>
+        🚨 高風險：<strong>${high}</strong> 筆<br>
+        ⚠️ 中風險：<strong>${medium}</strong> 筆<br>
+        ✅ 低風險：<strong>${low}</strong> 筆<br>
+        🟢 忽略：<strong>${ignore}</strong> 筆
+    `;
+}
+
+
+// 深色模式切換 & 保存偏好
+window.addEventListener('DOMContentLoaded', () => {
+    let isDark = localStorage.getItem('dark-mode'); // 從 localStorage 取得深色模式偏好
+
+
+    if (isDark === null) { // 如果沒有設定深色模式偏好
+        isDark = 'true'; // 預設為深色模式
+        localStorage.setItem('dark-mode', 'true'); // 保存深色模式偏好到 localStorage
+    }
+    if (isDark === 'false') {
+        document.body.classList.remove('dark-mode'); // 如果偏好為淺色模式，移除深色模式樣式
+    }
+    const isDarktext = localStorage.getItem('dark-mode') === 'true'; // 檢查是否為深色模式
+    if (isDarktext) {
+        document.body.classList.add('dark-mode'); // 啟用深色模式樣式
+        document.getElementById('toggleDarkMode').innerHTML = '🌞 淺色模式'; // 更新按鈕文字為"淺色模式"
+    } else {
+        document.body.classList.remove('dark-mode'); // 移除深色模式樣式
+        document.getElementById('toggleDarkMode').innerHTML = '🌙 深色模式'; // 更新按鈕文字為"深色模式"
+    }
+
+    // 重新載入歷史紀錄
+    const storedHistory = JSON.parse(localStorage.getItem("historyData") || "[]");
+    const now = new Date();
+
+    storedHistory.forEach(record => {
+        const parsedTime = new Date(record.time);
+        if (isNaN(parsedTime.getTime())) return;
+
+        const diffInMin = (now - parsedTime) / (1000 * 60);
+        if (diffInMin <= HISTORY_MINUTES_LIMIT) {
+            addHistoryItem(record.uid, record.file, record.summary, record.time);
+        }
+    });
+    
+    // 清除舊資料
+    const cleanedHistory = storedHistory.filter(record => {
+        const parsedTime = new Date(record.time);
+        const diffInMin = (now - parsedTime) / (1000 * 60);
+        return !isNaN(parsedTime.getTime()) && diffInMin <= HISTORY_MINUTES_LIMIT;
+    });
+    localStorage.setItem("historyData", JSON.stringify(cleanedHistory));
+
+
+
 });
 
-// --------------------------------------------------------------------------------------
-
-
-
-// --------------------------------------------------------------------------------------
-
-
-    // 監聽檔案輸入框的變更事件
-    document.getElementById('excelFile').addEventListener('change', function () {
+// 監聽檔案輸入框的變更事件
+document.getElementById('excelFile').addEventListener('change', function () {
         // 取得使用者選擇的檔案
         const file = this.files[0];
         // 取得顯示檔案資訊的 DOM 元素
@@ -368,66 +385,9 @@ xhr.onload = function () {
             // 禁用提交按鈕
             submitBtn.disabled = true;  // 🚫 關閉按鈕
         }
-    });
-// --------------------------------------------------------------------------------------
-
-
-
-
-// 深色模式切換 & 保存偏好
-window.addEventListener('DOMContentLoaded', () => {
-    let isDark = localStorage.getItem('dark-mode'); // 從 localStorage 取得深色模式偏好
-    const savedHistory = JSON.parse(localStorage.getItem('historyData') || '[]'); // 從 localStorage 取得歷史記錄
-
-    // 清空歷史列表
-    historyList.innerHTML = ''; // 清空歷史記錄的 DOM 元素
-
-    // 讀取 localStorage 中的結果與歷史紀錄
-    if (localStorage.getItem('resultHTML')) {
-        document.getElementById('result').innerHTML = localStorage.getItem('resultHTML'); // 恢復結果區域的 HTML
-    }
-    if (localStorage.getItem('summaryHTML')) {
-        document.getElementById('summary').innerHTML = localStorage.getItem('summaryHTML'); // 恢復統計摘要的 HTML
-    }
-    // if (localStorage.getItem('historyHTML')) {
-    //     document.getElementById('historyList').innerHTML = localStorage.getItem('historyHTML'); // 恢復歷史記錄的 HTML
-    // }
-    //     // ✅ 從 historyData 重建 DOM
-    // savedHistory.forEach(item => {
-    //     const li = document.createElement('li');
-    //     li.innerHTML = `<strong>${item.file}</strong> - ${item.time}<br><span>${item.summary}</span>`;
-    //     historyList.appendChild(li);
-    // });
-
-
-    // 依照目前的 HTML 格式重建歷史記錄
-    savedHistory.forEach(item => {
-        const li = document.createElement('li'); // 建立新的列表項目
-        li.innerHTML = `<strong>${item.file}</strong> - ${item.time}<br><span>${item.summary}</span>`; // 填充歷史記錄的內容
-        historyList.appendChild(li); // 將列表項目加入到歷史記錄列表中
-    });
-
-    if (isDark === null) { // 如果沒有設定深色模式偏好
-        isDark = 'true'; // 預設為深色模式
-        localStorage.setItem('dark-mode', 'true'); // 保存深色模式偏好到 localStorage
-    }
-
-    if (isDark === 'false') {
-        document.body.classList.remove('dark-mode'); // 如果偏好為淺色模式，移除深色模式樣式
-    }
-
-    // const toggleBtn = document.getElementById('sidebarToggle'); // 取得側邊欄切換按鈕
-    // toggleBtn.textContent = document.body.classList.contains('sidebar-collapsed') ? '→' : '←'; // 根據側邊欄狀態更新按鈕文字
-
-    const isDarktext = localStorage.getItem('dark-mode') === 'true'; // 檢查是否為深色模式
-    if (isDarktext) {
-        document.body.classList.add('dark-mode'); // 啟用深色模式樣式
-        document.getElementById('toggleDarkMode').innerHTML = '🌞 淺色模式'; // 更新按鈕文字為"淺色模式"
-    } else {
-        document.body.classList.remove('dark-mode'); // 移除深色模式樣式
-        document.getElementById('toggleDarkMode').innerHTML = '🌙 深色模式'; // 更新按鈕文字為"深色模式"
-    }
 });
+
+
 
 // 監聽深色模式切換按鈕的點擊事件
 document.getElementById('toggleDarkMode').addEventListener('click', () => {
@@ -473,8 +433,7 @@ function navigateTo1(page) {
         window.location.href = '/history'; // 導向歷史記錄頁面
     }
 }
-//---------------------------------------------------
-//---------------------------------------------------
+
 function showToast() {
     // 獲取 ID 為 'toast' 的 HTML 元素
     const toast = document.getElementById('toast');
@@ -483,7 +442,6 @@ function showToast() {
     // 設置一個定時器，3 秒後將該元素的顯示樣式設置為 'none'，使其隱藏
     setTimeout(() => { toast.style.display = 'none'; }, 3000);
 }
-//---------------------------------------------------
 
 function showPreview(item) {
     // 獲取 ID 為 'modalContent' 的 HTML 元素
@@ -518,4 +476,3 @@ function showPreview(item) {
     // 顯示模態框
     previewModalInstance.show();
 }
-//---------------------------------------------------

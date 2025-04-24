@@ -1,0 +1,112 @@
+[
+  {
+    "id": "INC39395675",
+    "configurationItem": "AAD Business Invitations",
+    "severityScore": 0.0,
+    "frequencyScore": 13.0,
+    "impactScore": 13.0,
+    "riskLevel": "中風險",
+    "solution": "Issue:  User Account | Help to enable Guest Accounts in Entra ID\nCause: NA\nResolution/Workaround: Provided with steps\nClose code: User education",
+    "location": "TAIPEI-MEGA",
+    "analysisTime": "2025-04-24 18:34:44"
+  },
+  {
+    "id": "INC39438286",
+    "configurationItem": "AAD Business Invitations",
+    "severityScore": 0.0,
+    "frequencyScore": 15.0,
+    "impactScore": 15.0,
+    "riskLevel": "中風險",
+    "solution": "Issue:  AAD Business Invitations | Cannot find the \"User\" selection for me to navigate to delete the user: Alykhan.Madhani_Quantum.Com#EXT#@microsoft.onmicrosoft.com | no error message\nCause: User left org\nResolution/Workaround: \nContacted on Teams call - N\nRemote access taken with permission - N\nDisclaimer given before taking & after releasing remote access - N\nIssue fixed - Y\nApproval to resolve ticket - Y\nT/S or Action taken on the case –\n>>User wants to remove the object id \" \"cbedacfc-9aae-42ad-a8d6-802617f87c2f\" as this person has resigned from that company\n>>Deleted the account in Azure portal\n>>Chat got disconnected\n>>Reached user in teams\n>>Resolving after user approval",
+    "location": "TAIPEI-MEGA",
+    "analysisTime": "2025-04-24 18:34:44"
+  },
+  {
+    "id": "INC39438286",
+    "configurationItem": "AAD Business Invitations",
+    "severityScore": 0.0,
+    "frequencyScore": 15.0,
+    "impactScore": 15.0,
+    "riskLevel": "中風險",
+    "solution": "Issue:  AAD Business Invitations | Cannot find the \"User\" selection for me to navigate to delete the user: Alykhan.Madhani_Quantum.Com#EXT#@microsoft.onmicrosoft.com | no error message\nCause: User left org\nResolution/Workaround: \nContacted on Teams call - N\nRemote access taken with permission - N\nDisclaimer given before taking & after releasing remote access - N\nIssue fixed - Y\nApproval to resolve ticket - Y\nT/S or Action taken on the case –\n>>User wants to remove the object id \" \"cbedacfc-9aae-42ad-a8d6-802617f87c2f\" as this person has resigned from that company\n>>Deleted the account in Azure portal\n>>Chat got disconnected\n>>Reached user in teams\n>>Resolving after user approval",
+    "location": "TAIPEI-MEGA",
+    "analysisTime": "2025-04-24 18:34:44"
+  },
+  {
+    "id": "INC39443891",
+    "configurationItem": "AAD Business Invitations",
+    "severityScore": 3.0,
+    "frequencyScore": 13.0,
+    "impactScore": 16.0,
+    "riskLevel": "中風險",
+    "solution": "Issue:  User Account | would like to know one of our vendors' visitor account are being blocked in our system. The email is: daniel.kuo@linesight.com | error added\nCause: NA\nResolution/Workaround: Enabled.",
+    "location": "TAIPEI-C2",
+    "analysisTime": "2025-04-24 18:34:44"
+  },
+  {
+    "id": "INC39489654",
+    "configurationItem": "AAD Business Invitations",
+    "severityScore": 0.0,
+    "frequencyScore": 13.0,
+    "impactScore": 13.0,
+    "riskLevel": "中風險",
+    "solution": "Issue: Enable Guest User\nCause: N/A\nResolution/Workaround: User did not respond\nKB used: N/A\nClose code: User Education",
+    "location": "TAIPEI-CLS",
+    "analysisTime": "2025-04-24 18:34:44"
+  },
+  {
+    "id": "INC39507870",
+    "configurationItem": "AAD Business Invitations",
+    "severityScore": 0.0,
+    "frequencyScore": 13.0,
+    "impactScore": 13.0,
+    "riskLevel": "中風險",
+    "solution": "Issue:  Would like to remove this account (8c0aab44-741f-471a-bbd7-f254f7f30954) from Azure\nCause: Unidentified\nResolution/Workaround: No response from end user. Archiving the case per 24 hour closure policy",
+    "location": "TAIPEI-MEGA",
+    "analysisTime": "2025-04-24 18:34:44"
+  },
+  {
+    "id": "INC39646610",
+    "configurationItem": "AAD Business Invitations",
+    "severityScore": 0.0,
+    "frequencyScore": 13.0,
+    "impactScore": 13.0,
+    "riskLevel": "中風險",
+    "solution": "Issue:  Microsoft Teams Preview - Client PC|enable guest account|no error message\nCause: NA\nResolution/Workaround: Enabled guest account",
+    "location": "TAIPEI-MEGA",
+    "analysisTime": "2025-04-24 18:34:44"
+  },
+  {
+    "id": "INC39285022",
+    "configurationItem": "AAD Identity and Access(TS- AAD Identity and Access)",
+    "severityScore": 0.0,
+    "frequencyScore": 2.71,
+    "impactScore": 2.71,
+    "riskLevel": "忽略",
+    "solution": "Issue:  AAD Identity and Access(TS- AAD Identity and Access) | user unable to access enterprise application | Access has been blocked by Conditional Access policies\nCause: NA\nResolution/Workaround: User did not respond",
+    "location": "TAIPEI-CLS",
+    "analysisTime": "2025-04-24 18:34:44"
+  },
+  {
+    "id": "INC39722051",
+    "configurationItem": "Agreement Overview Report",
+    "severityScore": 0.0,
+    "frequencyScore": 2.71,
+    "impactScore": 2.71,
+    "riskLevel": "忽略",
+    "solution": 0,
+    "location": "TAIPEI-CLS",
+    "analysisTime": "2025-04-24 18:34:44"
+  },
+  {
+    "id": "INC39481363",
+    "configurationItem": "AllocationPricingAdjustments",
+    "severityScore": 0.0,
+    "frequencyScore": 2.71,
+    "impactScore": 2.71,
+    "riskLevel": "忽略",
+    "solution": "Issue:  \nCause: \nResolution/Workaround: ",
+    "location": "TAIPEI-CLS",
+    "analysisTime": "2025-04-24 18:34:44"
+  }
+]

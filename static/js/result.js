@@ -1,46 +1,74 @@
-// 初始化深色模式狀態
-window.addEventListener('DOMContentLoaded', () => {
-    // 從 localStorage 取得深色模式的狀態
+window.addEventListener('DOMContentLoaded', async () => {
+    // ===== 深色模式初始化 =====
     const isDark = localStorage.getItem('dark-mode');
-    // 獲取切換深色模式的按鈕元素
     const toggleBtn = document.getElementById('toggleDarkMode');
-    // 獲取側邊欄切換按鈕元素
     const sidebarToggle = document.getElementById('sidebarToggle');
 
-    // 如果深色模式狀態為 null 或 'true'，啟用深色模式
     if (isDark === null || isDark === 'true') {
-        document.body.classList.add('dark-mode'); // 添加深色模式的樣式
-        if (toggleBtn) toggleBtn.innerHTML = '🌞 淺色模式'; // 更新按鈕文字
+        document.body.classList.add('dark-mode');
+        if (toggleBtn) toggleBtn.innerHTML = '🌞 淺色模式';
     } else {
-        // 否則，移除深色模式
-        document.body.classList.remove('dark-mode'); // 移除深色模式的樣式
-        if (toggleBtn) toggleBtn.innerHTML = '🌙 深色模式'; // 更新按鈕文字
+        document.body.classList.remove('dark-mode');
+        if (toggleBtn) toggleBtn.innerHTML = '🌙 深色模式';
     }
 
-    // 如果側邊欄切換按鈕存在，根據側邊欄狀態更新按鈕文字
     if (sidebarToggle) {
         sidebarToggle.textContent = document.body.classList.contains('sidebar-collapsed') ? '→' : '←';
     }
-});
 
-// 切換深色模式按鈕行為
-document.addEventListener('DOMContentLoaded', () => {
-    // 獲取切換深色模式的按鈕元素
-    const toggleBtn = document.getElementById('toggleDarkMode');
     if (toggleBtn) {
-        // 為按鈕添加點擊事件監聽器
         toggleBtn.addEventListener('click', () => {
-            // 切換深色模式的樣式
             document.body.classList.toggle('dark-mode');
-            // 獲取當前是否為深色模式
             const isDark = document.body.classList.contains('dark-mode');
-            // 根據模式更新按鈕文字
             toggleBtn.innerHTML = isDark ? '🌞 淺色模式' : '🌙 深色模式';
-            // 將深色模式狀態存入 localStorage
             localStorage.setItem('dark-mode', isDark);
         });
     }
+
+    // ===== 動態載入分析結果卡片 =====
+    const container = document.getElementById('resultCards');
+    if (!container) return;
+
+    try {
+        const res = await fetch('/get-results');
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+            container.innerHTML = '<p>⚠️ 尚無分析資料，請先回首頁上傳 Excel。</p>';
+            return;
+        }
+
+    const container = document.getElementById('resultCards');
+
+    data.forEach(row => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <h3>🎯 Incident: ${row.id}</h3>
+            <div class="card-grid">
+                <div><strong>Config Item:</strong><span>${row.configurationItem || '—'}</span></div>
+                <div><strong>Severity:</strong><span>${row.severityScore}</span></div>
+                <div><strong>Frequency:</strong><span>${row.frequencyScore}</span></div>
+                <div><strong>Impact:</strong><span>${row.impactScore}</span></div>
+                <div><strong>Risk Level:</strong>
+                    <span class="badge ${row.riskLevel}">${row.riskLevel}</span>
+                </div>
+                <div><strong>Solution:</strong><span>${row.solution || '—'}</span></div>
+                <div><strong>Location:</strong><span>${row.location || '—'}</span></div>
+                <div><strong>Analysis Date:</strong><span>${row.analysisDate || '—'}</span></div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+
+
+    } catch (err) {
+        console.error('🚨 無法取得結果：', err);
+        container.innerHTML = '<p style="color:red;">❌ 無法載入分析結果。</p>';
+    }
 });
+
 
 // 定義函數：切換側邊欄的顯示狀態
 function toggleSidebar() {

@@ -1,0 +1,373 @@
+/* ===== 基本樣式 ===== */
+body {
+    font-family: 'Inter', Arial, sans-serif;
+    background-color: #f5f6fa;
+    margin: 0;
+    padding: 0;
+    font-size: 18px;
+}
+
+.main-title {
+    font-size: 42px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 35px;
+    text-align: center;
+}
+
+h2 {
+    font-size: 28px;
+    color: #333333;
+    margin-bottom: 25px;
+}
+
+input[type="file"] {
+    font-size: 16px;
+    margin-bottom: 25px;
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== 結果區塊 ===== */
+.result {
+    margin-top: 35px;
+    text-align: left;
+    font-size: 16px;
+    color: #444444;
+    background-color: #f0f0f0;
+    padding: 15px;
+    border-radius: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* ===== Spinner ===== */
+.spinner {
+    margin-top: 20px;
+    display: none;
+}
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border: 5px solid #ccc;
+    border-top: 5px solid #4CAF50;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===== 切換按鈕樣式 ===== */
+.dark-mode-btn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #333;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+.dark-mode-btn:hover,
+.dark-mode-btn:focus {
+    background-color: #555;
+}
+
+/* ===== 深色模式 ===== */
+body.dark-mode {
+    background-color: #0f1020;
+    color: #c7cfff;
+}
+
+body.dark-mode .main-title {
+    color: #aab8ff;
+    text-shadow: 0 0 8px rgba(160, 180, 255, 0.5);
+}
+
+body.dark-mode .container {
+    background-color: #1a1d3a;
+    box-shadow: 0 0 30px rgba(100, 120, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode input[type="file"] {
+    color: #c7cfff;
+    background-color: #2a2d4a;
+    border: 1px solid #444;
+    padding: 8px;
+    border-radius: 5px;
+}
+
+body.dark-mode button {
+    background: linear-gradient(135deg, #6a5acd, #4f59d4);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(106, 90, 205, 0.6);
+    transition: 0.3s ease;
+}
+body.dark-mode button:hover,
+body.dark-mode button:focus {
+    background: linear-gradient(135deg, #7a6af0, #5c6ae6);
+    box-shadow: 0 0 15px rgba(130, 110, 255, 0.8);
+}
+
+body.dark-mode .result {
+    background-color: #202346;
+    color: #ddddff;
+    border: 1px solid #555;
+}
+
+body.dark-mode .spinner-border {
+    border: 5px solid #444;
+    border-top: 5px solid #7a6af0;
+}
+
+/* 深色模式下的特殊按鈕 */
+body.dark-mode .dark-mode-btn {
+    background: linear-gradient(135deg, #5765b5, #6a78cc);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(80, 100, 250, 0.3);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+    padding: 10px 20px;
+    transition: 0.3s ease;
+}
+body.dark-mode .dark-mode-btn:hover,
+body.dark-mode .dark-mode-btn:focus {
+    background: linear-gradient(135deg, #7880d9, #8a97e1);
+    box-shadow: 0 0 12px rgba(100, 120, 255, 0.6);
+}
+
+/* 深色模式下的卡片樣式覆蓋 */
+body.dark-mode .card {
+    background: linear-gradient(145deg, #1e213f, #2a2d4d);
+    border-left: 6px solid #7a6af0;
+    box-shadow: 0 4px 12px rgba(90, 100, 255, 0.2);
+    color: #f0f0f0;
+}
+body.dark-mode .card h3 {
+    color: #c0c8ff;
+}
+body.dark-mode .card p {
+    color: #e0e0f0;
+}
+
+/* ===== 卡片樣式 ===== */
+.container {
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 0 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* 卡片區塊多欄排列 */
+#resultCards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 48px 40px; /* 增加行間與列間距，讓卡片分隔更明顯 */
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+
+
+/* 卡片樣式微調，讓陰影更明顯、分隔更大 */
+.card {
+    border: 1px solid #ddd;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(44,62,80,0.12);
+    padding: 32px 28px 28px 28px;
+    background: #fff;
+    transition: transform 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s;
+    position: relative;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    margin: 0; /* 由 grid gap 控制間距，避免多餘 margin 疊加 */
+}
+.card + .card {
+    margin-top: 48px; /* 額外增加卡片間距 */
+    border-top: 3px solid #e0e0e0; /* 分隔線 */
+}
+.card:not(:first-child) {
+    border-top: 1px solid #eee;
+    padding-top: 36px;
+    margin-top: 32px; /* 上方間距更大 */
+}
+.card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 36px rgba(44,62,80,0.18);
+}
+.card h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+}
+.card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px 20px;
+    margin-top: 15px;
+}
+.card-grid div {
+    font-size: 0.95rem;
+}
+.card-grid strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #555;
+}
+
+/* ===== Badge 樣式 ===== */
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    text-transform: capitalize;
+}
+.badge.Low {
+    background-color: #d4edda;
+    color: #155724;
+}
+.badge.Medium {
+    background-color: #fff3cd;
+    color: #856404;
+}
+.badge.High {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+.badge.Critical {
+    background-color: #f5c6cb;
+    color: #721c24;
+}
+
+/* ===== 側邊欄樣式 ===== */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 240px;
+    background-color: #2d2f6d;
+    color: #fff;
+    padding: 20px 15px;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.sidebar-bottom {
+    margin-top: auto;
+    padding: 20px 10px 60px;
+    text-align: center;
+}
+.sidebar h4 {
+    font-size: 20px;
+    margin-bottom: 50px;
+    color: #fff;
+    text-align: center;
+}
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.sidebar ul li {
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: #3c3f85;
+    transition: 0.2s;
+}
+.sidebar ul li:hover {
+    background-color: #5559d1;
+}
+.sidebar ul li i {
+    margin-right: 10px;
+    color: #fff;
+}
+.sidebar ul li:hover i {
+    color: #ffd700;
+}
+.sidebar-toggle {
+    position: absolute;
+    width: 100px;
+    height: 55px;
+    top: 50%;
+    right: -50px;
+    transform: translateY(-50%);
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    font-size: 18px;
+    padding: 8px 12px;
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+.sidebar-toggle:hover {
+    background-color: #45a049;
+    transform: translateX(10px);
+}
+body.sidebar-collapsed .sidebar {
+    transform: translateX(-100%);
+}
+body.sidebar-collapsed .sidebar-toggle {
+    left: 250px;
+    right: -100px;
+}
+body.dark-mode .sidebar {
+    background-color: #1e213f;
+}
+body.dark-mode .sidebar ul li {
+    background-color: #2a2d4a;
+    color: #ddd;
+}
+body.dark-mode .sidebar ul li:hover {
+    background-color: #444a9f;
+}
+body.dark-mode .sidebar-toggle {
+    background: linear-gradient(135deg, #6a5acd, #4f59d4);
+}
+.container,
+.card {
+    transform: translateX(0);
+    transition: transform 0.5s ease;
+}
+body.sidebar-collapsed .container,
+body.sidebar-collapsed .card {
+    transform: translateX(-300px);
+}
