@@ -111,13 +111,23 @@ data.forEach(row => {
     infoCard.innerHTML = `
         <h3>🎯 Incident: ${row.id}</h3>
         <div class="card-grid">
+
             <div><strong>Config Item:</strong> <span>${row.configurationItem || '—'}</span></div>
-            <div><strong>Severity:</strong> <span>${row.severityScore}</span>
+
+
+
+            <div><strong>Severity<span class="score-max">(滿分 20)</span>:</strong> <span>${row.severityScore}</span>
                 <div class="progress-bar" data-score="${row.severityScore}" data-type="severity"></div></div>
-            <div><strong>Frequency:</strong> <span>${row.frequencyScore}</span>
+
+
+
+            <div><strong>Frequency<span class="score-max">(滿分 10)</span>:</strong> <span>${row.frequencyScore}</span>
                 <div class="progress-bar" data-score="${row.frequencyScore}" data-type="frequency"></div></div>
-            <div><strong>Impact:</strong> <span>${row.impactScore}</span>
+                
+
+            <div><strong>Impact<span class="score-max">(滿分 30)</span>:</strong> <span>${row.impactScore}</span>
                 <div class="progress-bar" data-score="${row.impactScore}" data-type="impact"></div></div>
+
             <div><strong>Risk Level:</strong>
                 <span class="badge ${riskLevelToClass(row.riskLevel)}">${row.riskLevel}</span></div>
             <div><strong>Solution:</strong> <span>${row.solution || '—'}</span></div>

@@ -256,6 +256,20 @@ body.dark-mode .container {
     flex: 1 1 60%;
     min-width: 300px;
 }
+.solution-text {
+  display: inline-block;
+  min-height: 1.2em;     /* ✅ 確保至少佔一行高度 */
+  min-width: 60%;        /* ✅ 即使內容是空，也佔寬度 */
+  white-space: pre-wrap;
+  color: #666;
+}
+
+.solution-text:empty::before {
+  content: '—';          /* ✅ 顯示一個橫槓來代表無資料 */
+  color: #bbb;
+}
+
+
 
 
 
@@ -265,6 +279,8 @@ body.dark-mode .container {
     border-radius: 6px;
     border: 1px solid #f0f0f0;
     transition: background-color 0.3s;
+        min-width: 500px;     /* ✅ 強制每個格子至少寬 200px */
+    
 }
 
 .card-grid div:hover {
@@ -460,7 +476,7 @@ body.dark-mode .progress-fill::after {
 }
 
 
-.score-hint {
+.score-max {
     display: inline-block;
     font-size: 0.75rem;
     font-weight: 500;
@@ -473,7 +489,7 @@ body.dark-mode .progress-fill::after {
     line-height: 1;
 }
 
-body.dark-mode .score-hint {
+body.dark-mode .score-max {
     color: #ddd;
     background-color: rgba(255, 255, 255, 0.1);
 }
