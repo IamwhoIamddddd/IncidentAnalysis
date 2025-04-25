@@ -64,7 +64,7 @@ if (filterRange) {
     filterRange.addEventListener('change', () => {
         const val = filterRange.value;
         if (val === 'all') {
-            localStorage.removeItem('filter-days');
+            localStorage.setItem('filter-days', val);
         } else {
             localStorage.setItem('filter-days', val);
         }
@@ -236,22 +236,19 @@ data.forEach(row => {
     document.getElementById('filterLoading').style.display = 'none';
 
 
-    if (filterInput) {
-        filterInput.addEventListener('change', () => {
-            localStorage.setItem('filter-date', filterInput.value);
-            location.reload();
-        });
-    }
-    const clearBtn = document.getElementById('clearFilterBtn');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-
+const filterInput = document.getElementById('filterInput');
+const clearBtn = document.getElementById('clearFilterBtn');
+if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+        // 清除日期篩選器的值
+        if (filterInput) filterInput.value = '';
+        // 清除天數篩選器的值
+        if (filterRange) filterRange.value = '7';
+        // 清除 localStorage 中的天數篩選器值
         localStorage.removeItem('filter-days');
-
-            location.reload();
-        });
-    }
-
+        location.reload();
+    });
+}
 
 });
 
