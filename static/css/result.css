@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 /* ===== 基本樣式 ===== */
 body {
     font-family: 'Inter', Arial, sans-serif;
@@ -21,67 +22,7 @@ h2 {
     margin-bottom: 25px;
 }
 
-input[type="file"] {
-    font-size: 16px;
-    margin-bottom: 25px;
-}
-
-button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 12px 30px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 18px;
-    transition: background-color 0.3s;
-}
-
-button:hover {
-    background-color: #45a049;
-}
-
-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* ===== 結果區塊 ===== */
-.result {
-    margin-top: 35px;
-    text-align: left;
-    font-size: 16px;
-    color: #444444;
-    background-color: #f0f0f0;
-    padding: 15px;
-    border-radius: 8px;
-    max-height: 400px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-}
-
-/* ===== Spinner ===== */
-.spinner {
-    margin-top: 20px;
-    display: none;
-}
-.spinner-border {
-    width: 3rem;
-    height: 3rem;
-    border: 5px solid #ccc;
-    border-top: 5px solid #4CAF50;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: auto;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* ===== 切換按鈕樣式 ===== */
+/* 切換按鈕樣式 */
 .dark-mode-btn {
     margin-top: 20px;
     padding: 10px 20px;
@@ -91,11 +32,29 @@ button:disabled {
     border-radius: 6px;
     cursor: pointer;
     font-size: 16px;
-    transition: background-color 0.3s;
 }
-.dark-mode-btn:hover,
-.dark-mode-btn:focus {
+.dark-mode-btn:hover {
     background-color: #555;
+}
+
+/* 深色模式下的深色按鈕 */
+.dark-mode-btn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #5765b5, #6a78cc); /* 淺一些的藍紫色 */
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 0 10px rgba(80, 100, 250, 0.3);
+    transition: 0.3s ease;
+}
+
+/* 按鈕 hover 狀態 */
+.dark-mode-btn:hover {
+    background: linear-gradient(135deg, #7880d9, #8a97e1); /* 當按鈕被懸停時使用更亮的過渡顏色 */
+    box-shadow: 0 0 12px rgba(100, 120, 255, 0.6);
 }
 
 /* ===== 深色模式 ===== */
@@ -109,167 +68,6 @@ body.dark-mode .main-title {
     text-shadow: 0 0 8px rgba(160, 180, 255, 0.5);
 }
 
-body.dark-mode .container {
-    background-color: #1a1d3a;
-    box-shadow: 0 0 30px rgba(100, 120, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-body.dark-mode input[type="file"] {
-    color: #c7cfff;
-    background-color: #2a2d4a;
-    border: 1px solid #444;
-    padding: 8px;
-    border-radius: 5px;
-}
-
-body.dark-mode button {
-    background: linear-gradient(135deg, #6a5acd, #4f59d4);
-    color: #ffffff;
-    box-shadow: 0 0 10px rgba(106, 90, 205, 0.6);
-    transition: 0.3s ease;
-}
-body.dark-mode button:hover,
-body.dark-mode button:focus {
-    background: linear-gradient(135deg, #7a6af0, #5c6ae6);
-    box-shadow: 0 0 15px rgba(130, 110, 255, 0.8);
-}
-
-body.dark-mode .result {
-    background-color: #202346;
-    color: #ddddff;
-    border: 1px solid #555;
-}
-
-body.dark-mode .spinner-border {
-    border: 5px solid #444;
-    border-top: 5px solid #7a6af0;
-}
-
-/* 深色模式下的特殊按鈕 */
-body.dark-mode .dark-mode-btn {
-    background: linear-gradient(135deg, #5765b5, #6a78cc);
-    color: #fff;
-    box-shadow: 0 0 10px rgba(80, 100, 250, 0.3);
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 16px;
-    margin-top: 20px;
-    padding: 10px 20px;
-    transition: 0.3s ease;
-}
-body.dark-mode .dark-mode-btn:hover,
-body.dark-mode .dark-mode-btn:focus {
-    background: linear-gradient(135deg, #7880d9, #8a97e1);
-    box-shadow: 0 0 12px rgba(100, 120, 255, 0.6);
-}
-
-/* 深色模式下的卡片樣式覆蓋 */
-body.dark-mode .card {
-    background: linear-gradient(145deg, #1e213f, #2a2d4d);
-    border-left: 6px solid #7a6af0;
-    box-shadow: 0 4px 12px rgba(90, 100, 255, 0.2);
-    color: #f0f0f0;
-}
-body.dark-mode .card h3 {
-    color: #c0c8ff;
-}
-body.dark-mode .card p {
-    color: #e0e0f0;
-}
-
-/* ===== 卡片樣式 ===== */
-.container {
-    max-width: 960px;
-    margin: 40px auto;
-    padding: 0 20px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-/* 卡片區塊多欄排列 */
-#resultCards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-    gap: 48px 40px; /* 增加行間與列間距，讓卡片分隔更明顯 */
-    margin-top: 40px;
-    margin-bottom: 40px;
-}
-
-
-/* 卡片樣式微調，讓陰影更明顯、分隔更大 */
-.card {
-    border: 1px solid #ddd;
-    border-radius: 16px;
-    box-shadow: 0 4px 24px rgba(44,62,80,0.12);
-    padding: 32px 28px 28px 28px;
-    background: #fff;
-    transition: transform 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s;
-    position: relative;
-    min-height: 180px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    margin: 0; /* 由 grid gap 控制間距，避免多餘 margin 疊加 */
-}
-.card + .card {
-    margin-top: 48px; /* 額外增加卡片間距 */
-    border-top: 3px solid #e0e0e0; /* 分隔線 */
-}
-.card:not(:first-child) {
-    border-top: 1px solid #eee;
-    padding-top: 36px;
-    margin-top: 32px; /* 上方間距更大 */
-}
-.card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 12px 36px rgba(44,62,80,0.18);
-}
-.card h3 {
-    margin-top: 0;
-    color: #2c3e50;
-    font-size: 1.2rem;
-    margin-bottom: 16px;
-    letter-spacing: 0.5px;
-}
-.card-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px 20px;
-    margin-top: 15px;
-}
-.card-grid div {
-    font-size: 0.95rem;
-}
-.card-grid strong {
-    display: block;
-    margin-bottom: 4px;
-    color: #555;
-}
-
-/* ===== Badge 樣式 ===== */
-.badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-weight: bold;
-    text-transform: capitalize;
-}
-.badge.Low {
-    background-color: #d4edda;
-    color: #155724;
-}
-.badge.Medium {
-    background-color: #fff3cd;
-    color: #856404;
-}
-.badge.High {
-    background-color: #f8d7da;
-    color: #721c24;
-}
-.badge.Critical {
-    background-color: #f5c6cb;
-    color: #721c24;
-}
 
 /* ===== 側邊欄樣式 ===== */
 .sidebar {
@@ -371,3 +169,667 @@ body.sidebar-collapsed .container,
 body.sidebar-collapsed .card {
     transform: translateX(-300px);
 }
+
+
+
+
+
+
+/*卡片*/
+
+
+/* ===== 容器樣式 ===== */
+.container {
+    max-width: 1780px;
+    margin: 40px auto;
+    padding: 24px;
+    background-color: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    animation: fadeIn 0.8s ease;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    font-size: 17px;
+    line-height: 1.7;
+    color: #2c3e50;
+}
+body.dark-mode .container {
+    background-color: #181b35;
+    box-shadow: 0 12px 40px rgba(100, 120, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ===== 卡片樣式 ===== */
+.card {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    padding: 28px;
+    margin-bottom: 48px;
+    background: #fff;
+    transition: transform 0.2s cubic-bezier(.4,2,.6,1), box-shadow 0.2s;
+    position: relative;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    flex-direction: column;
+}
+
+.card + .card {
+    margin-top: 48px;
+    border-top: 3px solid #e0e0e0;
+}
+
+.card:not(:first-child) {
+    border-top: 1px solid #eee;
+    padding-top: 36px;
+    margin-top: 32px;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+}
+
+.card h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+/* ===== 原本保留卡片內容樣式 ===== */
+
+.card-content-wrapper {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+.card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px 20px;
+    margin-top: 15px;
+
+    flex: 1 1 60%;
+    min-width: 300px;
+}
+
+
+
+.card-grid div {
+    padding: 12px 14px;
+    background: #fafafa;
+    border-radius: 6px;
+    border: 1px solid #f0f0f0;
+    transition: background-color 0.3s;
+}
+
+.card-grid div:hover {
+    background: #f4f9ff;
+}
+
+
+.card-grid strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #444;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.3px;
+}
+
+
+
+
+
+
+
+/* ===== Badge 樣式 ===== */
+.badge {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-align: center;
+    text-transform: capitalize;
+}
+
+.badge.risk-critical {
+    background-color: #d32f2f; /* 深紅 */
+    color: #fff;
+}
+
+.badge.risk-high {
+    background-color: #f57c00; /* 深橘 */
+    color: #fff;
+}
+
+.badge.risk-medium {
+    background-color: #fbc02d; /* 黃中帶橘 */
+    color: #222;
+}
+
+.badge.risk-low {
+    background-color: #388e3c; /* 森林綠 */
+    color: #fff;
+}
+
+body.dark-mode .badge.risk-critical {
+    background-color: #ef5350; /* 偏粉紅紅 */
+    color: #fff;
+}
+
+body.dark-mode .badge.risk-high {
+    background-color: #ffa726; /* 金橘 */
+    color: #1a1a1a;
+}
+
+body.dark-mode .badge.risk-medium {
+    background-color: #ffee58; /* 黃亮 */
+    color: #222;
+}
+
+body.dark-mode .badge.risk-low {
+    background-color: #66bb6a; /* 青綠 */
+    color: #f5f5f5;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ===== 深色模式卡片覆蓋 ===== */
+body.dark-mode .card {
+    background: linear-gradient(145deg, #21244b, #2e315c);
+    border-left: 5px solid #837cff;
+    box-shadow: 0 6px 16px rgba(90, 100, 255, 0.15);
+    color: #eeeeff;
+}
+
+/* 深色模式下 .card-grid 裡的 strong 字體變淡一點 */
+body.dark-mode .card-grid strong {
+    color: #c6cbef;
+    font-weight: 600;
+}
+
+body.dark-mode .card-grid span {
+    color: #e8eafd;
+}
+
+body.dark-mode .card-grid div {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+body.dark-mode .card-grid div:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+body.dark-mode .card h3 {
+    color: #c8d4ff;
+}
+
+body.dark-mode .card p {
+    color: #d0d2e8;
+}
+
+
+.progress-bar {
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    height: 3px;
+    border-radius: 9px;
+    position: relative;
+    overflow: visible; /* ✅ 保持可以顯示外部元素 */
+    margin-top: 10px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.05),
+                0 1px 1px rgba(255,255,255,0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+
+/* ✅ 使用 .progress-fill 取代 ::after 做進度條本體 */
+
+.progress-fill {
+    box-sizing: border-box;    width: 0; /* ✅ 初始寬度為 0，讓動畫從這裡開始 */
+    position: absolute; /* ✅ 關鍵！讓 fill 吸附在 bar 裡面 */
+    top: 0;
+    left: 0;
+    height:10%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #4caf50, #81c784);
+    box-shadow: 0 0 12px rgba(76, 175, 80, 0.6);
+    transition: width 0.7s ease-in-out, background 0.4s ease, box-shadow 0.4s ease;
+}
+
+
+/* ✅ 使用 .progress-fill::after 顯示分數提示泡泡 */
+.progress-fill::after {
+    content: attr(data-score) '%';
+    position: absolute;
+    top: -28px;
+    right: 0;
+    transform: translateX(50%);
+    background: rgba(51, 51, 51, 0.85);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    z-index: 2;
+}
+.progress-fill:hover::after {
+    opacity: 1;
+    transform: translateX(50%) translateY(-4px);
+}
+
+/* ✅ 移除不再使用的 ::after 與 ::before */
+.progress-bar::after,
+.progress-bar::before {
+    display: none !important;
+    content: none !important;
+}
+
+/* 深色模式 */
+body.dark-mode .progress-bar {
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.04),
+                0 1px 1px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .progress-fill::after {
+    background: rgba(230, 230, 255, 0.85);
+    color: #1e213f;
+}
+
+
+.score-hint {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #555;
+    background-color: #f0f0f0;
+    border-radius: 6px;
+    padding: 2px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+    line-height: 1;
+}
+
+body.dark-mode .score-hint {
+    color: #ddd;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+
+/* ✅ 篩選區塊容器 */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ✅ Label 標籤文字樣式 */
+.filter-bar label {
+    font-size: 17px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* ✅ 深色模式下 Label */
+body.dark-mode .filter-bar label {
+    color: #c7cfff;
+}
+
+/* ✅ 下拉選單 */
+.select-clean {
+    padding: 8px 14px;
+    font-size: 15.5px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #fff;
+    transition: 0.2s ease;
+    font-family: 'Inter', sans-serif;
+    color: #333;
+    font-weight: 500;
+}
+
+.select-clean:hover {
+    border-color: #4CAF50;
+    background-color: #f9f9f9;
+}
+
+.select-clean:focus {
+    outline: none;
+    border-color: #66bb6a;
+    box-shadow: 0 0 6px rgba(76, 175, 80, 0.4);
+}
+
+/* ✅ 深色模式下 select */
+body.dark-mode .select-clean {
+    background-color: #2a2d4a;
+    color: #ddd;
+    border-color: #555;
+}
+
+body.dark-mode .select-clean:hover {
+    background-color: #3a3f6b;
+}
+
+/* ✅ 清除篩選按鈕（紅漸層版 + 強化字體） */
+.btn-clear {
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #f44336, #e53935);
+    color: white;
+    font-size: 15.5px;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(229, 57, 53, 0.3);
+    transition: background 0.3s ease, transform 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.btn-clear:hover {
+    background: linear-gradient(135deg, #e53935, #c62828);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(229, 57, 53, 0.4);
+}
+
+/* ✅ 深色模式下清除按鈕 */
+body.dark-mode .btn-clear {
+    background: linear-gradient(135deg, #f05a5a, #d84343);
+    box-shadow: 0 4px 12px rgba(255, 100, 100, 0.3);
+}
+
+body.dark-mode .btn-clear:hover {
+    background: linear-gradient(135deg, #d84343, #ba2e2e);
+    box-shadow: 0 6px 16px rgba(255, 120, 120, 0.5);
+    transform: translateY(-1px);
+}
+
+/* ✅ 篩選 Loading Spinner */
+.filter-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 30px auto;
+    color: #444;
+    font-size: 16px;
+    font-weight: 500;
+    animation: fadeIn 0.4s ease;
+}
+.spinner-border {
+  width: 40px;
+  height: 40px;
+  border: 5px solid #ccc;
+  border-top: 5px solid #4CAF50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+
+.filter-loading .spinner-border {
+    width: 40px;
+    height: 40px;
+    border: 5px solid #ccc;
+    border-top: 5px solid #4CAF50;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+/* ✅ 深色模式 Spinner 顏色 */
+body.dark-mode .filter-loading {
+    color: #ccc;
+}
+
+body.dark-mode .filter-loading .spinner-border {
+    border: 5px solid #444;
+    border-top: 5px solid #7a6af0;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
+
+
+
+
+/* ===== 第二張卡片內容樣式 ===== */
+.card-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 32px;
+  margin-bottom: 56px;
+  padding: 0 8px;
+}
+
+
+/* 📘 左邊卡片內容樣式 */
+.card-info {
+  flex: 2.5;
+  min-width: 420px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+}
+
+/* 📊 右邊圖表卡片外框 */
+.card-chart-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-width: 360px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+
+  /* 新增細緻邊框 */
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+
+/* 📢 標題樣式 */
+.card-chart-wrapper h4 {
+  background: linear-gradient(90deg, #ffe6cc, #fffaf0);
+  color: #b85b00;
+  font-size: 1.6rem;
+  font-weight: bold;
+  padding: 12px 20px;
+  border-left: 6px solid #ff8c00;
+  border-radius: 8px;
+  text-align: left;
+  margin-bottom: 20px;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+}
+
+
+
+.card-chart {
+  flex: 1.5;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;    /* ✅ 水平置中 */
+  justify-content: center; /* ✅ 垂直置中 */
+  text-align: center;
+  padding: 24px;
+}
+
+.card-chart h4 {
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #444;
+}
+
+
+/* 🎯 雷達圖畫布尺寸 */
+.card-visual-area canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+/* 📐 雷達圖容器樣式 */
+.card-chart .card-visual-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 340px;
+  height: 340px;
+  margin: auto;
+  background-color: #ffffff;
+}
+
+
+
+
+
+
+/* 🔗 連接箭頭樣式 */
+.card-linker {
+  flex: 0 0 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.card-linker span {
+  background: linear-gradient(135deg, #ff7e00, #ffb347);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 50px;
+  box-shadow: 0 4px 10px rgba(255, 125, 0, 0.3);
+  transition: all 0.3s ease;
+  font-size: 24px;
+}
+
+.card-linker span:hover {
+  background: linear-gradient(135deg, #ff8800, #ffc371);
+  box-shadow: 0 6px 14px rgba(255, 125, 0, 0.5);
+  transform: scale(1.1);
+}
+
+
+
+
+
+/* ===== 🌙 深色模式：右側卡片樣式 ===== */
+body.dark-mode .card-chart-wrapper {
+  background: linear-gradient(145deg, #1e1f33, #2a2c45);
+  box-shadow: 0 4px 14px rgba(90, 100, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .card-chart-wrapper h4 {
+  background: linear-gradient(90deg, #2c2c40, #373752);
+  color: #ffb347;
+  border-left: 6px solid #ffa94d;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+body.dark-mode .card-chart {
+  /* 漸層霧面玻璃背景 */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  /* 半透明白邊 */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  /* 背景模糊帶出玻璃質感 */
+  backdrop-filter: blur(6px);
+}
+
+
+/* 🎯 深色模式：雷達圖畫布尺寸＆樣式 */
+body.dark-mode .card-visual-area{
+  width: 100% !important;
+  height: 100% !important;
+  /* 保持畫布透明，讓下層玻璃質感背景透出 */
+  background-color:#66bb6a
+  /* 如果想要輕微投影，可選擇性打開： */
+  /* filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); */
+}
+
+
+
+
+/* 📐 深色模式下的雷達圖容器 */
+body.dark-mode .card-chart .card-visual-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 340px;
+  height: 340px;
+  margin: auto;
+
+  /* 深色底 + 微透明漸層 */
+  background: linear-gradient(145deg,
+    rgba(40, 42, 58, 0.85) 0%,
+    rgba(25, 26, 38, 0.85) 100%
+  );
+
+  /* 細緻圓角與邊框 */
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  /* 內外陰影，強化立體感 */
+  box-shadow:
+    inset 0 2px 6px rgba(255, 255, 255, 0.05),
+    0 4px 12px rgba(0, 0, 0, 0.6);
+
+  /* 玻璃質感模糊 */
+  backdrop-filter: blur(4px);
+}
+
+
+body.dark-mode .card-linker span {
+  background: linear-gradient(135deg, #ff8800, #ffc371);
+  color: #1e1f33;
+  box-shadow: 0 4px 10px rgba(255, 160, 50, 0.4);
+}
+
+body.dark-mode .card-linker span:hover {
+  background: linear-gradient(135deg, #ffa726, #ffd180);
+  transform: scale(1.08);
+}
+

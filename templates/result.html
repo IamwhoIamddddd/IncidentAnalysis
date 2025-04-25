@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Excel 分析系統 - 結果頁面</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/FrontEndCss.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -24,18 +24,50 @@
     <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle">←</button>
   </div>
 
+  
+
+
+
   <div class="container">
   <h2 class="main-title">📊 分析結果報告</h2>
-  <div id="resultCards"></div>
+
+  <div id="filterLoading" class="filter-loading" style="display: none;">
+  <div class="spinner-border"></div>
+  <p>載入中，請稍候...</p>
 </div>
+
+
+
+<div class="filter-bar">
+  <label for="filterRange">📅 顯示哪段時間的資料：</label>
+  <select id="filterRange" class="select-clean">
+    <option value="all">全部</option>
+    <option value="0">只顯示今天</option>
+    <option value="1">最近 1 天</option>
+    <option value="3">最近 3 天</option>
+    <option value="7" selected>最近 7 天</option>
+    <option value="30">最近 30 天</option>
+  </select>
+  <button id="clearFilterBtn" class="btn-clear">🧹 清除篩選</button>
+</div>
+
+<div id="resultCards"></div>
+
+
+
+
 
 <!-- ✅ 正確順序！jQuery 要放在 DataTables 前面 -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
 
 <!-- 你自己的 JS 檔放最後 -->
 <script src="{{ url_for('static', filename='js/result.js') }}"></script>
+<script src="{{ url_for('static', filename='charts/resultViz.js') }}"></script>
 </body>
 </html>
 <!-- 這裡是 JavaScript 的結尾，沒有其他內容 -->
