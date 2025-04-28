@@ -1,4 +1,8 @@
 // 當 DOM 完全加載後執行
+
+
+
+
 window.addEventListener('DOMContentLoaded', () => {
     // 獲取顯示歷史紀錄的列表元素
     const historyList = document.getElementById('historyList');

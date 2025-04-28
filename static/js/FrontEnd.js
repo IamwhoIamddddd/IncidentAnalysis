@@ -6,6 +6,8 @@ let droppedFile = null; // 用來暫存拖曳上傳的檔案
 let previewModalInstance = null; // 用來保存 Bootstrap Modal 的實例
 
 
+
+
 // 設置拖曳上傳事件的監聽器
 ['dragenter', 'dragover'].forEach(eventName => {
     dropArea.addEventListener(eventName, e => {
