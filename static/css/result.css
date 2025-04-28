@@ -280,6 +280,8 @@ body.dark-mode .container {
     border: 1px solid #f0f0f0;
     transition: background-color 0.3s;
         min-width: 500px;     /* ✅ 強制每個格子至少寬 200px */
+            /* ✅ 讓同一列的 div 都一樣高！ */
+    align-items: stretch;
     
 }
 
@@ -290,12 +292,13 @@ body.dark-mode .container {
 
 .card-grid strong {
     display: block;
-    margin-bottom: 4px;
-    color: #444;
-    font-weight: 600;
-    font-size: 1rem;
-    letter-spacing: 0.3px;
+    margin-bottom: 6px;         /* 比原本 4px 再留一點呼吸空間 */
+    font-size: 1.1rem;          /* ✅ 統一標題字體大小 */
+    font-weight: 700;           /* ✅ 字重統一，顯得穩重 */
+    letter-spacing: 0.3px;      /* 小小字距，閱讀舒服 */
+    color: #2c3e50;             /* ✅ 統一文字顏色 */
 }
+
 
 
 
@@ -401,79 +404,152 @@ body.dark-mode .card p {
 }
 
 
-.progress-bar {
-    background: rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    height: 3px;
-    border-radius: 9px;
-    position: relative;
-    overflow: visible; /* ✅ 保持可以顯示外部元素 */
-    margin-top: 10px;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.05),
-                0 1px 1px rgba(255,255,255,0.6);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ======= 最外層小卡片（每個標準小區塊）======= */
+.progress-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #f8f9fb, #f2f3f8); /* ⬅️ 比單色更高級一點的亮灰漸層 */
+    border-radius: 14px;
+    border: 1px solid #d0d5e0; /* 淺灰邊，不是死白 */
+    margin-bottom: 24px;
+    min-width: 500px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); /* ✅ 微浮起，但超輕，現代感 */
+    transition: box-shadow 0.3s ease;
+
 }
 
 
-/* ✅ 使用 .progress-fill 取代 ::after 做進度條本體 */
 
-.progress-fill {
-    box-sizing: border-box;    width: 0; /* ✅ 初始寬度為 0，讓動畫從這裡開始 */
-    position: absolute; /* ✅ 關鍵！讓 fill 吸附在 bar 裡面 */
-    top: 0;
-    left: 0;
-    height:10%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #4caf50, #81c784);
-    box-shadow: 0 0 12px rgba(76, 175, 80, 0.6);
-    transition: width 0.7s ease-in-out, background 0.4s ease, box-shadow 0.4s ease;
+/* 卡片 hover 小小浮起效果 */
+.progress-block:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* ======= 標題 ======= */
+.progress-block strong {
+    font-size: 1.1rem;
+    color: #2c3e50;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+/* ======= 分數數字 ======= */
+.score-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #3a4b63;
+}
+
+/* ======= Progress 和 百分比 ======= */
+.progress-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+}
+
+/* 進度條 */
+progress.progress-bar {
+    flex: 1;
+    height: 14px;
+    border-radius: 999px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: transparent;
+    overflow: hidden;
+            margin-top: 6.5px; /* ✅ 新增！讓 progress 整個往下推一點 */
+
 }
 
 
-/* ✅ 使用 .progress-fill::after 顯示分數提示泡泡 */
-.progress-fill::after {
-    content: attr(data-score) '%';
-    position: absolute;
-    top: -28px;
-    right: 0;
-    transform: translateX(50%);
-    background: rgba(51, 51, 51, 0.85);
-    color: #fff;
-    font-size: 0.75rem;
-    font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 6px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s ease, transform 0.4s ease;
-    z-index: 2;
-}
-.progress-fill:hover::after {
-    opacity: 1;
-    transform: translateX(50%) translateY(-4px);
+
+/* 進度條背景（底） */
+progress.progress-bar::-webkit-progress-bar {
+    background-color: rgba(220, 220, 220, 0.5);
+    border-radius: 999px;
 }
 
-/* ✅ 移除不再使用的 ::after 與 ::before */
-.progress-bar::after,
-.progress-bar::before {
-    display: none !important;
-    content: none !important;
+/* 有顏色的部分 */
+progress.progress-bar::-webkit-progress-value {
+    background: var(--progress-color, linear-gradient(90deg, #4caf50, #81c784));
+    border-radius: 999px;
+    box-shadow: 0 0 6px rgba(76, 175, 80, 0.4);
+    height: 100%;
+    transition: width 1.2s ease-out, background 0.5s ease;
 }
 
-/* 深色模式 */
-body.dark-mode .progress-bar {
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.04),
-                0 1px 1px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+/* Firefox */
+progress.progress-bar::-moz-progress-bar {
+    background: var(--progress-color, linear-gradient(90deg, #4caf50, #81c784));
+    border-radius: 999px;
+    box-shadow: 0 0 6px rgba(76, 175, 80, 0.4);
+    height: 100%;
+    transition: width 1.2s ease-out, background 0.5s ease;
 }
 
-body.dark-mode .progress-fill::after {
-    background: rgba(230, 230, 255, 0.85);
-    color: #1e213f;
+/* 百分比文字 */
+.progress-percent {
+    min-width: 48px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #4c4c4c;
 }
+
+/* ======= 深色模式 ======= */
+body.dark-mode .progress-block {
+    background: linear-gradient(135deg, #2b2d4b, #1c1d3a);
+    border: 1px solid #474b7c;
+    box-shadow: 0 4px 12px rgba(90, 100, 255, 0.08);
+}
+
+body.dark-mode .progress-block strong,
+body.dark-mode .score-value,
+body.dark-mode .progress-percent {
+    color: #dce0ff;
+}
+
+body.dark-mode progress.progress-bar::-webkit-progress-bar {
+    background-color: rgba(120, 120, 160, 0.3);
+}
+
+body.dark-mode progress.progress-bar::-moz-progress-bar {
+    background-color: rgba(120, 120, 160, 0.3);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 .score-max {

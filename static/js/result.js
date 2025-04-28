@@ -23,214 +23,230 @@ window.addEventListener('DOMContentLoaded', async () => {
             toggleBtn.innerHTML = isDark ? '🌞 淺色模式' : '🌙 深色模式';
             localStorage.setItem('dark-mode', isDark);
                 // 🌈 切換模式後重新渲染雷達圖
-    if (window.renderAllCharts) window.renderAllCharts();
+            if (window.renderAllCharts) window.renderAllCharts();
         });
     }
 
     // ===== 動態載入分析結果卡片 =====
     const container = document.getElementById('resultCards');
     const riskLevelToClass = (level) => {
-    switch(level) {
-        case '高風險': return 'risk-critical';
-        case '中風險': return 'risk-high';
-        case '低風險': return 'risk-medium';
-        case '忽略': default: return 'risk-low';
-    }
-};
-
-
-
-
+        switch(level) {
+            case '高風險': return 'risk-critical';
+            case '中風險': return 'risk-high';
+            case '低風險': return 'risk-medium';
+            case '忽略': default: return 'risk-low';
+        }
+    };
     if (!container) return;
-
     try {
         document.getElementById('filterLoading').style.display = 'flex';
-container.innerHTML = ''; // 清除原卡片
-
+        container.innerHTML = ''; // 清除原卡片
         const res = await fetch('/get-results');
         const data = await res.json();
+        const filterRange = document.getElementById('filterRange');
+        let rangeDays = localStorage.getItem('filter-days');
+        if (rangeDays === null) rangeDays = '7'; // 預設值
+        if (filterRange) {
+            filterRange.value = rangeDays;
+            filterRange.addEventListener('change', () => {
+                const val = filterRange.value;
+                    if (val === 'all') {
+                        localStorage.setItem('filter-days', val);
+                    } 
+                    else {
+                        localStorage.setItem('filter-days', val);}
+                    location.reload();
+                });
+            }
+
+            let filterStartDate = null;
+            if (rangeDays !== 'all') {
+                const now = new Date();
+                if (rangeDays === '0') {
+                        // 只顯示今天（00:00 起）
+                    filterStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    } else {
+                        const days = parseInt(rangeDays);
+                        if (!isNaN(days)) {
+                            filterStartDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+                        }
+                    }
+                }
+
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<p>⚠️ 尚無分析資料，請先回首頁上傳 Excel。</p>';
+                    return;
+                    }
+                data.forEach(row => {
+                            if (!row.analysisTime || isNaN(Date.parse(row.analysisTime))) return;
+                            const rowDate = new Date(row.analysisTime);
+                            if (filterStartDate && rowDate < filterStartDate) return;
+
+                            const cardRow = document.createElement('div');
+                            cardRow.className = 'card-row';
+
+                            const infoCard = document.createElement('div');
+                            infoCard.className = 'card card-info';
+infoCard.innerHTML = `
+    <h3>🎯 Incident: ${row.id}</h3>
+    <div class="card-grid">
+
+<!-- Config Item -->
+<div class="progress-block">
+  <strong>Config Item:</strong>
+  <span class="score-value">${row.configurationItem || '—'}</span>
+</div>
+
+<!-- Severity 分數 -->
+<div class="progress-block">
+  <strong>Severity <span class="score-max">(滿分 20)</span>:</strong>
+  <span class="score-value">${row.severityScore}</span>
+  <div class="progress-wrapper">
+    <progress class="progress-bar" value="${row.severityScore}" max="20" data-type="severity"></progress>
+    <span class="progress-percent">0%</span>
+  </div>
+</div>
+
+<!-- Frequency 分數 -->
+<div class="progress-block">
+  <strong>Frequency <span class="score-max">(滿分 10)</span>:</strong>
+  <span class="score-value">${row.frequencyScore}</span>
+  <div class="progress-wrapper">
+    <progress class="progress-bar" value="${row.frequencyScore}" max="10" data-type="frequency"></progress>
+    <span class="progress-percent">0%</span>
+  </div>
+</div>
+
+<!-- Impact 分數 -->
+<div class="progress-block">
+  <strong>Impact <span class="score-max">(滿分 30)</span>:</strong>
+  <span class="score-value">${row.impactScore}</span>
+  <div class="progress-wrapper">
+    <progress class="progress-bar" value="${row.impactScore}" max="30" data-type="impact"></progress>
+    <span class="progress-percent">0%</span>
+  </div>
+</div>
 
 
 
 
 
-const filterRange = document.getElementById('filterRange');
-let rangeDays = localStorage.getItem('filter-days');
 
-if (rangeDays === null) rangeDays = '7'; // 預設值
 
-if (filterRange) {
-    filterRange.value = rangeDays;
-    filterRange.addEventListener('change', () => {
-        const val = filterRange.value;
-        if (val === 'all') {
-            localStorage.setItem('filter-days', val);
-        } else {
-            localStorage.setItem('filter-days', val);
-        }
-        location.reload();
-    });
-}
 
-let filterStartDate = null;
-if (rangeDays !== 'all') {
-    const now = new Date();
-    if (rangeDays === '0') {
-        // 只顯示今天（00:00 起）
-        filterStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else {
-        const days = parseInt(rangeDays);
-        if (!isNaN(days)) {
-            filterStartDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-        }
+        <div><strong>Risk Level:</strong>
+            <span class="badge ${riskLevelToClass(row.riskLevel)}">${row.riskLevel}</span></div>
+
+        <div><strong>Solution:</strong> <span>${row.solution || '—'}</span></div>
+
+        <div><strong>Location:</strong> <span>${row.location || '—'}</span></div>
+
+        <div><strong>Analysis Date:</strong> <span>${row.analysisTime || '—'}</span></div>
+
+    </div>
+`;
+
+
+                            const linker = document.createElement('div');
+                            linker.className = 'card-linker';
+                            linker.innerHTML = `<span>⇨</span>`;
+
+                            // 📌 把圖表區塊包在外層容器中
+                            const chartWrapper = document.createElement('div');
+                            chartWrapper.className = 'card-chart-wrapper';
+                            chartWrapper.innerHTML = `
+                                <h4>視覺化分析</h4>
+                            `;
+
+                            const chartCard = document.createElement('div');
+                            chartCard.className = 'card card-chart';
+                            chartCard.innerHTML = `
+                                <div class="card-visual-area"
+                                    data-severity="${row.severityScore}" 
+                                    data-frequency="${row.frequencyScore}" 
+                                    data-impact="${row.impactScore}">
+                                </div>
+                            `;
+                            chartWrapper.appendChild(chartCard);       // 🔁 圖表卡片加到 wrapper 裡
+                            cardRow.appendChild(infoCard);
+                            cardRow.appendChild(linker);
+                            cardRow.appendChild(chartWrapper);         // 🟨 插入整個 wrapper
+                            container.appendChild(cardRow);
+                        });
+
+
+Promise.resolve().then(() => {
+    if (typeof window.renderAllCharts === 'function') {
+        window.renderAllCharts();
     }
-}
 
+    document.querySelectorAll('.progress-wrapper').forEach(wrapper => {
+        const bar = wrapper.querySelector('.progress-bar');
+        const percentLabel = wrapper.querySelector('.progress-percent');
 
+        const value = parseFloat(bar.getAttribute('value')) || 0;
+        const max = parseFloat(bar.getAttribute('max')) || 100;
 
+        // ✅ 重置
+        bar.value = 0;
+        percentLabel.textContent = `0%`;
 
+        setTimeout(() => {
+            // ✅ 先讓進度條填充到正確 value
+            bar.value = value;
 
+            const finalPercent = Math.round((value / max) * 100);
 
+            // ✅ 這裡開始用 requestAnimationFrame 動態跑百分比數字
+            let currentPercent = 0;
+            const duration = 1000; // 1秒內跑完
+            const startTime = performance.now();
 
+            function animatePercent(time) {
+                const elapsed = time - startTime;
+                const progress = Math.min(elapsed / duration, 1); // progress 0~1
+                currentPercent = Math.floor(finalPercent * progress);
 
-        if (!data || data.length === 0) {
-            container.innerHTML = '<p>⚠️ 尚無分析資料，請先回首頁上傳 Excel。</p>';
-            return;
-        }
+                percentLabel.textContent = `${currentPercent}%`;
 
-data.forEach(row => {
-    if (!row.analysisTime || isNaN(Date.parse(row.analysisTime))) return;
-    const rowDate = new Date(row.analysisTime);
-    if (filterStartDate && rowDate < filterStartDate) return;
+                if (progress < 1) {
+                    requestAnimationFrame(animatePercent);
+                } else {
+                    percentLabel.textContent = `${finalPercent}%`; // 最後補精確
+                }
+            }
 
-    const cardRow = document.createElement('div');
-    cardRow.className = 'card-row';
+            requestAnimationFrame(animatePercent);
 
-    const infoCard = document.createElement('div');
-    infoCard.className = 'card card-info';
-    infoCard.innerHTML = `
-        <h3>🎯 Incident: ${row.id}</h3>
-        <div class="card-grid">
+            // ✅ 設定進度條顏色
+            let bg = '';
+            let textColor = '';
 
-            <div><strong>Config Item:</strong> <span>${row.configurationItem || '—'}</span></div>
+            if (finalPercent < 35) {
+                bg = 'linear-gradient(90deg, #6ee7b7, #3bceac)';
+                textColor = '#4caf50';
+            } else if (finalPercent < 70) {
+                bg = 'linear-gradient(90deg, #ffe57f, #ffca28)';
+                textColor = '#f9a825';
+            } else {
+                bg = 'linear-gradient(90deg, #ff8a80, #e53935)';
+                textColor = '#e53935';
+            }
 
+            bar.style.setProperty('--progress-color', bg);
+            percentLabel.style.color = textColor;
 
-
-            <div><strong>Severity<span class="score-max">(滿分 20)</span>:</strong> <span>${row.severityScore}</span>
-                <div class="progress-bar" data-score="${row.severityScore}" data-type="severity"></div></div>
-
-
-
-            <div><strong>Frequency<span class="score-max">(滿分 10)</span>:</strong> <span>${row.frequencyScore}</span>
-                <div class="progress-bar" data-score="${row.frequencyScore}" data-type="frequency"></div></div>
-                
-
-            <div><strong>Impact<span class="score-max">(滿分 30)</span>:</strong> <span>${row.impactScore}</span>
-                <div class="progress-bar" data-score="${row.impactScore}" data-type="impact"></div></div>
-
-            <div><strong>Risk Level:</strong>
-                <span class="badge ${riskLevelToClass(row.riskLevel)}">${row.riskLevel}</span></div>
-            <div><strong>Solution:</strong> <span>${row.solution || '—'}</span></div>
-            <div><strong>Location:</strong> <span>${row.location || '—'}</span></div>
-            <div><strong>Analysis Date:</strong> <span>${row.analysisTime || '—'}</span></div>
-        </div>
-    `;
-
-    const linker = document.createElement('div');
-    linker.className = 'card-linker';
-    linker.innerHTML = `<span>⇨</span>`;
-
-    // 📌 把圖表區塊包在外層容器中
-    const chartWrapper = document.createElement('div');
-    chartWrapper.className = 'card-chart-wrapper';
-    chartWrapper.innerHTML = `
-        <h4>視覺化分析</h4>
-    `;
-
-    const chartCard = document.createElement('div');
-    chartCard.className = 'card card-chart';
-    chartCard.innerHTML = `
-        <div class="card-visual-area"
-             data-severity="${row.severityScore}" 
-             data-frequency="${row.frequencyScore}" 
-             data-impact="${row.impactScore}">
-        </div>
-    `;
-
-    chartWrapper.appendChild(chartCard);       // 🔁 圖表卡片加到 wrapper 裡
-    cardRow.appendChild(infoCard);
-    cardRow.appendChild(linker);
-    cardRow.appendChild(chartWrapper);         // 🟨 插入整個 wrapper
-
-    container.appendChild(cardRow);
+        }, 300); // 小延遲，讓動畫有呼吸感
+    });
 });
 
 
-
-        if (typeof window.renderAllCharts === 'function') {
-            window.renderAllCharts(); // ✅ 呼叫圖表渲染
-        }        // ===== 動態載入進度條 =====
-
-
-        const getBarStyle = (val, type) => {
-            let percent = 0;
-            if (type === 'severity') {
-                percent = (val / 20) * 100;
-            } else if (type === 'frequency') {
-                percent = (val / 10) * 100;
-            } else if (type === 'impact') {
-                percent = (val / 30) * 100;
-            }
-
-            if (percent < 35) {
-                return {
-                    bg: 'linear-gradient(90deg, #6ee7b7, #3bceac)', // 綠
-                    glow: '0 0 10px rgba(59, 206, 172, 0.5)'
-                };
-            } else if (percent < 70) {
-                return {
-                    bg: 'linear-gradient(90deg, #ffe57f, #ffca28)', // 黃
-                    glow: '0 0 10px rgba(255, 202, 40, 0.5)'
-                };
-            } else {
-                return {
-                    bg: 'linear-gradient(90deg, #ff8a80, #e53935)', // 紅
-                    glow: '0 0 10px rgba(229, 57, 53, 0.5)'
-                };
-            }
-        };
-            document.querySelectorAll('.progress-bar').forEach(bar => {
-                const val = parseFloat(bar.dataset.score || 0);
-                const type = bar.getAttribute('data-type');
-
-                let percent = 0;
-                if (type === 'severity') {
-                    percent = Math.min((val / 20) * 100, 100);
-                } else if (type === 'frequency') {
-                    percent = Math.min((val / 10) * 100, 100);
-                } else if (type === 'impact') {
-                    percent = Math.min((val / 30) * 100, 100);
-                }
-
-                const fill = document.createElement('div');
-                fill.classList.add('progress-fill');
-                fill.setAttribute('data-score', val);
-                fill.style.width = `${percent}%`;
-
-                const { bg, glow } = getBarStyle(val, type); // 傳入 type
-                fill.style.background = bg;
-                fill.style.boxShadow = glow;
-
-                bar.innerHTML = '';
-                bar.appendChild(fill);
-            });
-
-
-
-
-    } catch (err) {
+    } 
+    catch (err) {
         console.error('🚨 無法取得結果：', err);
         container.innerHTML = '<p style="color:red;">❌ 無法載入分析結果。</p>';
+        if (filterLoading) filterLoading.style.display = 'none'; // ✨補這行
+
     }
 
     document.getElementById('filterLoading').style.display = 'none';
