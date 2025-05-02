@@ -1,5 +1,7 @@
 # 匯入 Flask 框架及相關模組
 from flask import Flask, request, jsonify, render_template, session, send_file
+from gpt_utils import extract_resolution_suggestion
+
 # 匯入數學運算模組
 import math
 import json
@@ -178,6 +180,12 @@ def analyze_excel(filepath, weights=None):
         impact_score = round(severity_score + frequency_score, 2)
         risk_level = get_risk_level(impact_score)
         print(f"📉 嚴重性：{severity_score}, 頻率：{frequency_score}, 總分：{impact_score} → 分級：{risk_level}")
+        resolution_text = str(row.get('Close notes', "")).strip()
+        print(f"📦 Resolution 原始文字：{resolution_text}")  # ✅ 確認原始欄位內容
+
+        ai_suggestion = extract_resolution_suggestion(resolution_text)
+        print(f"🤖 GPT 建議句回傳：{ai_suggestion}")  # ✅ 確認 GPT 是否成功回應
+
 
         # 儲存分析結果
         results.append({
@@ -187,14 +195,19 @@ def analyze_excel(filepath, weights=None):
             'frequencyScore': safe_value(frequency_score),
             'impactScore': safe_value(impact_score),
             'riskLevel': safe_value(get_risk_level(impact_score)),
-            'solution': safe_value(row.get('Close notes') or '無提供解法'),
+
+
+            'solution': safe_value(ai_suggestion or '無提供解法'),
+
+
             'location': safe_value(row.get('Location')),
             'analysisTime': analysis_time
         })
-        solution_text = row.get('Close notes') or '無提供解法'
+        # solution_text = row.get('Close notes') or '無提供解法'
         recommended = recommend_solution(short_description_text)
         keywords = extract_keywords(short_description_text)
 
+        print(f"✅ 已儲存 solution：{results[-1]['solution']}")
         print(f"💡 建議解法：{recommended}")
         print(f"🔑 抽取關鍵字：{keywords}")
         print("—" * 250)  # 分隔線

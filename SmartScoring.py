@@ -1,10 +1,12 @@
 from sentence_transformers import SentenceTransformer, util
 from keybert import KeyBERT
+
 import spacy
 import nltk
 import pandas as pd
 # 匯入 os 模組處理檔案與路徑
 import os
+import requests
 # # ---------- 載入模型 ----------
 # # 檢查模型是否已存在，否則自動下載並儲存
 # model_path = './models/paraphrase-MiniLM-L6-v2'
@@ -229,4 +231,55 @@ def recommend_solution(text):
         return "Try restarting the system and checking the application version."
     else:
         return "Refer to similar cases or contact the support team for assistance."
+    
 
+
+def is_actionable_resolution(text):
+    if not isinstance(text, str) or not text.strip():
+        return False
+
+    # ✅ 標準的「有提供解法」語氣樣板（可擴充）
+    reference_texts = [
+        "The issue was fixed by restarting the system.",
+        "Steps were provided to the user.",
+        "We guided the user through the process.",
+        "Enabled access via admin portal.",
+        "Action was completed successfully.",
+        "The user's account was reactivated.",
+        "Password was reset to restore access.",
+        "Configuration settings were updated.",
+        "Provided instructions to resolve the issue.",
+        "Assisted the user remotely via Teams.",
+        "Cleared cache and restarted the application.",
+        "The permission issue was resolved by updating roles.",
+        "Resolved by reinstalling the software.",
+        "User was instructed to follow internal SOP.",
+        "Helped user reset MFA settings.",
+        "Added the user as a guest in the tenant.",
+        "Reimaged the device to resolve the problem.",
+        "VPN settings were corrected.",
+        "Shared the fix through internal documentation.",
+        "Confirmed the issue was resolved with user.",
+        "Escalated issue was resolved by SME.",
+        "Firewall rules were updated to allow access.",
+        "License was reassigned to the correct user.",
+        "System was patched to address the issue.",
+        "Session was terminated and re-established to fix connectivity."
+    ]
+
+
+    try:
+        # Encode 目標文字與樣板
+        target_embedding = bert_model.encode(text, convert_to_tensor=True)
+        reference_embeddings = bert_model.encode(reference_texts, convert_to_tensor=True)
+
+        # 取最大語意相似度
+        cosine_scores = util.cos_sim(target_embedding, reference_embeddings)
+        max_score = cosine_scores.max().item()
+
+        print(f"🧠 Resolution 類似度最高分：{max_score:.2f}")  # ✅ 可印出 debug 分數
+
+        return max_score >= 0.5  # 門檻可調整
+    except Exception as e:
+        print("❌ 類似度分析錯誤：", e)
+        return False
