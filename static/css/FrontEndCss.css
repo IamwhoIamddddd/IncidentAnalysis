@@ -883,7 +883,7 @@ body.dark-mode .weight-panel:hover {
 
 body.dark-mode .weight-panel legend {
   color: #c7cfff;
-  border-left: 4px solid #8f9fff;
+
 }
 
 body.dark-mode .weight-panel .form-label {
@@ -900,3 +900,40 @@ body.dark-mode .weight-panel input[type="number"]:focus {
   border-color: #8f9fff;
   box-shadow: 0 0 0 3px rgba(143, 159, 255, 0.2);
 }
+
+.weight-ok {
+  color: #2c3e50;
+  transition: color 0.3s ease;
+}
+body.dark-mode .weight-ok {
+  color: #c7cfff;
+}
+
+.weight-warn {
+  color: red;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+
+
+
+
+
+
+
+
+

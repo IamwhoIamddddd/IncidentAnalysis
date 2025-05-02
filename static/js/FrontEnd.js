@@ -53,17 +53,55 @@ document.getElementById('resetWeightsBtn').addEventListener('click', () => {
 
   localStorage.setItem('customWeights', JSON.stringify(defaultWeights)); // ✅ 同步清掉自訂值
 
-  showToastMessage('✅ 已重設為預設權重！');
+  showToastMessage('✅ 已重設為預設權重！', 'success'); // ✅ 綠色提示
 });
 
 
 // ✅ 彈出提示（你已有 toast 元件）
-function showToastMessage(msg) {
+function showToastMessage(msg, type = 'info') {
   const toast = document.getElementById('toast');
-  toast.innerHTML = msg;
+  let bgColor = '', textColor = '';
+
+  switch (type) {
+    case 'success':
+      bgColor = 'rgba(232, 245, 233, 0.95)';
+      textColor = '#2e7d32';
+      break;
+    case 'warning':
+      bgColor = 'rgba(255, 249, 196, 0.95)';
+      textColor = '#f9a825';
+      break;
+    case 'error':
+      bgColor = 'rgba(255, 235, 238, 0.95)';
+      textColor = '#c62828';
+      break;
+    default:
+      bgColor = 'rgba(230, 240, 255, 0.95)';
+      textColor = '#1565c0';
+  }
+
+toast.innerHTML = `
+  <span style="
+    background: ${bgColor};
+    color: ${textColor};
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    display: block;
+    text-align: center;
+    max-width: 80vw;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  ">
+    ${msg}
+  </span>`;
+
   toast.style.display = 'block';
   setTimeout(() => toast.style.display = 'none', 3000);
 }
+
 
 
 
@@ -102,6 +140,12 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     role_component: parseFloat(document.getElementById('weightRoleComponent')?.value || 3),
     time_cluster: parseFloat(document.getElementById('weightTimeCluster')?.value || 2)
     };
+
+
+    if (submitBtn.disabled) {
+    alert('⚠️ 權重設定不正確，請確認嚴重性與頻率加總是否為 10');
+    return;
+    }
 
 
 
@@ -409,6 +453,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
       // ✅ 即時儲存使用者輸入的每個權重欄位
+
     const weightInputs = [
         'weightKeyword',
         'weightMultiUser',
@@ -417,7 +462,7 @@ window.addEventListener('DOMContentLoaded', () => {
         'weightRoleComponent',
         'weightTimeCluster'
     ];
-
+    const expectedTotal = 10.0;
     weightInputs.forEach(id => {
         const input = document.getElementById(id);
         if (input) {
@@ -425,6 +470,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const currentWeights = JSON.parse(localStorage.getItem('customWeights') || '{}');
             currentWeights[id] = parseFloat(input.value);
             localStorage.setItem('customWeights', JSON.stringify(currentWeights));
+            updateWeightSum(); // ✅ 加這行讓畫面即時更新
         });
         }
     });
@@ -455,7 +501,90 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     localStorage.setItem("historyData", JSON.stringify(cleanedHistory));
 
+ function updateWeightSum() {
+  const severityFields = ['weightKeyword', 'weightMultiUser', 'weightEscalation'];
+  const frequencyFields = ['weightConfigItem', 'weightRoleComponent', 'weightTimeCluster'];
 
+  let severitySum = 0;
+  let frequencySum = 0;
+
+  severityFields.forEach(id => {
+    const val = parseFloat(document.getElementById(id)?.value || '0');
+    if (!isNaN(val)) severitySum += val;
+  });
+
+  frequencyFields.forEach(id => {
+    const val = parseFloat(document.getElementById(id)?.value || '0');
+    if (!isNaN(val)) frequencySum += val;
+  });
+
+  const total = severitySum + frequencySum;
+
+  // 更新數字
+  document.getElementById('severitySum').textContent = severitySum.toFixed(2);
+  document.getElementById('frequencySum').textContent = frequencySum.toFixed(2);
+  document.getElementById('weightSum').textContent = total.toFixed(2);
+
+
+
+  // 個別錯誤標紅
+  const severityRow = document.getElementById('severitySumRow');
+  const frequencyRow = document.getElementById('frequencySumRow');
+    const totalSumRow = document.getElementById('totalSumRow'); // 👈 新增這行
+
+const severityTooMuch = severitySum > 10.01;
+const frequencyTooMuch = frequencySum > 10.01;
+const totalTooMuch = total > 20.01;
+
+
+// 清除原有狀態
+severityRow.classList.remove('weight-warn', 'weight-ok');
+frequencyRow.classList.remove('weight-warn', 'weight-ok');
+totalSumRow.classList.remove('weight-warn', 'weight-ok');
+
+// 僅當「超過」才給紅色，其餘顯示正常
+severityRow.classList.add(severityTooMuch ? 'weight-warn' : 'weight-ok');
+frequencyRow.classList.add(frequencyTooMuch ? 'weight-warn' : 'weight-ok');
+totalSumRow.classList.add(totalTooMuch ? 'weight-warn' : 'weight-ok');
+
+const submitBtn = document.getElementById('submitBtn');
+const allValid =
+  severitySum <= 10.01 &&
+  frequencySum <= 10.01 &&
+  total <= 20.01;
+
+submitBtn.disabled = !allValid;
+
+
+
+
+
+
+
+
+
+
+
+// --- 加總計算完後，檢查是否超過建議值（即時提醒） ---
+if (severitySum > 10.01) {
+  showToastMessage(`⚠️ 嚴重性權重加總已超過 10（目前為 ${severitySum.toFixed(2)}）`, 'error');
+}
+
+if (frequencySum > 10.01) {
+  showToastMessage(`⚠️ 頻率權重加總已超過 10（目前為 ${frequencySum.toFixed(2)}）`, 'error');
+}
+
+if (total > 20.01) {
+  showToastMessage(`⚠️ 總權重加總已超過 20（目前為 ${total.toFixed(2)}）`, 'error');
+}
+
+
+
+}
+
+
+// 初始化一次
+updateWeightSum();
 
 });
 
