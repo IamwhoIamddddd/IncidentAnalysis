@@ -43,8 +43,18 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
         document.getElementById('filterLoading').style.display = 'flex';
         container.innerHTML = ''; // 清除原卡片
-        const res = await fetch('/get-results');
-        const data = await res.json();
+
+
+        const res = await fetch('/get-results');       // ✅ 補上這行
+        const resultJson = await res.json();           // ✅ 正確解析 JSON
+        const data = resultJson.data;
+        const weights = resultJson.weights || {};
+        console.log("📦 當次分析使用的權重設定：", weights);
+
+
+
+
+
         const filterRange = document.getElementById('filterRange');
         let rangeDays = localStorage.getItem('filter-days');
         if (rangeDays === null) rangeDays = '7'; // 預設值
@@ -146,6 +156,22 @@ infoCard.innerHTML = `
         <div><strong>Analysis Date:</strong> <span>${row.analysisTime || '—'}</span></div>
 
     </div>
+
+<div class="weights-summary mt-3">
+  <details>
+    <summary>⚖️ 查看使用的權重設定 <span style="font-size: 0.85rem; opacity: 0.5;">（分析參數）</span></summary>
+    <div class="weight-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; padding-top: 12px;">
+      <div><strong>🔑 高風險語意：</strong> ${weights.keyword ?? '—'}</div>
+      <div><strong>👥 多人受影響：</strong> ${weights.multi_user ?? '—'}</div>
+      <div><strong>📈 升級處理：</strong> ${weights.escalation ?? '—'}</div>
+      <div><strong>🧩 配置項頻率：</strong> ${weights.config_item ?? '—'}</div>
+      <div><strong>🧑‍💻 元件角色頻率：</strong> ${weights.role_component ?? '—'}</div>
+      <div><strong>⏱️ 群聚事件：</strong> ${weights.time_cluster ?? '—'}</div>
+    </div>
+  </details>
+</div>
+
+
 `;
 
 

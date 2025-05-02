@@ -812,3 +812,91 @@ body.sidebar-collapsed .card {
     box-shadow: 0 4px 12px rgba(144, 164, 174, 0.4);
 }
 
+
+
+
+/* 權重設定區塊外框 */
+.weight-panel {
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-top: 30px;
+  margin-bottom: 24px;
+  background-color: #fafafa;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* hover 效果 */
+.weight-panel:hover {
+  background-color: #f0f0f5;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+}
+
+/* 欄位標題 */
+.weight-panel legend {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2c3e50;
+  padding: 0 12px;
+  margin-left: 12px;
+
+}
+
+/* 欄位標籤樣式 */
+.weight-panel .form-label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  display: inline-block;
+}
+
+/* 數字輸入欄 */
+.weight-panel input[type="number"] {
+  padding: 10px 14px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* 聚焦時強調 */
+.weight-panel input[type="number"]:focus {
+  border-color: #3498db;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+/* ✅ 深色模式支援 */
+body.dark-mode .weight-panel {
+  background-color: #1e213f;
+  border-color: #555;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .weight-panel:hover {
+  background-color: #252854;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .weight-panel legend {
+  color: #c7cfff;
+  border-left: 4px solid #8f9fff;
+}
+
+body.dark-mode .weight-panel .form-label {
+  color: #d0d4ff;
+}
+
+body.dark-mode .weight-panel input[type="number"] {
+  background-color: #2a2d4a;
+  color: #eee;
+  border: 1px solid #666;
+}
+
+body.dark-mode .weight-panel input[type="number"]:focus {
+  border-color: #8f9fff;
+  box-shadow: 0 0 0 3px rgba(143, 159, 255, 0.2);
+}

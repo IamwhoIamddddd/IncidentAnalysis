@@ -74,7 +74,19 @@ def safe_value(val):
 # ------------------------------------------------------------------------------
 
 # 分析 Excel 資料的主邏輯
-def analyze_excel(filepath):
+def analyze_excel(filepath, weights=None):
+        # 預設權重設定（可被覆蓋）
+    default_weights = {
+        'keyword': 5.0,
+        'multi_user': 3.0,
+        'escalation': 2.0,
+        'config_item': 5.0,
+        'role_component': 3.0,
+        'time_cluster': 2.0
+    }
+    weights = {**default_weights, **(weights or {})}  # 合併預設權重與使用者提供的權重設定
+    print("🎛️ 使用中的權重設定：", weights)
+    print("🔍 開始分析 Excel 檔案...")
     print(f"\n📂 讀取 Excel：{filepath}")
     df = pd.read_excel(filepath)  # 讀取 Excel 檔案
     print(f"📊 共讀取 {len(df)} 筆資料\n")
@@ -138,15 +150,29 @@ def analyze_excel(filepath):
             else:
                 time_cluster_score = 1
 
-        # 計算嚴重性分數
-        severity_score = round(keyword_score * 5 + user_impact_score * 3.0 + escalation_score * 2, 2)
-        # 計算頻率分數
-        frequency_score = round(configuration_item_freq * 5.0 + role_component_freq * 3.0 + time_cluster_score * 2.0, 2)
+        severity_score = round(
+            keyword_score * weights['keyword'] +
+            user_impact_score * weights['multi_user'] +
+            escalation_score * weights['escalation'], 2
+        )
+
+        frequency_score = round(
+            configuration_item_freq * weights['config_item'] +
+            role_component_freq * weights['role_component'] +
+            time_cluster_score * weights['time_cluster'], 2
+        )
+
+
+        
+        print(f"📊 嚴重性分數：{severity_score}，頻率分數：{frequency_score}")
         print("🧠 頻率分數細項：")
-        print(f"🔸 配置項（Configuration Item）出現比例：{configuration_item_freq:.2f}，乘以權重後得 {configuration_item_freq * 5:.2f} 分")
-        print(f"🔸 元件或角色（Role/Component）在整體中出現 {count} 次 → 給 {role_component_freq * 3:.2f} 分")
-        print(f"🔸 在 24 小時內有 {count_cluster} 筆同元件事件 → 群聚加分 {time_cluster_score * 2:.2f} 分")
+        print(f"🔸 配置項（Configuration Item）出現比例：{configuration_item_freq:.2f}，乘以權重後得 {configuration_item_freq * weights['config_item']:.2f} 分")
+        print(f"🔸 元件或角色（Role/Component）在整體中出現 {count} 次 → 給 {role_component_freq * weights['role_component']:.2f} 分")
+        print(f"🔸 在 24 小時內有 {count_cluster} 筆同元件事件 → 群聚加分 {time_cluster_score * weights['time_cluster']:.2f} 分")
         print(f"📊 頻率總分 = {frequency_score}\n")
+
+
+
 
         # 計算影響分數
         impact_score = round(severity_score + frequency_score, 2)
@@ -175,7 +201,12 @@ def analyze_excel(filepath):
 
 
     print("\n✅ 所有資料分析完成！")
-    return results
+    return {
+    'data': results,
+    'weights': weights,
+    'analysisTime': analysis_time
+    }
+
 
 # 根據分數判斷風險等級
 def get_risk_level(score):
@@ -225,6 +256,8 @@ def ping():
 def upload_file():
     print("📥 收到上傳請求")  # 紀錄請求
 
+
+
     if 'file' not in request.files:  # 檢查是否有檔案欄位
         print("❌ 沒有 file 欄位")
         return jsonify({'error': '沒有找到檔案欄位'}), 400
@@ -237,10 +270,22 @@ def upload_file():
     if not allowed_file(file.filename):  # 檢查檔案格式是否允許
         print("⚠️ 檔案類型不符")
         return jsonify({'error': '請上傳 .xlsx 檔案'}), 400
-    
+        
+    # 接收自訂權重
+    weights_raw = request.form.get('weights')
+    if not weights_raw:
+        print("ℹ️ 未提供自訂權重，使用預設值分析")
 
-
-        # 產生時間戳記與檔名
+    weights = None
+    if weights_raw:
+        try:
+            weights = json.loads(weights_raw)
+            print("📥 收到權重設定：", weights)
+        except Exception as e:
+            print(f"⚠️ 權重解析失敗：{e}")
+            return jsonify({'error': '權重解析失敗'}), 400
+        
+    # 產生時間戳記與檔名
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     uid = f"result_{timestamp}" # 例如 result_20250423_152301 分析結果檔名稱
     original_filename = f"original_{timestamp}.xlsx" # 例如 original_20250423_152301.xlsx 原始黨名稱
@@ -253,14 +298,17 @@ def upload_file():
         return jsonify({'error': f'儲存原始檔失敗：{str(e)}'}), 500
 
     try:
-        result = analyze_excel(original_path)  # 分析檔案
+        analysis_result = analyze_excel(original_path, weights=weights)
+        results = analysis_result['data']  # 取得分析結果
 
-        save_analysis_files(result, uid)  # 同時儲存 JSON + Excel
 
-        print(f"✅ 分析完成，共 {len(result)} 筆")
-        session['analysis_data'] = result  # 儲存分析結果到 session
+        save_analysis_files(analysis_result, uid)  # 儲存分析結果檔案
 
-        return jsonify({'data': result, 'uid': uid}), 200
+        print(f"✅ 分析完成，共 {len(results)} 筆")
+        session['analysis_data'] = results  # 儲存分析結果到 session
+        return jsonify({'data': results, 'uid': uid, 'weights': weights}), 200
+
+
     
 
 
@@ -275,51 +323,67 @@ def upload_file():
 
 
 def save_analysis_files(result, uid):
+    os.makedirs('json_data', exist_ok=True)
+    os.makedirs('excel_result', exist_ok=True)
     # 儲存 JSON
     json_path = os.path.join(basedir, 'json_data', f"{uid}.json")
-    print(f"📝 預計儲存 JSON：{json_path}")  # ✅ 加在這邊
+    print(f"📝 預計儲存 JSON：{json_path}")
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print("✅ JSON 檔案已寫入成功")
 
-
-    # 儲存分析報表 Excel
-    df = pd.DataFrame(result)
+    # 儲存分析報表 Excel（只儲存 result['data']）
+    df = pd.DataFrame(result['data'])
     excel_path = os.path.join(basedir, 'excel_result', f"{uid}.xlsx")
     df.to_excel(excel_path, index=False)
+
+    # 確認 JSON 檔案是否寫入成功
     if os.path.exists(json_path):
         print("✅ JSON 檔案已成功儲存")
     else:
         print("❌ JSON 檔案儲存失敗！")
-    print(f"✅ 分析報表已儲存：{excel_path}")  # ✅ 加在這邊
 
+    print(f"✅ 分析報表已儲存：{excel_path}")
     print("📁 JSON 絕對路徑：", os.path.abspath(json_path))
     print("📁 Excel 絕對路徑：", os.path.abspath(excel_path))
-
+    print("📁 原始檔絕對路徑：", os.path.abspath(os.path.join(basedir, 'uploads', f"original_{uid}.xlsx")))
 
 
 @app.route('/get-results')
 def get_results():
-    folder = 'json_data'  # 資料夾名稱
+    folder = 'json_data'
     results = []
+    first_weights = {}
 
     if not os.path.exists(folder):
         return jsonify({'error': f'資料夾不存在：{folder}'}), 404
 
-    for filename in os.listdir(folder):
-        if filename.endswith('.json'):
-            filepath = os.path.join(folder, filename)
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    if isinstance(data, list):
-                        results.extend(data)
-                    else:
-                        print(f"⚠️ {filename} 格式錯誤（非 list），已略過")
-            except Exception as e:
-                print(f"❌ 讀取 {filename} 時錯誤：{e}")
+    # 🔄 讀取所有檔案，找出最新的那份分析檔
+    sorted_files = sorted(
+        [f for f in os.listdir(folder) if f.endswith('.json')],
+        reverse=True  # 最後面最新
+    )
 
-    return jsonify(results)
+    for filename in sorted_files:
+        filepath = os.path.join(folder, filename)
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = json.load(f)
+                if isinstance(content, dict) and 'data' in content:
+                    results.extend(content['data'])
+                    if not first_weights and 'weights' in content:
+                        first_weights = content['weights']
+                elif isinstance(content, list):
+                    results.extend(content)
+        except Exception as e:
+            print(f"❌ 錯誤讀取 {filename}：{e}")
+
+    return jsonify({
+        'data': results,
+        'weights': first_weights  # ✅ 確保傳出這個欄位
+    })
+
+
 
 
 

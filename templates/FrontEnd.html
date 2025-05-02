@@ -41,13 +41,61 @@
             <p>📂 拖曳檔案到這裡，或點擊下方按鈕選擇</p>
         </div>
 
+
         <!-- 原本表單 -->
         <form id="uploadForm">
             <label for="excelFile" class="file-label">📎 選擇 .xlsx 檔案</label>
             <input type="file" id="excelFile" name="file" accept=".xlsx">
             <p id="fileInfo" style="font-size: 14px; color: #666;"></p>
             <p>檔案大小限制：10MB</p>
-            <p>檔案格式：.xlsx</p>            
+            <p>檔案格式：.xlsx</p> 
+
+
+
+<fieldset class="weight-panel mt-4 mb-4" aria-labelledby="weightPanelLegend">
+  <legend id="weightPanelLegend" title="自訂分析權重（可選）">⚖️ 自訂分析權重（可選）</legend>
+
+  <div class="row g-4">
+    <div class="col-sm-6 col-md-4">
+      <label for="weightKeyword" class="form-label">🔑 高風險語意權重</label>
+      <input type="number" class="form-control" id="weightKeyword" name="weightKeyword" value="5" min="0" step="0.1">
+    </div>
+
+    <div class="col-sm-6 col-md-4">
+      <label for="weightMultiUser" class="form-label">👥 多人受影響權重</label>
+      <input type="number" class="form-control" id="weightMultiUser" name="weightMultiUser" value="3" min="0" step="0.1">
+    </div>
+
+    <div class="col-sm-6 col-md-4">
+      <label for="weightEscalation" class="form-label">📈 升級處理權重</label>
+      <input type="number" class="form-control" id="weightEscalation" name="weightEscalation" value="2" min="0" step="0.1">
+    </div>
+
+    <div class="col-sm-6 col-md-4">
+      <label for="weightConfigItem" class="form-label">🧩 配置項頻率權重</label>
+      <input type="number" class="form-control" id="weightConfigItem" name="weightConfigItem" value="5" min="0" step="0.1">
+    </div>
+
+    <div class="col-sm-6 col-md-4">
+      <label for="weightRoleComponent" class="form-label">🧑‍💻 元件/角色頻率權重</label>
+      <input type="number" class="form-control" id="weightRoleComponent" name="weightRoleComponent" value="3" min="0" step="0.1">
+    </div>
+
+    <div class="col-sm-6 col-md-4">
+      <label for="weightTimeCluster" class="form-label">⏱️ 群聚事件權重</label>
+      <input type="number" class="form-control" id="weightTimeCluster" name="weightTimeCluster" value="2" min="0" step="0.1">
+    </div>
+    </div>
+    
+    <div class="mt-4 text-end">
+    <button type="button" class="btn btn-outline-secondary" id="resetWeightsBtn">
+      🔄 重設為預設權重
+    </button>
+    </div>
+
+</fieldset>
+
+           
             <button type="submit" id="submitBtn" disabled>🚀 上傳並分析</button>
         </form>
 

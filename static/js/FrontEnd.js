@@ -33,6 +33,47 @@ dropArea.addEventListener('drop', e => {
     document.getElementById('submitBtn').disabled = false;    // ✅ 自動啟用上傳按鈕
 });
 
+
+
+
+document.getElementById('resetWeightsBtn').addEventListener('click', () => {
+  const defaultWeights = {
+    weightKeyword: 5,
+    weightMultiUser: 3,
+    weightEscalation: 2,
+    weightConfigItem: 5,
+    weightRoleComponent: 3,
+    weightTimeCluster: 2
+  };
+
+  for (const [id, val] of Object.entries(defaultWeights)) {
+    const input = document.getElementById(id);
+    if (input) input.value = val;
+  }
+
+  localStorage.setItem('customWeights', JSON.stringify(defaultWeights)); // ✅ 同步清掉自訂值
+
+  showToastMessage('✅ 已重設為預設權重！');
+});
+
+
+// ✅ 彈出提示（你已有 toast 元件）
+function showToastMessage(msg) {
+  const toast = document.getElementById('toast');
+  toast.innerHTML = msg;
+  toast.style.display = 'block';
+  setTimeout(() => toast.style.display = 'none', 3000);
+}
+
+
+
+
+
+
+
+
+
+
 // 表單提交事件
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault(); // 阻止表單的預設提交行為（避免整頁刷新）
@@ -47,6 +88,24 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     const progressFill = document.getElementById('progressFill'); // 取得進度條填充區域
     const progressContainer = document.getElementById('uploadProgress'); // 取得進度條容器
     const progressPercent = document.getElementById('progressPercent'); // 取得進度百分比顯示區域
+
+
+
+
+
+    // 📦 組成 weights 物件（使用者設定或預設）
+    const weights = {
+    keyword: parseFloat(document.getElementById('weightKeyword')?.value || 5),
+    multi_user: parseFloat(document.getElementById('weightMultiUser')?.value || 3),
+    escalation: parseFloat(document.getElementById('weightEscalation')?.value || 2),
+    config_item: parseFloat(document.getElementById('weightConfigItem')?.value || 5),
+    role_component: parseFloat(document.getElementById('weightRoleComponent')?.value || 3),
+    time_cluster: parseFloat(document.getElementById('weightTimeCluster')?.value || 2)
+    };
+
+
+
+
 
     // 初始化 UI
     spinner.style.display = 'block'; // 顯示加載指示器
@@ -65,6 +124,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
 
     const formData = new FormData(); // 建立表單資料物件
     formData.append('file', file); // 將檔案加入表單資料
+    formData.append('weights', JSON.stringify(weights)); // 將權重物件轉為 JSON 字串並加入表單資料
     const xhr = new XMLHttpRequest(); // 建立 XMLHttpRequest 物件
     xhr.open('POST', '/upload', true); // 設定請求方法和目標 URL
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); // 設定請求標頭，表明這是 AJAX 請求
@@ -340,7 +400,40 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('toggleDarkMode').innerHTML = '🌙 深色模式'; // 更新按鈕文字為"深色模式"
     }
 
-    // 重新載入歷史紀錄
+    // ✅ 讀取 localStorage 中的權重並還原到欄位
+    const storedWeights = JSON.parse(localStorage.getItem('customWeights') || '{}');
+    for (const [id, val] of Object.entries(storedWeights)) {
+    const input = document.getElementById(id);
+    if (input && val !== undefined) {
+        input.value = val;
+        }
+    }
+      // ✅ 即時儲存使用者輸入的每個權重欄位
+    const weightInputs = [
+        'weightKeyword',
+        'weightMultiUser',
+        'weightEscalation',
+        'weightConfigItem',
+        'weightRoleComponent',
+        'weightTimeCluster'
+    ];
+
+    weightInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+        input.addEventListener('input', () => {
+            const currentWeights = JSON.parse(localStorage.getItem('customWeights') || '{}');
+            currentWeights[id] = parseFloat(input.value);
+            localStorage.setItem('customWeights', JSON.stringify(currentWeights));
+        });
+        }
+    });
+
+
+ 
+    
+
+    // ✅ 讀取 localStorage 中的歷史記錄並顯示在頁面上
     const storedHistory = JSON.parse(localStorage.getItem("historyData") || "[]");
     const now = new Date();
 
