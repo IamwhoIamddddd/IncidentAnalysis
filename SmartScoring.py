@@ -1,6 +1,6 @@
 from sentence_transformers import SentenceTransformer, util
+from sklearn.feature_extraction.text import TfidfVectorizer
 from keybert import KeyBERT
-
 import spacy
 import nltk
 import pandas as pd
@@ -283,3 +283,15 @@ def is_actionable_resolution(text):
     except Exception as e:
         print("❌ 類似度分析錯誤：", e)
         return False
+
+def extract_cluster_name(texts, max_features=5, top_k=2):
+    """
+    從一組文字中抽取代表主題的關鍵詞，用於命名 cluster。
+    """
+    if not texts:
+        return "cluster"
+    
+    vectorizer = TfidfVectorizer(max_features=max_features, stop_words='english')
+    X = vectorizer.fit_transform(texts)
+    keywords = vectorizer.get_feature_names_out()
+    return "_".join(keywords[:top_k]) if len(keywords) >= top_k else "_".join(keywords) if keywords.size > 0 else "cluster"

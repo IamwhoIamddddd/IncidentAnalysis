@@ -1,7 +1,10 @@
 # 匯入 Flask 框架及相關模組
 from flask import Flask, request, jsonify, render_template, session, send_file
 from gpt_utils import extract_resolution_suggestion
-
+from collections import defaultdict
+from collections import Counter
+import umap
+import hdbscan
 # 匯入數學運算模組
 import math
 import json
@@ -17,15 +20,23 @@ import webbrowser
 import traceback
 # 匯入 Werkzeug 的工具函數確保檔案名稱安全
 from werkzeug.utils import secure_filename
-
 # ✅ 匯入語意分析模組
 from SmartScoring import is_high_risk, is_escalated, is_multi_user, extract_keywords, recommend_solution
 # ✅ 預先 encode 一筆資料以加速首次請求
 from SmartScoring import bert_model  # 確保你有從 SmartScoring 載入模型
+from SmartScoring import extract_cluster_name  # 匯入自定的 cluster 命名函式
 from tqdm import tqdm
 from sentence_transformers import util
 # ✅ 匯入關鍵字抽取模組
 from datetime import datetime
+from sklearn.cluster import KMeans
+import numpy as np
+
+# --- 分群啟用條件（可依資料調整）---
+KMEANS_MIN_COUNT = 4         # 最少資料筆數
+KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
+KMEANS_MIN_STDDEV = 3.0      # 標準差下限
+
 
 
 print("🔥 預熱語意模型中...")
@@ -177,10 +188,14 @@ def analyze_excel(filepath, weights=None):
 
 
         # 計算影響分數
-        impact_score = round(severity_score + frequency_score, 2)
+        impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
         risk_level = get_risk_level(impact_score)
-        print(f"📉 嚴重性：{severity_score}, 頻率：{frequency_score}, 總分：{impact_score} → 分級：{risk_level}")
-        resolution_text = str(row.get('Close notes', "")).strip()
+        print(f"📉 嚴重性：{severity_score}, 頻率：{frequency_score}, 總分(After KMean process)：{impact_score} → 分級：{risk_level}")
+        desc = str(row.get('Description', "")).strip()
+        short_desc = str(row.get('Short Description', "")).strip()
+        close_notes = str(row.get('Close notes', "")).strip()
+        resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+
         print(f"📦 Resolution 原始文字：{resolution_text}")  # ✅ 確認原始欄位內容
 
         ai_suggestion = extract_resolution_suggestion(resolution_text)
@@ -213,6 +228,77 @@ def analyze_excel(filepath, weights=None):
         print(f"🔑 抽取關鍵字：{keywords}")
         print("—" * 250)  # 分隔線
 
+    # ⬇⬇⬇ KMeans 分群邏輯（支援三條件） ⬇⬇⬇
+    all_scores = [r['impactScore'] for r in results]
+    score_range = max(all_scores) - min(all_scores)
+    score_std = np.std(all_scores)
+
+    print(f"📈 分群判斷指標：count={len(all_scores)}, range={score_range:.2f}, stddev={score_std:.2f}")
+
+    if (
+        len(all_scores) >= KMEANS_MIN_COUNT and
+        score_range >= KMEANS_MIN_RANGE and
+        score_std >= KMEANS_MIN_STDDEV
+    ):
+        kmeans = KMeans(n_clusters=4, random_state=42)
+        labels = kmeans.fit_predict(np.array(all_scores).reshape(-1, 1))
+        centroids = kmeans.cluster_centers_.flatten()
+        set_kmeans_thresholds_from_centroids(centroids)
+        print(f"📊 KMeans 分群標籤：{labels}")
+        label_map = {}
+        for i, idx in enumerate(np.argsort(centroids)[::-1]):
+            label_map[idx] = ['高風險', '中風險', '低風險', '忽略'][i]
+        for i, r in enumerate(results):
+            r['riskLevel'] = label_map[labels[i]]
+        print(f"📌 KMeans 分群中心：{sorted(centroids, reverse=True)}")
+    else:
+        print("⚠️ 不啟用 KMeans，改用固定門檻分級")
+        for r in results:
+            r['riskLevel'] = get_risk_level(r['impactScore'])
+    # ⬆⬆⬆ 分群邏輯結束 ⬆⬆⬆
+
+
+    #cluster 分群
+    
+    if len(results) >= 5:
+        texts = [r['configurationItem'] + " " + str(r['solution']) + " " + str(df.loc[i, 'Close notes']) for i, r in enumerate(results)]
+        embeddings = bert_model.encode(texts, convert_to_tensor=True)
+
+        n_neighbors = min(15, len(results) - 1)
+        umap_model = umap.UMAP(n_neighbors=n_neighbors, n_components=5)
+
+        reduced = umap_model.fit_transform(embeddings)
+
+        # 假設 len(results) 是資料筆數
+        min_cluster_size = max(2, min(10, len(results) // 5))
+        clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
+
+        labels = clusterer.fit_predict(reduced)
+
+        cluster_data = defaultdict(list)
+        for i, label in enumerate(labels):
+            results[i]['cluster'] = f"cluster_{label}"
+            cluster_data[label].append(results[i])
+
+        os.makedirs("cluster_excels", exist_ok=True)
+        for label, entries in cluster_data.items():
+            cluster_texts = [e['solution'] for e in entries if e['solution']]
+            cluster_name = extract_cluster_name(cluster_texts)
+            filename = f"cluster_{label}_{cluster_name}.xlsx"
+            cluster_df = pd.DataFrame(entries)
+            cluster_df.to_excel(f"cluster_excels/{filename}", index=False)
+            print(f"📁 已輸出：cluster_excels/{filename}")
+
+        for label, entries in cluster_data.items():
+            high_count = sum(1 for e in entries if e['riskLevel'] == '高風險')
+            total = len(entries)
+            ratio = high_count / total if total > 0 else 0
+            if ratio >= 0.5:
+                print(f"🚨 預警：Cluster {label} 有 {ratio:.0%} 高風險事件（{high_count}/{total}）")
+    else:
+        print("⚠️ 資料不足，略過語意群聚分析（少於 5 筆）")
+
+
 
     print("\n✅ 所有資料分析完成！")
 
@@ -224,20 +310,45 @@ def analyze_excel(filepath, weights=None):
 
 
 
-# 根據分數判斷風險等級
+# 根據分數判斷風險等級（支援 KMeans 分群）
+kmeans_thresholds = None  # 全域變數，存儲 KMeans 分群門檻
+
+
 def get_risk_level(score):
+    global kmeans_thresholds
     level = ''
-    if score >= 18:
-        level = '高風險'
-    elif score >= 12:
-        level = '中風險'
-    elif score >= 6:
-        level = '低風險'
+
+    if kmeans_thresholds and len(kmeans_thresholds) == 4:
+        thresholds = sorted(kmeans_thresholds)
+        if score >= thresholds[3]:
+            level = '高風險'
+        elif score >= thresholds[2]:
+            level = '中風險'
+        elif score >= thresholds[1]:
+            level = '低風險'
+        else:
+            level = '忽略'
+        print(f"📊 KMeans：impactScore: {score} → 分級：{level}（使用動態門檻）")
     else:
-        level = '忽略'
-    
-    print(f"📊 impactScore: {score} → 分級：{level}")  # 印出每次分級結果
+        if score >= 18:
+            level = '高風險'
+        elif score >= 12:
+            level = '中風險'
+        elif score >= 6:
+            level = '低風險'
+        else:
+            level = '忽略'
+        print(f"📊 固定門檻：impactScore: {score} → 分級：{level}")
+
     return level
+
+# 在分析完成後自動設定 kmeans_thresholds
+# （請放在 KMeans 分群完成後）
+def set_kmeans_thresholds_from_centroids(centroids):
+    global kmeans_thresholds
+    kmeans_thresholds = sorted(centroids)
+    print(f"✅ 已設定 KMeans 分群門檻（sorted）：{kmeans_thresholds}")
+
 
 # ------------------------------------------------------------------------------
 
