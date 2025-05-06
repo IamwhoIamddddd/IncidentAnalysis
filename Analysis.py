@@ -14,6 +14,7 @@ import pandas as pd
 import os
 # 匯入正則表達式模組
 import re
+import glob
 # 匯入 webbrowser 用於開啟網頁
 import webbrowser
 # 匯入 traceback 用於錯誤追蹤
@@ -206,6 +207,8 @@ def analyze_excel(filepath, weights=None):
         results.append({
             'id': safe_value(row.get('Incident') or row.get('Number')),
             'configurationItem': safe_value(row.get('Configuration item')),
+            'roleComponent': safe_value(row.get('Role/Component')),
+            'subcategory': safe_value(row.get('Subcategory')),
             'severityScore': safe_value(severity_score),
             'frequencyScore': safe_value(frequency_score),
             'impactScore': safe_value(impact_score),
@@ -260,43 +263,55 @@ def analyze_excel(filepath, weights=None):
 
     #cluster 分群
     
-    if len(results) >= 5:
-        texts = [r['configurationItem'] + " " + str(r['solution']) + " " + str(df.loc[i, 'Close notes']) for i, r in enumerate(results)]
-        embeddings = bert_model.encode(texts, convert_to_tensor=True)
+    # ✅ 使用 Configuration Item + Role/Component 進行分群
 
-        n_neighbors = min(15, len(results) - 1)
-        umap_model = umap.UMAP(n_neighbors=n_neighbors, n_components=5)
 
-        reduced = umap_model.fit_transform(embeddings)
+    cluster_data = defaultdict(list)
+    for r in results:
+        config_item = r.get("configurationItem", "Unknown")
+        role_component = r.get("roleComponent", "Unknown")
+        subcategory = r.get("subcategory", "Unknown")
+        cluster_key = f"{config_item}_{role_component}_{subcategory}"
+        r['cluster'] = cluster_key
+        cluster_data[cluster_key].append(r)
 
-        # 假設 len(results) 是資料筆數
-        min_cluster_size = max(2, min(10, len(results) // 5))
-        clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
+    os.makedirs("cluster_excels", exist_ok=True)
 
-        labels = clusterer.fit_predict(reduced)
+    for key, group in cluster_data.items():
+        cluster_df = pd.DataFrame(group)
 
-        cluster_data = defaultdict(list)
-        for i, label in enumerate(labels):
-            results[i]['cluster'] = f"cluster_{label}"
-            cluster_data[label].append(results[i])
+        # 拆解 key，組成清晰檔名
+        config_item, role_component, subcategory = key.split('_', 2)
 
-        os.makedirs("cluster_excels", exist_ok=True)
-        for label, entries in cluster_data.items():
-            cluster_texts = [e['solution'] for e in entries if e['solution']]
-            cluster_name = extract_cluster_name(cluster_texts)
-            filename = f"cluster_{label}_{cluster_name}.xlsx"
-            cluster_df = pd.DataFrame(entries)
-            cluster_df.to_excel(f"cluster_excels/{filename}", index=False)
-            print(f"📁 已輸出：cluster_excels/{filename}")
+        def clean(text):
+            return re.sub(r'[^\w\-_.]', '_', text.strip())[:30] or "Unknown"
 
-        for label, entries in cluster_data.items():
-            high_count = sum(1 for e in entries if e['riskLevel'] == '高風險')
-            total = len(entries)
-            ratio = high_count / total if total > 0 else 0
-            if ratio >= 0.5:
-                print(f"🚨 預警：Cluster {label} 有 {ratio:.0%} 高風險事件（{high_count}/{total}）")
-    else:
-        print("⚠️ 資料不足，略過語意群聚分析（少於 5 筆）")
+        config_item_clean = clean(config_item)
+        role_component_clean = clean(role_component)
+        subcategory_clean = clean(subcategory)
+
+        filename = f"cluster_excels/Cluster-[CI]{config_item_clean}_[RC]{role_component_clean}_[SC]{subcategory_clean}.xlsx"
+
+        # ✅ 如果檔案已存在，就先讀進舊資料並合併
+        if os.path.exists(filename):
+            old_df = pd.read_excel(filename)
+            cluster_df = pd.concat([old_df, cluster_df], ignore_index=True)
+
+        # ✅ 按分析時間由新到舊排序
+        cluster_df = cluster_df.sort_values(by="analysisTime", ascending=False)
+
+        # 寫入檔案（包含合併後）
+        cluster_df.to_excel(filename, index=False)
+        print(f"📁 已輸出：{filename}（共 {len(cluster_df)} 筆）")
+
+        # 高風險比例警告
+        high_count = sum(1 for e in group if e['riskLevel'] == '高風險')
+        total = len(group)
+        ratio = high_count / total if total > 0 else 0
+        if ratio >= 0.5:
+            print(f"🚨 預警：Cluster {key} 有 {ratio:.0%} 高風險事件（{high_count}/{total}）")
+
+
 
 
 
@@ -348,6 +363,18 @@ def set_kmeans_thresholds_from_centroids(centroids):
     global kmeans_thresholds
     kmeans_thresholds = sorted(centroids)
     print(f"✅ 已設定 KMeans 分群門檻（sorted）：{kmeans_thresholds}")
+
+def print_cluster_details(texts, reduced, labels):
+    print("\n📌 語意分群詳情：")
+    for i, label in enumerate(labels):
+        coords = reduced[i]
+        snippet = texts[i][:80].replace('\n', ' ')
+        print(f"📄 第 {i+1} 筆：{snippet}{'...' if len(texts[i]) > 80 else ''}")
+        print(f"🔽 降維座標：{np.round(coords, 2)} → 分群：cluster_{label}\n")
+
+    print("📊 各群大小統計：", Counter(labels))
+    print("📎 備註：cluster -1 表示雜訊（未歸類）\n")
+
 
 
 # ------------------------------------------------------------------------------

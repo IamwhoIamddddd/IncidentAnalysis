@@ -7,6 +7,7 @@ import pandas as pd
 # 匯入 os 模組處理檔案與路徑
 import os
 import requests
+import torch  # ✅ 新增 torch 匯入以支援相似度比對
 # # ---------- 載入模型 ----------
 # # 檢查模型是否已存在，否則自動下載並儲存
 # model_path = './models/paraphrase-MiniLM-L6-v2'
@@ -295,3 +296,4 @@ def extract_cluster_name(texts, max_features=5, top_k=2):
     X = vectorizer.fit_transform(texts)
     keywords = vectorizer.get_feature_names_out()
     return "_".join(keywords[:top_k]) if len(keywords) >= top_k else "_".join(keywords) if keywords.size > 0 else "cluster"
+
