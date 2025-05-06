@@ -38,12 +38,12 @@ dropArea.addEventListener('drop', e => {
 
 document.getElementById('resetWeightsBtn').addEventListener('click', () => {
   const defaultWeights = {
-    weightKeyword: 5,
-    weightMultiUser: 3,
-    weightEscalation: 2,
-    weightConfigItem: 5,
-    weightRoleComponent: 3,
-    weightTimeCluster: 2
+    weightKeyword: 0.5,
+    weightMultiUser: 0.3,
+    weightEscalation: 0.2,
+    weightConfigItem: 0.5,
+    weightRoleComponent: 0.3,
+    weightTimeCluster: 0.2
   };
 
   for (const [id, val] of Object.entries(defaultWeights)) {
@@ -131,15 +131,45 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
 
 
 
-    // 📦 組成 weights 物件（使用者設定或預設）
-    const weights = {
-    keyword: parseFloat(document.getElementById('weightKeyword')?.value || 5),
-    multi_user: parseFloat(document.getElementById('weightMultiUser')?.value || 3),
-    escalation: parseFloat(document.getElementById('weightEscalation')?.value || 2),
-    config_item: parseFloat(document.getElementById('weightConfigItem')?.value || 5),
-    role_component: parseFloat(document.getElementById('weightRoleComponent')?.value || 3),
-    time_cluster: parseFloat(document.getElementById('weightTimeCluster')?.value || 2)
+
+
+
+    // 原始權重（0.0~1.0）
+    const rawWeights = {
+        keyword: parseFloat(document.getElementById('weightKeyword')?.value || 0.5),
+        multi_user: parseFloat(document.getElementById('weightMultiUser')?.value || 0.3),
+        escalation: parseFloat(document.getElementById('weightEscalation')?.value || 0.2),
+        config_item: parseFloat(document.getElementById('weightConfigItem')?.value || 0.5),
+        role_component: parseFloat(document.getElementById('weightRoleComponent')?.value || 0.3),
+        time_cluster: parseFloat(document.getElementById('weightTimeCluster')?.value || 0.2)
     };
+
+    // ✅ 先檢查加總（以 1 為基準）
+    const severityTotal = rawWeights.keyword + rawWeights.multi_user + rawWeights.escalation;
+    const frequencyTotal = rawWeights.config_item + rawWeights.role_component + rawWeights.time_cluster;
+    const overallTotal = severityTotal + frequencyTotal;
+
+    if (severityTotal > 1.001 || frequencyTotal > 1.001 || overallTotal > 2.001) {
+        alert(
+            `❌ 權重加總超出限制：\n` +
+            `🧠 嚴重性：${severityTotal.toFixed(2)} / 1.00\n` +
+            `📊 頻率：${frequencyTotal.toFixed(2)} / 1.00\n` +
+            `🔢 總加總：${overallTotal.toFixed(2)} / 2.00\n\n` +
+            `請調整後再重新上傳！`
+        );
+        return;
+    }
+
+    // ✅ 再轉為 0~10 區間給後端
+    const weights = {
+        keyword: rawWeights.keyword * 10,
+        multi_user: rawWeights.multi_user * 10,
+        escalation: rawWeights.escalation * 10,
+        config_item: rawWeights.config_item * 10,
+        role_component: rawWeights.role_component * 10,
+        time_cluster: rawWeights.time_cluster * 10
+    };
+
 
 
     if (submitBtn.disabled) {
@@ -243,9 +273,9 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                     <tr>
                     <th>Incident</th>
                     <th>Config Item</th>
-                    <th>Severity</th>
-                    <th>Frequency</th>
-                    <th>Impact</th>
+                    <th>Severity<br><small>(0–1)</small></th>
+                    <th>Frequency<br><small>(0–1)</small></th>
+                    <th>Impact<br><small>(0–1)</small></th>
                     <th>Risk Level</th>
                     <th>Solution</th>
                     <th>Location</th>
@@ -253,16 +283,16 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                 </thead>
                 <tbody>
                     ${data.data.map(item => `
-                    <tr>
+                        <tr>
                         <td>${item.id || ''}</td>
                         <td>${item.configurationItem || ''}</td>
-                        <td>${item.severityScore}</td>
-                        <td>${item.frequencyScore}</td>
-                        <td>${item.impactScore}</td>
+                        <td>${(item.severityScore / 10).toFixed(2)}</td>
+                        <td>${(item.frequencyScore / 20).toFixed(2)}</td>
+                        <td>${(item.impactScore / 30).toFixed(2)}</td>
                         <td><span class="badge ${item.riskLevel}">${item.riskLevel}</span></td>
                         <td>${item.solution || '—'}</td>
                         <td>${item.location || '—'}</td>
-                    </tr>
+                        </tr>
                     `).join('')}
                 </tbody>
                 </table>
@@ -297,7 +327,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                         // 綁定按鈕的點擊事件
                         previewBtn.onclick = function () {
                             const modalContent = document.getElementById('modalContent'); // 取得 Modal 的內容區域
-                            const headers = ["Incident", "Config Item", "Severity", "Frequency", "Impact", "Risk Level", "Solution", "Location"]; // 表格標題
+                            const headers = ["Incident", "Config Item", "Severity (0–1)", "Frequency (0–1)", "Impact (0–1)", "Risk Level", "Solution", "Location"];
 
                             let html = `<table class="table table-bordered table-sm"><thead><tr>`;
                             headers.forEach(h => html += `<th>${h}</th>`); // 生成表格標題列
@@ -308,9 +338,10 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                                     <tr>
                                     <td>${item.id || ''}</td>
                                     <td>${item.configurationItem || ''}</td>
-                                    <td>${item.severityScore}</td>
-                                    <td>${item.frequencyScore}</td>
-                                    <td>${item.impactScore}</td>
+                                    <td>${(item.severityScore / 10).toFixed(2)}</td>
+                                    <td>${(item.frequencyScore / 20).toFixed(2)}</td>
+                                    <td>${(item.impactScore / 30).toFixed(2)}</td>
+
                                     <td><span class="badge ${item.riskLevel}">${item.riskLevel}</span></td>
                                     <td>${item.solution || '—'}</td>
                                     <td>${item.location || '—'}</td>
@@ -425,6 +456,8 @@ function updateSummary(data) {
 
 // 深色模式切換 & 保存偏好
 window.addEventListener('DOMContentLoaded', () => {
+
+
     let isDark = localStorage.getItem('dark-mode'); // 從 localStorage 取得深色模式偏好
 
 
@@ -444,14 +477,28 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('toggleDarkMode').innerHTML = '🌙 深色模式'; // 更新按鈕文字為"深色模式"
     }
 
-    // ✅ 讀取 localStorage 中的權重並還原到欄位
-    const storedWeights = JSON.parse(localStorage.getItem('customWeights') || '{}');
-    for (const [id, val] of Object.entries(storedWeights)) {
+  const isReload = performance.getEntriesByType('navigation')[0]?.type === 'reload';
+
+  const defaultWeights = {
+    weightKeyword: 0.5,
+    weightMultiUser: 0.3,
+    weightEscalation: 0.2,
+    weightConfigItem: 0.5,
+    weightRoleComponent: 0.3,
+    weightTimeCluster: 0.2
+  };
+
+  // ✅ 如果是重新整理，就重設成預設值
+  if (isReload) {
+    localStorage.setItem('customWeights', JSON.stringify(defaultWeights));
+  }
+
+  // ✅ 從 localStorage 撈出並填入欄位
+  const storedWeights = JSON.parse(localStorage.getItem('customWeights') || '{}');
+  for (const [id, val] of Object.entries(storedWeights)) {
     const input = document.getElementById(id);
-    if (input && val !== undefined) {
-        input.value = val;
-        }
-    }
+    if (input && val !== undefined) input.value = val;
+  }
       // ✅ 即時儲存使用者輸入的每個權重欄位
 
     const weightInputs = [
@@ -532,9 +579,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const frequencyRow = document.getElementById('frequencySumRow');
     const totalSumRow = document.getElementById('totalSumRow'); // 👈 新增這行
 
-const severityTooMuch = severitySum > 10.01;
-const frequencyTooMuch = frequencySum > 10.01;
-const totalTooMuch = total > 20.01;
+const severityTooMuch = severitySum > 1.001;
+const frequencyTooMuch = frequencySum > 1.001;
+const totalTooMuch = total > 2.001;
+
 
 
 // 清除原有狀態
@@ -549,9 +597,10 @@ totalSumRow.classList.add(totalTooMuch ? 'weight-warn' : 'weight-ok');
 
 const submitBtn = document.getElementById('submitBtn');
 const allValid =
-  severitySum <= 10.01 &&
-  frequencySum <= 10.01 &&
-  total <= 20.01;
+  severitySum <= 1.001 &&
+  frequencySum <= 1.001 &&
+  total <= 2.001;
+
 
 submitBtn.disabled = !allValid;
 
@@ -566,17 +615,16 @@ submitBtn.disabled = !allValid;
 
 
 // --- 加總計算完後，檢查是否超過建議值（即時提醒） ---
-if (severitySum > 10.01) {
-  showToastMessage(`⚠️ 嚴重性權重加總已超過 10（目前為 ${severitySum.toFixed(2)}）`, 'error');
+if (severitySum > 1.001) {
+  showToastMessage(`⚠️ 嚴重性權重加總已超過 1（目前為 ${severitySum.toFixed(2)}）`, 'error');
+}
+if (frequencySum > 1.001) {
+  showToastMessage(`⚠️ 頻率權重加總已超過 1（目前為 ${frequencySum.toFixed(2)}）`, 'error');
+}
+if (total > 2.001) {
+  showToastMessage(`⚠️ 總權重加總已超過 2（目前為 ${total.toFixed(2)}）`, 'error');
 }
 
-if (frequencySum > 10.01) {
-  showToastMessage(`⚠️ 頻率權重加總已超過 10（目前為 ${frequencySum.toFixed(2)}）`, 'error');
-}
-
-if (total > 20.01) {
-  showToastMessage(`⚠️ 總權重加總已超過 20（目前為 ${total.toFixed(2)}）`, 'error');
-}
 
 
 

@@ -48,7 +48,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         const res = await fetch('/get-results');       // ✅ 補上這行
         const resultJson = await res.json();           // ✅ 正確解析 JSON
         const data = resultJson.data;
-        const weights = resultJson.weights || {};
+const weights = resultJson.weights || {};  // ✅ 這行要先定義 weights
+
+        
         console.log("📦 當次分析使用的權重設定：", weights);
 
 
@@ -90,9 +92,21 @@ window.addEventListener('DOMContentLoaded', async () => {
                     return;
                     }
                 data.forEach(row => {
+                    console.log("📌 原始 row.id：", row.id);
+                    console.log("📌 row.weights：", row.weights);
+                    console.log("📌 resultJson.weights（預設值）：", weights);
+
                             if (!row.analysisTime || isNaN(Date.parse(row.analysisTime))) return;
                             const rowDate = new Date(row.analysisTime);
                             if (filterStartDate && rowDate < filterStartDate) return;
+
+const weightObj = row.weights ?? {}; // 拿掉 fallback，因為外層沒有了
+
+console.log("📎 使用中的 weightObj：", weightObj);
+
+
+                           const analysisWeights = resultJson.weights; // 👈 這就是「這次上傳的權重」
+                            console.log("🧪 當筆資料 ID：", row.id, "使用權重：", row.weights);
 
                             const severityRaw = row.severityScore;
                             const frequencyRaw = row.frequencyScore;
@@ -169,17 +183,21 @@ infoCard.innerHTML = `
 
 <div class="weights-summary mt-3">
   <details>
-    <summary>⚖️ 查看使用的權重設定 <span style="font-size: 0.85rem; opacity: 0.5;">（分析參數）</span></summary>
+    <summary>⚖️ 查看使用的權重設定</summary>
     <div class="weight-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; padding-top: 12px;">
-      <div><strong>🔑 高風險語意：</strong> ${weights.keyword ?? '—'}</div>
-      <div><strong>👥 多人受影響：</strong> ${weights.multi_user ?? '—'}</div>
-      <div><strong>📈 升級處理：</strong> ${weights.escalation ?? '—'}</div>
-      <div><strong>🧩 配置項頻率：</strong> ${weights.config_item ?? '—'}</div>
-      <div><strong>🧑‍💻 元件角色頻率：</strong> ${weights.role_component ?? '—'}</div>
-      <div><strong>⏱️ 群聚事件：</strong> ${weights.time_cluster ?? '—'}</div>
+        <div><strong>🔑 高風險語意：</strong> ${weightObj.keyword ?? '—'}</div>
+        <div><strong>👥 多人受影響：</strong> ${weightObj.multi_user ?? '—'}</div>
+        <div><strong>📈 升級處理：</strong> ${weightObj.escalation ?? '—'}</div>
+        <div><strong>🧩 配置項頻率：</strong> ${weightObj.config_item ?? '—'}</div>
+        <div><strong>🧑‍💻 元件角色頻率：</strong> ${weightObj.role_component ?? '—'}</div>
+        <div><strong>⏱️ 群聚事件：</strong> ${weightObj.time_cluster ?? '—'}</div>
     </div>
   </details>
 </div>
+
+
+
+
 
 
 `;

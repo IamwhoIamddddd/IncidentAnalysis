@@ -194,15 +194,16 @@ def analyze_excel(filepath, weights=None):
             'severityScore': safe_value(severity_score),
             'frequencyScore': safe_value(frequency_score),
             'impactScore': safe_value(impact_score),
+            'severityScoreNorm': round(severity_score / 10, 2),
+            'frequencyScoreNorm': round(frequency_score / 20, 2),
+            'impactScoreNorm': round(impact_score / 30, 2),
             'riskLevel': safe_value(get_risk_level(impact_score)),
-
-
             'solution': safe_value(ai_suggestion or '無提供解法'),
-
-
             'location': safe_value(row.get('Location')),
-            'analysisTime': analysis_time
+            'analysisTime': analysis_time,
+            'weights': {k: round(v / 10, 2) for k, v in weights.items()},
         })
+
         # solution_text = row.get('Close notes') or '無提供解法'
         recommended = recommend_solution(short_description_text)
         keywords = extract_keywords(short_description_text)
@@ -214,11 +215,13 @@ def analyze_excel(filepath, weights=None):
 
 
     print("\n✅ 所有資料分析完成！")
+
+
     return {
-    'data': results,
-    'weights': weights,
-    'analysisTime': analysis_time
+        'data': results,
+        'analysisTime': analysis_time
     }
+
 
 
 # 根據分數判斷風險等級
