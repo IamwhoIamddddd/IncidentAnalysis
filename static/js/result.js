@@ -94,6 +94,16 @@ window.addEventListener('DOMContentLoaded', async () => {
                             const rowDate = new Date(row.analysisTime);
                             if (filterStartDate && rowDate < filterStartDate) return;
 
+                            const severityRaw = row.severityScore;
+                            const frequencyRaw = row.frequencyScore;
+                            const impactRaw = row.impactScore;
+
+                            // ✅ 正規化：除以最大分數，保留兩位小數
+                            const severityNorm = (severityRaw / 10).toFixed(2);
+                            const frequencyNorm = (frequencyRaw / 20).toFixed(2);
+                            const impactNorm = (impactRaw / 30).toFixed(2);
+
+
                             const cardRow = document.createElement('div');
                             cardRow.className = 'card-row';
 
@@ -109,33 +119,33 @@ infoCard.innerHTML = `
   <span class="score-value">${row.configurationItem || '—'}</span>
 </div>
 
-<!-- Severity 分數 -->
+<!-- Severity 正規化 -->
 <div class="progress-block">
-  <strong>Severity <span class="score-max">(滿分 20)</span>:</strong>
-  <span class="score-value">${row.severityScore}</span>
+  <strong>Severity <span class="score-max">(0–1)</span>:</strong>
+  <span class="score-value">${severityNorm}</span>
   <div class="progress-wrapper">
-    <progress class="progress-bar" value="${row.severityScore}" max="20" data-type="severity"></progress>
-    <span class="progress-percent">0%</span>
+    <progress class="progress-bar" value="${severityNorm}" max="1" data-type="severity"></progress>
+    <span class="progress-percent">${(severityNorm * 100).toFixed(0)}%</span>
   </div>
 </div>
 
-<!-- Frequency 分數 -->
+<!-- Frequency 正規化 -->
 <div class="progress-block">
-  <strong>Frequency <span class="score-max">(滿分 10)</span>:</strong>
-  <span class="score-value">${row.frequencyScore}</span>
+  <strong>Frequency <span class="score-max">(0–1)</span>:</strong>
+  <span class="score-value">${frequencyNorm}</span>
   <div class="progress-wrapper">
-    <progress class="progress-bar" value="${row.frequencyScore}" max="10" data-type="frequency"></progress>
-    <span class="progress-percent">0%</span>
+    <progress class="progress-bar" value="${frequencyNorm}" max="1" data-type="frequency"></progress>
+    <span class="progress-percent">${(frequencyNorm * 100).toFixed(0)}%</span>
   </div>
 </div>
 
-<!-- Impact 分數 -->
+<!-- Impact 正規化 -->
 <div class="progress-block">
-  <strong>Impact <span class="score-max">(滿分 30)</span>:</strong>
-  <span class="score-value">${row.impactScore}</span>
+  <strong>Impact <span class="score-max">(0–1)</span>:</strong>
+  <span class="score-value">${impactNorm}</span>
   <div class="progress-wrapper">
-    <progress class="progress-bar" value="${row.impactScore}" max="30" data-type="impact"></progress>
-    <span class="progress-percent">0%</span>
+    <progress class="progress-bar" value="${impactNorm}" max="1" data-type="impact"></progress>
+    <span class="progress-percent">${(impactNorm * 100).toFixed(0)}%</span>
   </div>
 </div>
 
