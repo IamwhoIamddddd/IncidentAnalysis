@@ -1,5 +1,3 @@
-
-
 window.addEventListener('DOMContentLoaded', async () => {
     // ===== 深色模式初始化 =====
     const isDark = localStorage.getItem('dark-mode');
@@ -360,5 +358,7 @@ function navigateTo1(page) {
     } else if (page === 'history') {
         // 導航到 Flask 的 /history 路由
         window.location.href = '/history';
+    } else if (page === 'cluster') {
+        window.location.href = '/generate_cluster';  // ✅ 對應後端路由名稱
     }
 }

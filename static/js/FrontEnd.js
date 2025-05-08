@@ -703,6 +703,8 @@ function navigateTo1(page) {
         window.location.href = '/result'; // 導向結果頁面
     } else if (page === 'history') {
         window.location.href = '/history'; // 導向歷史記錄頁面
+    } else if (page === 'cluster') {
+        window.location.href = '/generate_cluster';  // ✅ 對應後端路由名稱
     }
 }
 

@@ -12,6 +12,7 @@ import json
 import pandas as pd
 # 匯入 os 模組處理檔案與路徑
 import os
+import shutil
 # 匯入正則表達式模組
 import re
 import glob
@@ -65,7 +66,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))  # 取得當前 app.py 的�
 # 確保上傳資料夾存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(os.path.join(basedir, 'json_data'), exist_ok=True)
-os.makedirs(os.path.join(basedir, 'excel_result'), exist_ok=True)
+os.makedirs(os.path.join(basedir, 'excel_result_Unclustered'), exist_ok=True)  # 新增未分群資料夾
 
 
 # 判斷是否允許的檔案格式
@@ -86,6 +87,122 @@ def safe_value(val):
         return val
 
 # ------------------------------------------------------------------------------
+
+
+# 根據分數判斷風險等級（支援 KMeans 分群）
+kmeans_thresholds = None  # 全域變數，存儲 KMeans 分群門檻
+
+
+def get_risk_level(score):
+    global kmeans_thresholds
+    level = ''
+
+    if kmeans_thresholds and len(kmeans_thresholds) == 4:
+        thresholds = sorted(kmeans_thresholds)
+        if score >= thresholds[3]:
+            level = '高風險'
+        elif score >= thresholds[2]:
+            level = '中風險'
+        elif score >= thresholds[1]:
+            level = '低風險'
+        else:
+            level = '忽略'
+        print(f"📊 KMeans：impactScore: {score} → 分級：{level}（使用動態門檻）")
+    else:
+        if score >= 18:
+            level = '高風險'
+        elif score >= 12:
+            level = '中風險'
+        elif score >= 6:
+            level = '低風險'
+        else:
+            level = '忽略'
+        print(f"📊 固定門檻：impactScore: {score} → 分級：{level}")
+
+    return level
+
+# 在分析完成後自動設定 kmeans_thresholds
+# （請放在 KMeans 分群完成後）
+def set_kmeans_thresholds_from_centroids(centroids):
+    global kmeans_thresholds
+    kmeans_thresholds = sorted(centroids)
+    print(f"✅ 已設定 KMeans 分群門檻（sorted）：{kmeans_thresholds}")
+
+# ------------------------------------------------------------------------------
+
+
+# ✅ 新增路由：處理所有 Unclustered Excel 檔案的分群與搬移
+@app.route('/cluster-excel', methods=['POST'])
+def cluster_excel():
+    unclustered_dir = 'excel_result_Unclustered'
+    clustered_dir = 'excel_result_Clustered'
+    os.makedirs(clustered_dir, exist_ok=True)  # ✅ 確保 Clustered 資料夾存在
+
+    files = [f for f in os.listdir(unclustered_dir) if f.endswith('_Unclustered.xlsx')]
+    print(f"🔍 偵測到 {len(files)} 筆待分群檔案")
+
+    for filename in files:
+        uid = filename.replace('_Unclustered.xlsx', '')
+        excel_path = os.path.join(unclustered_dir, filename)
+        print(f"📂 處理檔案：{excel_path}")
+
+        # 載入 Excel 並進行分群匯出
+        df = pd.read_excel(excel_path)
+        results = df.to_dict(orient='records')
+        cluster_excel_export(results)  # ✅ 呼叫已定義的函式進行分群匯出
+
+        # 搬移檔案到 Clustered 並改名
+        clustered_path = os.path.join(clustered_dir, uid + '_Clustered.xlsx')
+        shutil.move(excel_path, clustered_path)
+        print(f"📁 已移動並改名：{clustered_path}")
+
+    return jsonify({'message': f'已成功處理 {len(files)} 筆 Excel 檔案並完成分群'}), 200
+
+# ------------------------------------------------------------------------------
+
+def cluster_excel_export(results, export_dir="excel_result_Clustered"):
+    def clean(text):
+        return re.sub(r'[^\w\-_.]', '_', str(text).strip())[:30] or "Unknown"
+
+    cluster_data = defaultdict(list)
+    for r in results:
+        config_item = r.get("configurationItem", "Unknown")
+        role_component = r.get("roleComponent", "Unknown")
+        subcategory = r.get("subcategory", "Unknown")
+        cluster_key = f"{config_item}_{role_component}_{subcategory}"
+        r['cluster'] = cluster_key
+        cluster_data[cluster_key].append(r)
+
+    os.makedirs(export_dir, exist_ok=True)
+
+    for key, group in cluster_data.items():
+        cluster_df = pd.DataFrame(group)
+
+        try:
+            config_item, role_component, subcategory = key.split('_', 2)
+        except ValueError:
+            config_item, role_component, subcategory = key, "Unknown", "Unknown"
+
+        filename = f"{export_dir}/Cluster-[CI]{clean(config_item)}_[RC]{clean(role_component)}_[SC]{clean(subcategory)}.xlsx"
+
+        if os.path.exists(filename):
+            old_df = pd.read_excel(filename)
+            cluster_df = pd.concat([old_df, cluster_df], ignore_index=True)
+
+        cluster_df = cluster_df.sort_values(by="analysisTime", ascending=False)
+        cluster_df.to_excel(filename, index=False)
+        print(f"📁 已輸出：{filename}（共 {len(cluster_df)} 筆）")
+
+        high_count = sum(1 for e in group if e.get('riskLevel') == '高風險')
+        total = len(group)
+        if total > 0 and (high_count / total) >= 0.5:
+            print(f"🚨 預警：Cluster {key} 有 {high_count}/{total} 筆高風險事件")
+    print("✅ 分群 Excel 檔案已儲存！")
+
+
+
+# ------------------------------------------------------------------------------
+
 
 # 分析 Excel 資料的主邏輯
 def analyze_excel(filepath, weights=None):
@@ -202,6 +319,17 @@ def analyze_excel(filepath, weights=None):
         ai_suggestion = extract_resolution_suggestion(resolution_text)
         print(f"🤖 GPT 建議句回傳：{ai_suggestion}")  # ✅ 確認 GPT 是否成功回應
 
+        # ✅ 安全地建立 AI 摘要輸入（若全空則顯示無資料）
+        summary_input_text = f"{short_desc}\n{desc}".strip()
+        if not summary_input_text:
+            summary_input_text = "（無原始摘要輸入）"
+
+        # ✅ 呼叫 GPT 摘要函式
+        ai_summary = extract_resolution_suggestion(summary_input_text)
+
+        print(f"📦 Resolution 原始文字：{resolution_text}")
+        print(f"📝 AI 摘要輸入：{summary_input_text}")
+        print(f"🤖 GPT 摘要回傳：{ai_summary}")
 
         # 儲存分析結果
         results.append({
@@ -209,6 +337,9 @@ def analyze_excel(filepath, weights=None):
             'configurationItem': safe_value(row.get('Configuration item')),
             'roleComponent': safe_value(row.get('Role/Component')),
             'subcategory': safe_value(row.get('Subcategory')),
+            'aiSummary': safe_value(ai_summary),
+            'originalShortDescription': safe_value(short_desc),
+            'originalDescription': safe_value(desc),
             'severityScore': safe_value(severity_score),
             'frequencyScore': safe_value(frequency_score),
             'impactScore': safe_value(impact_score),
@@ -230,6 +361,9 @@ def analyze_excel(filepath, weights=None):
         print(f"💡 建議解法：{recommended}")
         print(f"🔑 抽取關鍵字：{keywords}")
         print("—" * 250)  # 分隔線
+
+
+
 
     # ⬇⬇⬇ KMeans 分群邏輯（支援三條件） ⬇⬇⬇
     all_scores = [r['impactScore'] for r in results]
@@ -259,123 +393,11 @@ def analyze_excel(filepath, weights=None):
         for r in results:
             r['riskLevel'] = get_risk_level(r['impactScore'])
     # ⬆⬆⬆ 分群邏輯結束 ⬆⬆⬆
-
-
-    #cluster 分群
-    
-    # ✅ 使用 Configuration Item + Role/Component 進行分群
-
-
-    cluster_data = defaultdict(list)
-    for r in results:
-        config_item = r.get("configurationItem", "Unknown")
-        role_component = r.get("roleComponent", "Unknown")
-        subcategory = r.get("subcategory", "Unknown")
-        cluster_key = f"{config_item}_{role_component}_{subcategory}"
-        r['cluster'] = cluster_key
-        cluster_data[cluster_key].append(r)
-
-    os.makedirs("cluster_excels", exist_ok=True)
-
-    for key, group in cluster_data.items():
-        cluster_df = pd.DataFrame(group)
-
-        # 拆解 key，組成清晰檔名
-        config_item, role_component, subcategory = key.split('_', 2)
-
-        def clean(text):
-            return re.sub(r'[^\w\-_.]', '_', text.strip())[:30] or "Unknown"
-
-        config_item_clean = clean(config_item)
-        role_component_clean = clean(role_component)
-        subcategory_clean = clean(subcategory)
-
-        filename = f"cluster_excels/Cluster-[CI]{config_item_clean}_[RC]{role_component_clean}_[SC]{subcategory_clean}.xlsx"
-
-        # ✅ 如果檔案已存在，就先讀進舊資料並合併
-        if os.path.exists(filename):
-            old_df = pd.read_excel(filename)
-            cluster_df = pd.concat([old_df, cluster_df], ignore_index=True)
-
-        # ✅ 按分析時間由新到舊排序
-        cluster_df = cluster_df.sort_values(by="analysisTime", ascending=False)
-
-        # 寫入檔案（包含合併後）
-        cluster_df.to_excel(filename, index=False)
-        print(f"📁 已輸出：{filename}（共 {len(cluster_df)} 筆）")
-
-        # 高風險比例警告
-        high_count = sum(1 for e in group if e['riskLevel'] == '高風險')
-        total = len(group)
-        ratio = high_count / total if total > 0 else 0
-        if ratio >= 0.5:
-            print(f"🚨 預警：Cluster {key} 有 {ratio:.0%} 高風險事件（{high_count}/{total}）")
-
-
-
-
-
     print("\n✅ 所有資料分析完成！")
-
-
     return {
         'data': results,
         'analysisTime': analysis_time
     }
-
-
-
-# 根據分數判斷風險等級（支援 KMeans 分群）
-kmeans_thresholds = None  # 全域變數，存儲 KMeans 分群門檻
-
-
-def get_risk_level(score):
-    global kmeans_thresholds
-    level = ''
-
-    if kmeans_thresholds and len(kmeans_thresholds) == 4:
-        thresholds = sorted(kmeans_thresholds)
-        if score >= thresholds[3]:
-            level = '高風險'
-        elif score >= thresholds[2]:
-            level = '中風險'
-        elif score >= thresholds[1]:
-            level = '低風險'
-        else:
-            level = '忽略'
-        print(f"📊 KMeans：impactScore: {score} → 分級：{level}（使用動態門檻）")
-    else:
-        if score >= 18:
-            level = '高風險'
-        elif score >= 12:
-            level = '中風險'
-        elif score >= 6:
-            level = '低風險'
-        else:
-            level = '忽略'
-        print(f"📊 固定門檻：impactScore: {score} → 分級：{level}")
-
-    return level
-
-# 在分析完成後自動設定 kmeans_thresholds
-# （請放在 KMeans 分群完成後）
-def set_kmeans_thresholds_from_centroids(centroids):
-    global kmeans_thresholds
-    kmeans_thresholds = sorted(centroids)
-    print(f"✅ 已設定 KMeans 分群門檻（sorted）：{kmeans_thresholds}")
-
-def print_cluster_details(texts, reduced, labels):
-    print("\n📌 語意分群詳情：")
-    for i, label in enumerate(labels):
-        coords = reduced[i]
-        snippet = texts[i][:80].replace('\n', ' ')
-        print(f"📄 第 {i+1} 筆：{snippet}{'...' if len(texts[i]) > 80 else ''}")
-        print(f"🔽 降維座標：{np.round(coords, 2)} → 分群：cluster_{label}\n")
-
-    print("📊 各群大小統計：", Counter(labels))
-    print("📎 備註：cluster -1 表示雜訊（未歸類）\n")
-
-
 
 # ------------------------------------------------------------------------------
 
@@ -394,6 +416,11 @@ def result_page():
 @app.route('/history')
 def history_page():
     return render_template('history.html')  # 渲染歷史紀錄頁面
+
+
+@app.route('/generate_cluster')
+def generate_cluster_page():
+    return render_template('generate_cluster.html')  # 渲染生成分群頁面
 
 # ------------------------------------------------------------------------------
 
@@ -445,6 +472,8 @@ def upload_file():
     original_filename = f"original_{timestamp}.xlsx" # 例如 original_20250423_152301.xlsx 原始黨名稱
     original_path = os.path.join('uploads', original_filename)
 
+
+
     try:
         file.save(original_path)  # 儲存原始檔案
         print(f" 原始檔已儲存：{original_path}")
@@ -478,7 +507,8 @@ def upload_file():
 
 def save_analysis_files(result, uid):
     os.makedirs('json_data', exist_ok=True)
-    os.makedirs('excel_result', exist_ok=True)
+    os.makedirs('excel_result_Unclustered', exist_ok=True)  # ✅ 使用新的資料夾
+
     # 儲存 JSON
     json_path = os.path.join(basedir, 'json_data', f"{uid}.json")
     print(f"📝 預計儲存 JSON：{json_path}")
@@ -488,7 +518,9 @@ def save_analysis_files(result, uid):
 
     # 儲存分析報表 Excel（只儲存 result['data']）
     df = pd.DataFrame(result['data'])
-    excel_path = os.path.join(basedir, 'excel_result', f"{uid}.xlsx")
+    # ✅ 儲存到 Unclustered 資料夾並加上 Unclustered 後綴
+    excel_filename = f"{uid}_Unclustered.xlsx"
+    excel_path = os.path.join(basedir, 'excel_result_Unclustered', excel_filename)    
     df.to_excel(excel_path, index=False)
 
     # 確認 JSON 檔案是否寫入成功
@@ -500,7 +532,11 @@ def save_analysis_files(result, uid):
     print(f"✅ 分析報表已儲存：{excel_path}")
     print("📁 JSON 絕對路徑：", os.path.abspath(json_path))
     print("📁 Excel 絕對路徑：", os.path.abspath(excel_path))
-    print("📁 原始檔絕對路徑：", os.path.abspath(os.path.join(basedir, 'uploads', f"original_{uid}.xlsx")))
+    original_excel_path = os.path.abspath(os.path.join(basedir, 'uploads', f"original_{uid}.xlsx"))
+    if os.path.exists(original_excel_path):
+        print("📁 原始檔絕對路徑：", original_excel_path)
+    else:
+        print("⚠️ 找不到原始 Excel 路徑！")
 
 
 @app.route('/get-results')
@@ -562,8 +598,7 @@ def download_excel_file():
     uid = request.args.get('uid')  # e.g., result_20250423_152301
     if not uid:
         return jsonify({'error': '缺少 uid 參數'}), 400
-
-    excel_path = os.path.join('excel_result', f"{uid}.xlsx")
+    excel_path = os.path.join('excel_result_Unclustered', f"{uid}_Unclustered.xlsx")
     if os.path.exists(excel_path):
         return send_file(excel_path, as_attachment=True)
     else:
@@ -615,4 +650,4 @@ def perform_action():
 
 # 啟動 Flask 應用
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=True)
+    app.run(debug=True, use_reloader=False)
