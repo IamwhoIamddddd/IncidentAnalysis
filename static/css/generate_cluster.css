@@ -1,0 +1,192 @@
+.container {
+  margin-left: 260px;
+  padding: 60px 30px;
+  min-height: 100vh;
+  background-color: #f5f6fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.3s ease;
+}
+
+body.dark-mode .container {
+  background-color: #181b35;
+}
+
+.main-title {
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 25px;
+  color: #2c3e50;
+  text-shadow: none;
+  transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+body.dark-mode .main-title {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(0, 255, 170, 0.12);
+}
+
+.container p {
+  font-size: 1.2rem;
+  text-align: center;
+  line-height: 1.6;
+  max-width: 600px;
+  color: #555;
+  transition: color 0.3s ease;
+}
+
+body.dark-mode .container p {
+  color: #bbbbbb;
+}
+
+#copyResult {
+  margin-left: 10px;
+}
+
+/* 主按鈕 */
+#run-cluster-btn {
+  font-size: 1.2rem;
+  padding: 16px 34px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background-image: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 12px rgba(32, 201, 151, 0.35);
+}
+
+#run-cluster-btn::before {
+  content: "";
+  position: absolute;
+  top: 0; left: -75%;
+  width: 150%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0.15), rgba(255,255,255,0));
+  transform: skewX(-20deg);
+  transition: all 0.4s ease;
+}
+
+#run-cluster-btn:hover::before {
+  left: 100%;
+}
+
+#run-cluster-btn:hover {
+  box-shadow: 0 0 20px rgba(32, 201, 151, 0.75);
+  transform: translateY(-2px);
+}
+
+/* 分群狀態動畫 */
+#cluster-status {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-top: 24px;
+  text-shadow: 0 0 6px #2bc8f7;
+  animation: blinkStatus 1.6s ease-in-out infinite;
+  color: #2c3e50;
+}
+
+body.dark-mode #cluster-status {
+  color: #69eaff;
+}
+
+@keyframes blinkStatus {
+  0%, 100% { opacity: 1; text-shadow: 0 0 8px #2bc8f7; }
+  50% { opacity: 0.6; text-shadow: 0 0 18px #2bc8f7; }
+}
+
+/* Toast 卡片樣式 */
+#toast {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #000000;
+  padding: 72px 28px 32px;
+  border-radius: 14px;
+  font-size: 1.05rem;
+  display: none;
+  z-index: 1050;
+  border: 1px solid rgba(0,0,0,0.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  backdrop-filter: blur(6px);
+  animation: toastIn 0.5s ease forwards;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.dark-mode #toast {
+  background: rgba(36, 36, 36, 0.95);
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+}
+
+#toast > :not(.close-toast):first-of-type {
+  margin-top: 40px;
+}
+
+#toast::before {
+  content: "✅ ";
+  margin-right: 10px;
+  font-size: 1.3rem;
+}
+
+/* Toast 按鈕 */
+#toast button {
+  margin-top: 14px;
+  background-color: #333;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#toast button:hover {
+  background-color: #666;
+}
+
+/* Toast 關閉按鈕 */
+.close-toast {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: #ccc;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 2;
+  transition: all 0.2s ease;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  backdrop-filter: blur(2px);
+}
+
+.close-toast:hover {
+  background-color: rgba(255, 85, 85, 0.15);
+  color: #ff5555;
+}
+
+/* Toast 出現動畫 */
+@keyframes toastIn {
+  0% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
