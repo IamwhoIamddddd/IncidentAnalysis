@@ -2,6 +2,8 @@
 from flask import Flask, request, jsonify, render_template, session, send_file
 from gpt_utils import extract_resolution_suggestion
 from gpt_utils import extract_problem_with_custom_prompt
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from collections import defaultdict
 from collections import Counter
 import umap
@@ -34,7 +36,8 @@ from sentence_transformers import util
 from datetime import datetime
 from sklearn.cluster import KMeans
 import numpy as np
-
+from datetime import datetime
+import time
 # --- 分群啟用條件（可依資料調整）---
 KMEANS_MIN_COUNT = 4         # 最少資料筆數
 KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
@@ -68,6 +71,8 @@ basedir = os.path.abspath(os.path.dirname(__file__))  # 取得當前 app.py 的�
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(os.path.join(basedir, 'json_data'), exist_ok=True)
 os.makedirs(os.path.join(basedir, 'excel_result_Unclustered'), exist_ok=True)  # 新增未分群資料夾
+os.makedirs(os.path.join(basedir, 'excel_result_Clustered'), exist_ok=True) # 新增分群資料夾
+
 
 
 # 判斷是否允許的檔案格式
@@ -259,7 +264,8 @@ def cluster_excel_export(results, export_dir="excel_result_Clustered"):
 
 # 分析 Excel 資料的主邏輯
 def analyze_excel(filepath, weights=None):
-        # 預設權重設定（可被覆蓋）
+
+    start_time = time.time()
     default_weights = {
         'keyword': 5.0,
         'multi_user': 3.0,
@@ -268,156 +274,117 @@ def analyze_excel(filepath, weights=None):
         'role_component': 3.0,
         'time_cluster': 2.0
     }
-    weights = {**default_weights, **(weights or {})}  # 合併預設權重與使用者提供的權重設定
+    weights = {**default_weights, **(weights or {})}
     print("🎛️ 使用中的權重設定：", weights)
-    print("🔍 開始分析 Excel 檔案...")
-    print(f"\n📂 讀取 Excel：{filepath}")
-    df = pd.read_excel(filepath)  # 讀取 Excel 檔案
+
+    df = pd.read_excel(filepath)
     print(f"📊 共讀取 {len(df)} 筆資料\n")
-    component_counts = df['Role/Component'].value_counts()  # 計算每個角色/元件的出現次數
-    df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')  # 將 'Opened' 欄位轉為日期格式
-    results = []  # 儲存分析結果
-    configuration_item_counts = df['Configuration item'].value_counts()  # 計算每個配置項的出現次數
-    configuration_item_max = configuration_item_counts.max()  # 找出配置項的最大出現次數
+
+    component_counts = df['Role/Component'].value_counts()
+    df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')
+    configuration_item_counts = df['Configuration item'].value_counts()
+    configuration_item_max = configuration_item_counts.max()
     analysis_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    print(f"📅 分析時間：{analysis_time}")
 
-    for idx, row in tqdm(df.iterrows(), total=len(df), desc="📊 分析進度"):
-        print(f"\n🔍 第 {idx + 1} 筆分析中...")
-        description_text = row.get('Description', 'not filled')  # 取得描述文字
-        short_description_text = row.get('Short description', 'not filled') # 取得簡短描述文字
-        close_note_text = row.get('Close notes', 'not filled')  # 取得關閉註解文字
-        print(f"📄 描述：{description_text}")
-        print(f"🔑 簡短描述：{short_description_text}")
-        print(f"🔒 關閉註解：{close_note_text}")
-        # 這裡可以加入對描述文字的預處理，例如去除多餘空格、轉為小寫等
-        # description_text = normalize_text(description_text)  # 標準化文字    
+    def analyze_row(row, idx):
+        try:
+            description_text = row.get('Description', 'not filled')
+            short_description_text = row.get('Short description', 'not filled')
+            close_note_text = row.get('Close notes', 'not filled')
 
+            keyword_score = is_high_risk(short_description_text)
+            user_impact_score = is_multi_user(description_text)
+            escalation_score = is_escalated(close_note_text)
 
-        #這裡要改成使用語意分析模型
+            config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)
+            configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0
 
-        keyword_score = is_high_risk(short_description_text)  # 計算關鍵字分數
-        print(f"⚠️ 高風險語意分數（keyword_score）：{keyword_score}")
-        user_impact_score = is_multi_user(description_text)  # 計算使用者影響分數
-        print(f"👥 多人影響分數（user_impact_score）：{user_impact_score}")
-        escalation_score = is_escalated(close_note_text)  # 計算升級處理分數
-        print(f"📈 升級處理分數（escalation_score）：{escalation_score}")
+            role_comp = row.get('Role/Component', 'not filled')
+            count = component_counts.get(role_comp, 0)
+            role_component_freq = 3 if count >= 5 else 2 if count >= 3 else 1 if count == 2 else 0
 
-
-
-        config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)  # 取得配置項的出現次數
-        configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0  # 計算配置項頻率
-
-        role_comp = row.get('Role/Component', 'not filled')  # 取得角色/元件
-        count = component_counts.get(role_comp, 0)  # 取得角色/元件的出現次數
-        if count >= 5:
-            role_component_freq = 3
-        elif count >= 3:
-            role_component_freq = 2
-        elif count == 2:
-            role_component_freq = 1
-        else:
-            role_component_freq = 0
-
-        this_time = row.get('Opened', 'not filled')  # 取得開啟時間
-        if pd.isnull(this_time):  # 如果開啟時間為空
-            time_cluster_score = 1
-        else:
-            others = df[df['Role/Component'] == role_comp]  # 篩選相同角色/元件的資料
-            close_events = others[(others['Opened'] >= this_time - pd.Timedelta(hours=24)) &
-                                  (others['Opened'] <= this_time + pd.Timedelta(hours=24))]  # 找出 24 小時內的事件
-            count_cluster = len(close_events)  # 計算事件數量
-            if count_cluster >= 3:
-                time_cluster_score = 3
-            elif count_cluster == 2:
-                time_cluster_score = 2
-            else:
+            this_time = row.get('Opened', 'not filled')
+            if pd.isnull(this_time):
                 time_cluster_score = 1
+            else:
+                others = df[df['Role/Component'] == role_comp]
+                close_events = others[(others['Opened'] >= this_time - pd.Timedelta(hours=24)) &
+                                      (others['Opened'] <= this_time + pd.Timedelta(hours=24))]
+                count_cluster = len(close_events)
+                time_cluster_score = 3 if count_cluster >= 3 else 2 if count_cluster == 2 else 1
 
-        severity_score = round(
-            keyword_score * weights['keyword'] +
-            user_impact_score * weights['multi_user'] +
-            escalation_score * weights['escalation'], 2
-        )
+            severity_score = round(
+                keyword_score * weights['keyword'] +
+                user_impact_score * weights['multi_user'] +
+                escalation_score * weights['escalation'], 2
+            )
 
-        frequency_score = round(
-            configuration_item_freq * weights['config_item'] +
-            role_component_freq * weights['role_component'] +
-            time_cluster_score * weights['time_cluster'], 2
-        )
+            frequency_score = round(
+                configuration_item_freq * weights['config_item'] +
+                role_component_freq * weights['role_component'] +
+                time_cluster_score * weights['time_cluster'], 2
+            )
 
+            impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
+            risk_level = get_risk_level(impact_score)
 
-        
-        print(f"📊 嚴重性分數：{severity_score}，頻率分數：{frequency_score}")
-        print("🧠 頻率分數細項：")
-        print(f"🔸 配置項（Configuration Item）出現比例：{configuration_item_freq:.2f}，乘以權重後得 {configuration_item_freq * weights['config_item']:.2f} 分")
-        print(f"🔸 元件或角色（Role/Component）在整體中出現 {count} 次 → 給 {role_component_freq * weights['role_component']:.2f} 分")
-        print(f"🔸 在 24 小時內有 {count_cluster} 筆同元件事件 → 群聚加分 {time_cluster_score * weights['time_cluster']:.2f} 分")
-        print(f"📊 頻率總分 = {frequency_score}\n")
+            desc = str(row.get('Description', "")).strip()
+            short_desc = str(row.get('Short description', "")).strip()
+            close_notes = str(row.get('Close notes', "")).strip()
+            resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+            ai_suggestion = extract_resolution_suggestion(resolution_text)
+            ai_summary = extract_problem_with_custom_prompt(f"{short_desc}\n{desc}".strip())
+            recommended = recommend_solution(short_description_text)
+            keywords = extract_keywords(short_description_text)
 
+            return {
+                'id': safe_value(row.get('Incident') or row.get('Number')),
+                'configurationItem': safe_value(row.get('Configuration item')),
+                'roleComponent': safe_value(row.get('Role/Component')),
+                'subcategory': safe_value(row.get('Subcategory')),
+                'aiSummary': safe_value(ai_summary),
+                'originalShortDescription': safe_value(short_desc),
+                'originalDescription': safe_value(desc),
+                'severityScore': safe_value(severity_score),
+                'frequencyScore': safe_value(frequency_score),
+                'impactScore': safe_value(impact_score),
+                'severityScoreNorm': round(severity_score / 10, 2),
+                'frequencyScoreNorm': round(frequency_score / 20, 2),
+                'impactScoreNorm': round(impact_score / 30, 2),
+                'riskLevel': risk_level,
+                'solution': safe_value(ai_suggestion or '無提供解法'),
+                'location': safe_value(row.get('Location')),
+                'analysisTime': analysis_time,
+                'weights': {k: round(v / 10, 2) for k, v in weights.items()},
+            }
 
+        except Exception as e:
+            print(f"❌ 分析第 {idx+1} 筆失敗：", e)
+            return None
 
+    # ✅ 非同步處理所有 row
+    results = []
+    per_row_times = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {}
+        for idx, row in df.iterrows():
+            futures[executor.submit(analyze_row, row, idx)] = idx
 
-        # 計算影響分數
-        impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
-        risk_level = get_risk_level(impact_score)
-        print(f"📉 嚴重性：{severity_score}, 頻率：{frequency_score}, 總分(After KMean process)：{impact_score} → 分級：{risk_level}")
-        desc = str(row.get('Description', "")).strip()
-        short_desc = str(row.get('Short Description', "")).strip()
-        close_notes = str(row.get('Close notes', "")).strip()
-        resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+        for future in tqdm(as_completed(futures), total=len(futures), desc="📊 非同步分析中"):
+            idx = futures[future]
+            t0 = time.time()
+            res = future.result()
+            t1 = time.time()
+            elapsed = t1 - t0
+            per_row_times.append(elapsed)
 
-        print(f"📦 Resolution 原始文字：{resolution_text}")  # ✅ 確認原始欄位內容
-
-        ai_suggestion = extract_resolution_suggestion(resolution_text)
-        print(f"🤖 GPT 建議句回傳：{ai_suggestion}")  # ✅ 確認 GPT 是否成功回應
-
-        # ✅ 安全地建立 AI 摘要輸入（若全空則顯示無資料）
-        summary_input_text = f"{short_desc}\n{desc}".strip()
-        if not summary_input_text:
-            summary_input_text = "（無原始摘要輸入）"
-
-        # ✅ 呼叫 GPT 摘要函式
-        ai_summary = extract_problem_with_custom_prompt(summary_input_text)
-
-        print(f"📦 Resolution 原始文字：{resolution_text}")
-        print(f"📝 AI 摘要輸入：{summary_input_text}")
-        print(f"🤖 GPT 摘要回傳：{ai_summary}")
-
-        # 儲存分析結果
-        results.append({
-            'id': safe_value(row.get('Incident') or row.get('Number')),
-            'configurationItem': safe_value(row.get('Configuration item')),
-            'roleComponent': safe_value(row.get('Role/Component')),
-            'subcategory': safe_value(row.get('Subcategory')),
-            'aiSummary': safe_value(ai_summary),
-            'originalShortDescription': safe_value(short_desc),
-            'originalDescription': safe_value(desc),
-            'severityScore': safe_value(severity_score),
-            'frequencyScore': safe_value(frequency_score),
-            'impactScore': safe_value(impact_score),
-            'severityScoreNorm': round(severity_score / 10, 2),
-            'frequencyScoreNorm': round(frequency_score / 20, 2),
-            'impactScoreNorm': round(impact_score / 30, 2),
-            'riskLevel': safe_value(get_risk_level(impact_score)),
-            'solution': safe_value(ai_suggestion or '無提供解法'),
-            'location': safe_value(row.get('Location')),
-            'analysisTime': analysis_time,
-            'weights': {k: round(v / 10, 2) for k, v in weights.items()},
-        })
-
-        # solution_text = row.get('Close notes') or '無提供解法'
-        recommended = recommend_solution(short_description_text)
-        keywords = extract_keywords(short_description_text)
-
-        print(f"✅ 已儲存 solution：{results[-1]['solution']}")
-        print(f"💡 建議解法：{recommended}")
-        print(f"🔑 抽取關鍵字：{keywords}")
-        print("—" * 250)  # 分隔線
+            if res:
+                results.append(res)
+            print(f"⏱️ 第 {idx + 1} 筆：{elapsed:.2f} 秒完成")
 
 
-
-
+    # ✅ KMeans 分群（略）
+    # 可依照你原本的邏輯套用 KMeans，如：
     # ⬇⬇⬇ KMeans 分群邏輯（支援三條件） ⬇⬇⬇
     all_scores = [r['impactScore'] for r in results]
     score_range = max(all_scores) - min(all_scores)
@@ -446,11 +413,19 @@ def analyze_excel(filepath, weights=None):
         for r in results:
             r['riskLevel'] = get_risk_level(r['impactScore'])
     # ⬆⬆⬆ 分群邏輯結束 ⬆⬆⬆
+
+
+    total_time = time.time() - start_time
+    avg_time = sum(per_row_times) / len(per_row_times) if per_row_times else 0
+    print(f"\n🎯 所有分析總耗時：{total_time:.2f} 秒")
+    print(f"📊 單筆平均耗時：{avg_time:.2f} 秒")
+
     print("\n✅ 所有資料分析完成！")
     return {
         'data': results,
         'analysisTime': analysis_time
     }
+
 
 # ------------------------------------------------------------------------------
 
@@ -553,11 +528,6 @@ def upload_file():
         traceback.print_exc()  # 印出完整錯誤堆疊
         return jsonify({'error': str(e)}), 500
     
-
-
-
-
-
 def save_analysis_files(result, uid):
     os.makedirs('json_data', exist_ok=True)
     os.makedirs('excel_result_Unclustered', exist_ok=True)  # ✅ 使用新的資料夾
@@ -585,7 +555,9 @@ def save_analysis_files(result, uid):
     print(f"✅ 分析報表已儲存：{excel_path}")
     print("📁 JSON 絕對路徑：", os.path.abspath(json_path))
     print("📁 Excel 絕對路徑：", os.path.abspath(excel_path))
-    original_excel_path = os.path.abspath(os.path.join(basedir, 'uploads', f"original_{uid}.xlsx"))
+    timestamp = uid.replace("result_", "")
+    original_excel_path = os.path.abspath(os.path.join(basedir, 'uploads', f"original_{timestamp}.xlsx"))
+
     if os.path.exists(original_excel_path):
         print("📁 原始檔絕對路徑：", original_excel_path)
     else:
@@ -631,6 +603,10 @@ def get_results():
 
 
 
+
+
+
+
 # ✅ JSON 預覽路由：提供 `/get-json?file=xxxx.json`
 @app.route('/get-json', methods=['GET'])
 def get_json_file():
@@ -645,17 +621,24 @@ def get_json_file():
         return jsonify({'error': '找不到對應的 JSON 檔案'}), 404
 
 
-# ✅ 分析 Excel 下載路由：提供 `/download-excel?uid=xxxx`
 @app.route('/download-excel', methods=['GET'])
 def download_excel_file():
-    uid = request.args.get('uid')  # e.g., result_20250423_152301
+    uid = request.args.get('uid')  # e.g., result_20250508_203611
     if not uid:
         return jsonify({'error': '缺少 uid 參數'}), 400
-    excel_path = os.path.join('excel_result_Clustered', f"{uid}_Clustered.xlsx")  # e.g., excel_result_Clustered/result_20250423_152301_Clustered.xlsx
-    if os.path.exists(excel_path):
-        return send_file(excel_path, as_attachment=True)
-    else:
-        return jsonify({'error': '找不到對應的 Excel 檔案'}), 404
+
+    # 先檢查 Clustered
+    clustered_path = os.path.join('excel_result_Clustered', f"{uid}_Clustered.xlsx")
+    if os.path.exists(clustered_path):
+        return send_file(clustered_path, as_attachment=True)
+
+    # 再檢查 Unclustered
+    unclustered_path = os.path.join('excel_result_Unclustered', f"{uid}_Unclustered.xlsx")
+    if os.path.exists(unclustered_path):
+        return send_file(unclustered_path, as_attachment=True)
+
+    return jsonify({'error': f'找不到 {uid} 對應的 Excel 檔案'}), 404
+
 
 @app.route('/download-original', methods=['GET'])
 def download_original_excel():
@@ -704,3 +687,214 @@ def perform_action():
 # 啟動 Flask 應用
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=True)
+
+
+
+
+
+
+
+
+
+
+# def analyze_excel(filepath, weights=None):
+#         # 預設權重設定（可被覆蓋）
+#     default_weights = {
+#         'keyword': 5.0,
+#         'multi_user': 3.0,
+#         'escalation': 2.0,
+#         'config_item': 5.0,
+#         'role_component': 3.0,
+#         'time_cluster': 2.0
+#     }
+#     weights = {**default_weights, **(weights or {})}  # 合併預設權重與使用者提供的權重設定
+#     print("🎛️ 使用中的權重設定：", weights)
+#     print("🔍 開始分析 Excel 檔案...")
+#     print(f"\n📂 讀取 Excel：{filepath}")
+#     df = pd.read_excel(filepath)  # 讀取 Excel 檔案
+#     print(f"📊 共讀取 {len(df)} 筆資料\n")
+#     component_counts = df['Role/Component'].value_counts()  # 計算每個角色/元件的出現次數
+#     df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')  # 將 'Opened' 欄位轉為日期格式
+#     results = []  # 儲存分析結果
+#     configuration_item_counts = df['Configuration item'].value_counts()  # 計算每個配置項的出現次數
+#     configuration_item_max = configuration_item_counts.max()  # 找出配置項的最大出現次數
+#     analysis_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+#     print(f"📅 分析時間：{analysis_time}")
+
+#     for idx, row in tqdm(df.iterrows(), total=len(df), desc="📊 分析進度"):
+#         print(f"\n🔍 第 {idx + 1} 筆分析中...")
+#         description_text = row.get('Description', 'not filled')  # 取得描述文字
+#         short_description_text = row.get('Short description', 'not filled') # 取得簡短描述文字
+#         close_note_text = row.get('Close notes', 'not filled')  # 取得關閉註解文字
+#         print(f"📄 描述：{description_text}")
+#         print(f"🔑 簡短描述：{short_description_text}")
+#         print(f"🔒 關閉註解：{close_note_text}")
+#         # 這裡可以加入對描述文字的預處理，例如去除多餘空格、轉為小寫等
+#         # description_text = normalize_text(description_text)  # 標準化文字    
+
+
+#         #這裡要改成使用語意分析模型
+
+#         keyword_score = is_high_risk(short_description_text)  # 計算關鍵字分數
+#         print(f"⚠️ 高風險語意分數（keyword_score）：{keyword_score}")
+#         user_impact_score = is_multi_user(description_text)  # 計算使用者影響分數
+#         print(f"👥 多人影響分數（user_impact_score）：{user_impact_score}")
+#         escalation_score = is_escalated(close_note_text)  # 計算升級處理分數
+#         print(f"📈 升級處理分數（escalation_score）：{escalation_score}")
+
+
+
+#         config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)  # 取得配置項的出現次數
+#         configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0  # 計算配置項頻率
+
+#         role_comp = row.get('Role/Component', 'not filled')  # 取得角色/元件
+#         count = component_counts.get(role_comp, 0)  # 取得角色/元件的出現次數
+#         if count >= 5:
+#             role_component_freq = 3
+#         elif count >= 3:
+#             role_component_freq = 2
+#         elif count == 2:
+#             role_component_freq = 1
+#         else:
+#             role_component_freq = 0
+
+#         this_time = row.get('Opened', 'not filled')  # 取得開啟時間
+#         if pd.isnull(this_time):  # 如果開啟時間為空
+#             time_cluster_score = 1
+#         else:
+#             others = df[df['Role/Component'] == role_comp]  # 篩選相同角色/元件的資料
+#             close_events = others[(others['Opened'] >= this_time - pd.Timedelta(hours=24)) &
+#                                   (others['Opened'] <= this_time + pd.Timedelta(hours=24))]  # 找出 24 小時內的事件
+#             count_cluster = len(close_events)  # 計算事件數量
+#             if count_cluster >= 3:
+#                 time_cluster_score = 3
+#             elif count_cluster == 2:
+#                 time_cluster_score = 2
+#             else:
+#                 time_cluster_score = 1
+
+#         severity_score = round(
+#             keyword_score * weights['keyword'] +
+#             user_impact_score * weights['multi_user'] +
+#             escalation_score * weights['escalation'], 2
+#         )
+
+#         frequency_score = round(
+#             configuration_item_freq * weights['config_item'] +
+#             role_component_freq * weights['role_component'] +
+#             time_cluster_score * weights['time_cluster'], 2
+#         )
+
+
+        
+#         print(f"📊 嚴重性分數：{severity_score}，頻率分數：{frequency_score}")
+#         print("🧠 頻率分數細項：")
+#         print(f"🔸 配置項（Configuration Item）出現比例：{configuration_item_freq:.2f}，乘以權重後得 {configuration_item_freq * weights['config_item']:.2f} 分")
+#         print(f"🔸 元件或角色（Role/Component）在整體中出現 {count} 次 → 給 {role_component_freq * weights['role_component']:.2f} 分")
+#         print(f"🔸 在 24 小時內有 {count_cluster} 筆同元件事件 → 群聚加分 {time_cluster_score * weights['time_cluster']:.2f} 分")
+#         print(f"📊 頻率總分 = {frequency_score}\n")
+
+
+
+
+#         # 計算影響分數
+#         impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
+#         risk_level = get_risk_level(impact_score)
+#         print(f"📉 嚴重性：{severity_score}, 頻率：{frequency_score}, 總分(After KMean process)：{impact_score} → 分級：{risk_level}")
+#         desc = str(row.get('Description', "")).strip()
+#         short_desc = str(row.get('Short Description', "")).strip()
+#         close_notes = str(row.get('Close notes', "")).strip()
+#         resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+
+#         print(f"📦 Resolution 原始文字：{resolution_text}")  # ✅ 確認原始欄位內容
+
+#         ai_suggestion = extract_resolution_suggestion(resolution_text)
+#         print(f"🤖 GPT 建議句回傳：{ai_suggestion}")  # ✅ 確認 GPT 是否成功回應
+
+#         # ✅ 安全地建立 AI 摘要輸入（若全空則顯示無資料）
+#         summary_input_text = f"{short_desc}\n{desc}".strip()
+#         if not summary_input_text:
+#             summary_input_text = "（無原始摘要輸入）"
+
+#         # ✅ 呼叫 GPT 摘要函式
+#         ai_summary = extract_problem_with_custom_prompt(summary_input_text)
+
+#         print(f"📦 Resolution 原始文字：{resolution_text}")
+#         print(f"📝 AI 摘要輸入：{summary_input_text}")
+#         print(f"🤖 GPT 摘要回傳：{ai_summary}")
+
+#         # 儲存分析結果
+#         results.append({
+#             'id': safe_value(row.get('Incident') or row.get('Number')),
+#             'configurationItem': safe_value(row.get('Configuration item')),
+#             'roleComponent': safe_value(row.get('Role/Component')),
+#             'subcategory': safe_value(row.get('Subcategory')),
+#             'aiSummary': safe_value(ai_summary),
+#             'originalShortDescription': safe_value(short_desc),
+#             'originalDescription': safe_value(desc),
+#             'severityScore': safe_value(severity_score),
+#             'frequencyScore': safe_value(frequency_score),
+#             'impactScore': safe_value(impact_score),
+#             'severityScoreNorm': round(severity_score / 10, 2),
+#             'frequencyScoreNorm': round(frequency_score / 20, 2),
+#             'impactScoreNorm': round(impact_score / 30, 2),
+#             'riskLevel': safe_value(get_risk_level(impact_score)),
+#             'solution': safe_value(ai_suggestion or '無提供解法'),
+#             'location': safe_value(row.get('Location')),
+#             'analysisTime': analysis_time,
+#             'weights': {k: round(v / 10, 2) for k, v in weights.items()},
+#         })
+
+#         # solution_text = row.get('Close notes') or '無提供解法'
+#         recommended = recommend_solution(short_description_text)
+#         keywords = extract_keywords(short_description_text)
+
+#         print(f"✅ 已儲存 solution：{results[-1]['solution']}")
+#         print(f"💡 建議解法：{recommended}")
+#         print(f"🔑 抽取關鍵字：{keywords}")
+#         print("—" * 250)  # 分隔線
+
+
+
+
+#     # ⬇⬇⬇ KMeans 分群邏輯（支援三條件） ⬇⬇⬇
+#     all_scores = [r['impactScore'] for r in results]
+#     score_range = max(all_scores) - min(all_scores)
+#     score_std = np.std(all_scores)
+
+#     print(f"📈 分群判斷指標：count={len(all_scores)}, range={score_range:.2f}, stddev={score_std:.2f}")
+
+#     if (
+#         len(all_scores) >= KMEANS_MIN_COUNT and
+#         score_range >= KMEANS_MIN_RANGE and
+#         score_std >= KMEANS_MIN_STDDEV
+#     ):
+#         kmeans = KMeans(n_clusters=4, random_state=42)
+#         labels = kmeans.fit_predict(np.array(all_scores).reshape(-1, 1))
+#         centroids = kmeans.cluster_centers_.flatten()
+#         set_kmeans_thresholds_from_centroids(centroids)
+#         print(f"📊 KMeans 分群標籤：{labels}")
+#         label_map = {}
+#         for i, idx in enumerate(np.argsort(centroids)[::-1]):
+#             label_map[idx] = ['高風險', '中風險', '低風險', '忽略'][i]
+#         for i, r in enumerate(results):
+#             r['riskLevel'] = label_map[labels[i]]
+#         print(f"📌 KMeans 分群中心：{sorted(centroids, reverse=True)}")
+#     else:
+#         print("⚠️ 不啟用 KMeans，改用固定門檻分級")
+#         for r in results:
+#             r['riskLevel'] = get_risk_level(r['impactScore'])
+#     # ⬆⬆⬆ 分群邏輯結束 ⬆⬆⬆
+#     print("\n✅ 所有資料分析完成！")
+#     return {
+#         'data': results,
+#         'analysisTime': analysis_time
+#     }
+
+
+
+
+
+
+
+

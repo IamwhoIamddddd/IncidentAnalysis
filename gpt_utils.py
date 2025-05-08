@@ -39,7 +39,7 @@ def extract_resolution_suggestion(text, model="mistral"):
             return "（AI 擷取失敗）"
         
 
-def extract_problem_with_custom_prompt(text, model="mistral"):
+def extract_problem_with_custom_prompt(text, model="phi3:mini"):
     if not isinstance(text, str) or not text.strip():
         return "（無原始描述）"
 
