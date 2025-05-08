@@ -29,32 +29,42 @@ document.addEventListener("DOMContentLoaded", () => {
     const fileList = document.getElementById('clusteredFileList');
   if (!fileList) return;
 
-  fetch('/clustered-files')
-    .then(res => res.json())
-    .then(data => {
-      const files = data.files || [];
-      if (files.length === 0) {
-        fileList.innerHTML = '<li>📭 尚無分群檔案</li>';
-      } else {
-        files.forEach(f => {
-          const li = document.createElement('li');
-          const url = `/download-clustered?file=${encodeURIComponent(f)}`;
-          li.innerHTML = `<a href="${url}" download>📎 ${f}</a>`;
+fetch('/clustered-files')
+  .then(res => res.json())
+  .then(data => {
+    const files = data.files || [];
+    if (files.length === 0) {
+      fileList.innerHTML = '<li>📭 尚無分群檔案</li>';
+    } else {
+      // 找出最多筆的數量（用來高亮）
+      const maxRows = Math.max(...files.map(f => f.rows));
 
-          fileList.appendChild(li);
-          // 加下載提示
-            li.querySelector("a").addEventListener("click", (e) => {
-            showDownloadToast(`🚀 開始下載：${f}`);
-            });
+      files.forEach(f => {
+        const li = document.createElement('li');
+        const url = `/download-clustered?file=${encodeURIComponent(f.name)}`;
+        const icon = '📎';
 
+
+        li.innerHTML = `
+          <a href="${url}" download>${icon} ${f.name}</a>
+          <span style="color:gray;">（${f.rows} 筆）</span>
+        `;
+
+        fileList.appendChild(li);
+
+        // 加下載提示
+        li.querySelector("a").addEventListener("click", () => {
+          showDownloadToast(`🚀 開始下載：${f.name}`);
         });
-        fileList.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    })
-    .catch(err => {
-      fileList.innerHTML = '<li>❌ 載入失敗，請稍後再試。</li>';
-      console.error('載入錯誤：', err);
-    });
+      });
+
+      fileList.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  })
+  .catch(err => {
+    fileList.innerHTML = '<li>❌ 載入失敗，請稍後再試。</li>';
+    console.error('載入錯誤：', err);
+  });
 
 
 

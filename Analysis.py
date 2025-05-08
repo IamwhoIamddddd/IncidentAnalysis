@@ -105,13 +105,31 @@ def list_clustered_files():
     if not os.path.exists(clustered_folder):
         return jsonify({'files': []})
 
-    # ✅ 僅保留符合 Cluster-[CI]xxx_[RC]xxx_[SC]xxx.xlsx 格式的
     pattern = re.compile(r"^Cluster-\[CI\].+_\[RC\].+_\[SC\].+\.xlsx$")
-    files = [
-        f for f in os.listdir(clustered_folder)
-        if f.endswith('.xlsx') and pattern.match(f)
-    ]
-    return jsonify({'files': files})
+    files_info = []
+
+    for f in os.listdir(clustered_folder):
+        if not (f.endswith('.xlsx') and pattern.match(f)):
+            continue
+
+        filepath = os.path.join(clustered_folder, f)
+        try:
+            df = pd.read_excel(filepath)
+            row_count = len(df)
+        except Exception as e:
+            print(f"❌ 無法讀取 {f}：{e}")
+            row_count = 0
+
+        files_info.append({
+            'name': f,
+            'rows': row_count
+        })
+
+    # ✅ 可選：依照 row 數降冪排序（最多的排前面）
+    files_info.sort(key=lambda x: x['rows'], reverse=True)
+
+    return jsonify({'files': files_info})
+
 
 @app.route('/download-clustered', methods=['GET'])
 def download_clustered_file():
