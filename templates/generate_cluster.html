@@ -33,13 +33,19 @@
     <p>點擊下方按鈕將執行分群分析並產生各類 Excel 檔案。</p>
     <button id="run-cluster-btn" class="btn btn-outline-success">產生分群 Excel</button>
     <p id="cluster-status" class="mt-3"></p>
-  </div>
+      <!-- ✅ 這裡是自動載入的分群檔案清單 -->
+    <h3 style="margin-top: 40px;">📁 已分群檔案清單</h3>
+    <ul id="clusteredFileList" class="mt-3" style="text-align: left; padding-left: 20px;"></ul>
+
+    </div>
 
 <div id="toast" class="toast" style="display: none;">
   <button class="close-toast"><i class="bi bi-x-lg"></i></button>
   分析完成！
   <button id="copyResult" style="margin-top: 10px;">📋 複製結果</button>
 </div>
+<div id="download-toast" class="toast" style="display: none;"></div>
+
 
 
   <!-- 套件引入 -->

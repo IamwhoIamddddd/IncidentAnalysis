@@ -37,6 +37,36 @@ def extract_resolution_suggestion(text, model="mistral"):
         except Exception as e2:
             print("⛔ GPT 雙次呼叫都失敗：", e2)
             return "（AI 擷取失敗）"
+        
+
+def extract_problem_with_custom_prompt(text, model="mistral"):
+    if not isinstance(text, str) or not text.strip():
+        return "（無原始描述）"
+
+    lines = text.strip().splitlines()
+    text_trimmed = "\n".join(lines[:3])
+
+    # 🆕 使用新的 Prompt（30 字內的 actionable solution）
+    prompt = f"""You're an assistant. Read the following incident note and summarize what issue or problem it describes, in one clear sentence.
+Do not suggest a solution. Only summarize the problem.
+Limit to 30 words.
+---
+{text_trimmed}
+"""
+
+
+
+    try:
+        return call_ollama_model(prompt, model)
+    except Exception as e:
+        print("❌ 初次呼叫失敗，嘗試重試一次...")
+        time.sleep(2)
+        try:
+            return call_ollama_model(prompt, model)
+        except Exception as e2:
+            print("⛔ GPT 雙次呼叫都失敗：", e2)
+            return "（AI 擷取失敗）"
+
 
 
 # 🔧 基礎函數：呼叫本地 Ollama API

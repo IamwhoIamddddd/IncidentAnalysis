@@ -1,6 +1,7 @@
 # 匯入 Flask 框架及相關模組
 from flask import Flask, request, jsonify, render_template, session, send_file
 from gpt_utils import extract_resolution_suggestion
+from gpt_utils import extract_problem_with_custom_prompt
 from collections import defaultdict
 from collections import Counter
 import umap
@@ -87,6 +88,40 @@ def safe_value(val):
         return val
 
 # ------------------------------------------------------------------------------
+
+
+@app.route('/check-unclustered', methods=['GET'])
+def check_unclustered_files():
+    folder = 'excel_result_Unclustered'
+    if not os.path.exists(folder):
+        return jsonify({'exists': False}), 200
+    files = [f for f in os.listdir(folder) if f.endswith('.xlsx')]
+    return jsonify({'exists': len(files) > 0}), 200
+
+
+@app.route('/clustered-files', methods=['GET'])
+def list_clustered_files():
+    clustered_folder = 'excel_result_Clustered'
+    if not os.path.exists(clustered_folder):
+        return jsonify({'files': []})
+
+    # ✅ 僅保留符合 Cluster-[CI]xxx_[RC]xxx_[SC]xxx.xlsx 格式的
+    pattern = re.compile(r"^Cluster-\[CI\].+_\[RC\].+_\[SC\].+\.xlsx$")
+    files = [
+        f for f in os.listdir(clustered_folder)
+        if f.endswith('.xlsx') and pattern.match(f)
+    ]
+    return jsonify({'files': files})
+
+@app.route('/download-clustered', methods=['GET'])
+def download_clustered_file():
+    filename = request.args.get('file')
+    path = os.path.join('excel_result_Clustered', filename)
+    if os.path.exists(path):
+        return send_file(path, as_attachment=True)
+    return jsonify({'error': '找不到檔案'}), 404
+
+
 
 
 # 根據分數判斷風險等級（支援 KMeans 分群）
@@ -325,7 +360,7 @@ def analyze_excel(filepath, weights=None):
             summary_input_text = "（無原始摘要輸入）"
 
         # ✅ 呼叫 GPT 摘要函式
-        ai_summary = extract_resolution_suggestion(summary_input_text)
+        ai_summary = extract_problem_with_custom_prompt(summary_input_text)
 
         print(f"📦 Resolution 原始文字：{resolution_text}")
         print(f"📝 AI 摘要輸入：{summary_input_text}")
@@ -598,7 +633,7 @@ def download_excel_file():
     uid = request.args.get('uid')  # e.g., result_20250423_152301
     if not uid:
         return jsonify({'error': '缺少 uid 參數'}), 400
-    excel_path = os.path.join('excel_result_Unclustered', f"{uid}_Unclustered.xlsx")
+    excel_path = os.path.join('excel_result_Clustered', f"{uid}_Clustered.xlsx")  # e.g., excel_result_Clustered/result_20250423_152301_Clustered.xlsx
     if os.path.exists(excel_path):
         return send_file(excel_path, as_attachment=True)
     else:
@@ -650,4 +685,4 @@ def perform_action():
 
 # 啟動 Flask 應用
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True, use_reloader=True)

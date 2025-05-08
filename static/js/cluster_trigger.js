@@ -25,12 +25,70 @@ document.addEventListener("DOMContentLoaded", () => {
     sidebarToggle.textContent = document.body.classList.contains('sidebar-collapsed') ? '→' : '←';
   }
 
+
+    const fileList = document.getElementById('clusteredFileList');
+  if (!fileList) return;
+
+  fetch('/clustered-files')
+    .then(res => res.json())
+    .then(data => {
+      const files = data.files || [];
+      if (files.length === 0) {
+        fileList.innerHTML = '<li>📭 尚無分群檔案</li>';
+      } else {
+        files.forEach(f => {
+          const li = document.createElement('li');
+          const url = `/download-clustered?file=${encodeURIComponent(f)}`;
+          li.innerHTML = `<a href="${url}" download>📎 ${f}</a>`;
+
+          fileList.appendChild(li);
+          // 加下載提示
+            li.querySelector("a").addEventListener("click", (e) => {
+            showDownloadToast(`🚀 開始下載：${f}`);
+            });
+
+        });
+        fileList.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    })
+    .catch(err => {
+      fileList.innerHTML = '<li>❌ 載入失敗，請稍後再試。</li>';
+      console.error('載入錯誤：', err);
+    });
+
+
+
+
+
+
+
   // ✅ 分群功能與 Toast 控制
   const button = document.getElementById("run-cluster-btn");
   const status = document.getElementById("cluster-status");
   const toast = document.getElementById("toast");
   const copyBtn = document.getElementById("copyResult");
   const closeBtn = document.querySelector(".close-toast");
+
+  // 檢查 Unclustered 資料夾是否有檔案
+  fetch("/check-unclustered")
+    .then(res => res.json())
+    .then(data => {
+      if (!data.exists) {
+        button.disabled = true;
+        status.textContent = "📂 沒有未分群的 Excel 檔案";
+        status.style.color = "#f66"; // 紅色提示
+      } else {
+        button.disabled = false;
+        status.textContent = "✅ 可以開始分群分析";
+        status.style.color = "#4caf50"; // 綠色提示
+      }
+    })
+    .catch(err => {
+      button.disabled = true;
+      status.textContent = "⚠️ 無法檢查未分群資料夾";
+      status.style.color = "#f66";
+      console.error("❌ 檢查錯誤：", err);
+    });
 
   if (closeBtn) {
     closeBtn.addEventListener("click", () => {
@@ -99,9 +157,35 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  function scrollToElement(el) {
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
+    function scrollToElement(el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    function showDownloadToast(message) {
+    const toast = document.getElementById("download-toast");
+    toast.textContent = message;
+    toast.style.display = "block";
+    toast.style.position = "fixed";
+    toast.style.bottom = "30px";
+    toast.style.right = "30px";
+    toast.style.padding = "12px 20px";
+    toast.style.background = "rgba(33, 150, 243, 0.9)";
+    toast.style.color = "#fff";
+    toast.style.borderRadius = "8px";
+    toast.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
+    toast.style.fontWeight = "600";
+    toast.style.zIndex = "9999";
+    toast.style.transition = "opacity 0.3s";
+
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        setTimeout(() => {
+        toast.style.display = "none";
+        toast.style.opacity = "1";
+        }, 300);
+    }, 2000);
+    }
+
 });
 
 // ✅ 導航功能
