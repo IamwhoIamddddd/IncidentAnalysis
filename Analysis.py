@@ -260,16 +260,12 @@ def cluster_excel_export(results, export_dir="excel_result_Clustered"):
     print("✅ 分群 Excel 檔案已儲存！")
 
 
-
-
-
 # 用於同步 Flask 路由呼叫 async 分析邏輯
 def analyze_excel(filepath, weights=None):
     return asyncio.run(analyze_excel_async(filepath, weights))
 
 
-
-
+# 用於同步 Flask 路由呼叫 async 分析邏輯
 async def analyze_excel_async(filepath, weights=None):
     start_time = time.time()
     default_weights = {
@@ -289,7 +285,7 @@ async def analyze_excel_async(filepath, weights=None):
     df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')
     analysis_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # 非同步處理每筆資料
+    # 非同步處理
     tasks = [
         analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time)
         for idx, row in df.iterrows()
@@ -297,8 +293,14 @@ async def analyze_excel_async(filepath, weights=None):
     results_raw = await asyncio.gather(*tasks, return_exceptions=True)
     results = [r for r in results_raw if r and not isinstance(r, Exception)]
 
+    # ✅ 防呆：沒有任何成功的結果就直接回傳避免崩潰
+    if not results:
+        print("⚠️ 所有資料都無法分析，請檢查欄位是否缺失")
+        return {
+            'data': [],
+            'analysisTime': analysis_time
+        }
 
-    # ✅ 分群邏輯（照原本邏輯即可）
     all_scores = [r['impactScore'] for r in results]
     score_range = max(all_scores) - min(all_scores)
     score_std = np.std(all_scores)
@@ -327,11 +329,10 @@ async def analyze_excel_async(filepath, weights=None):
             r['riskLevel'] = get_risk_level(r['impactScore'])
 
     total_time = time.time() - start_time
-    avg_time = total_time / len(results) if results else 0
+    avg_time = total_time / len(results)
 
     print(f"\n🎯 所有分析總耗時：{total_time:.2f} 秒")
     print(f"📊 單筆平均耗時：{avg_time:.2f} 秒")
-
     print("\n✅ 所有資料分析完成！")
     return {
         'data': results,
@@ -343,16 +344,28 @@ async def analyze_excel_async(filepath, weights=None):
 
 
 
-
 async def analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time):
     try:
+        # 原始欄位保留
         description_text = row.get('Description', 'not filled')
         short_description_text = row.get('Short description', 'not filled')
         close_note_text = row.get('Close notes', 'not filled')
 
-        keyword_score = is_high_risk(short_description_text)
-        user_impact_score = is_multi_user(description_text)
-        escalation_score = is_escalated(close_note_text)
+        # 字串清理（保留變數命名）
+        desc = str(description_text).strip()
+        short_desc = str(short_description_text).strip()
+        close_notes = str(close_note_text).strip()
+
+        # 若全部內容皆為空，直接跳過此筆
+        if not (desc or short_desc or close_notes):
+            print(f"⚠️ 第 {idx+1} 筆內容全為空白，略過分析")
+            return None
+
+        resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+
+        keyword_score = is_high_risk(short_desc)
+        user_impact_score = is_multi_user(desc)
+        escalation_score = is_escalated(close_notes)
 
         config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)
         configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0
@@ -384,18 +397,20 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
         impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
         risk_level = get_risk_level(impact_score)
 
-        desc = str(description_text).strip()
-        short_desc = str(short_description_text).strip()
-        close_notes = str(close_note_text).strip()
-        resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+        # GPT 處理允許失敗
+        try:
+            ai_suggestion, ai_summary = await asyncio.gather(
+                extract_resolution_suggestion(resolution_text, source_id=f"Row#{idx+1}"),
+                extract_problem_with_custom_prompt(f"{short_desc}\n{desc}".strip(), source_id=f"Row#{idx+1}")
+            )
 
-        ai_suggestion, ai_summary = await asyncio.gather(
-            extract_resolution_suggestion(resolution_text),
-            extract_problem_with_custom_prompt(f"{short_desc}\n{desc}".strip())
-        )
+        except Exception as e:
+            print(f"⚠️ GPT 擷取失敗：{e}")
+            ai_suggestion = "（AI 擷取失敗）"
+            ai_summary = "（AI 擷取失敗）"
 
-        recommended = recommend_solution(short_description_text)
-        keywords = extract_keywords(short_description_text)
+        recommended = recommend_solution(short_desc)
+        keywords = extract_keywords(short_desc)
 
         return {
             'id': safe_value(row.get('Incident') or row.get('Number')),
@@ -419,8 +434,9 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
         }
 
     except Exception as e:
-        print(f"❌ 分析第 {idx+1} 筆失敗：", e)
+        print(f"❌ 分析第 {idx + 1} 筆失敗：", e)
         return None
+
 
 
 
