@@ -39,6 +39,8 @@ import numpy as np
 from datetime import datetime
 import time
 # --- 分群啟用條件（可依資料調整）---
+import asyncio
+import math
 KMEANS_MIN_COUNT = 4         # 最少資料筆數
 KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
 KMEANS_MIN_STDDEV = 3.0      # 標準差下限
@@ -259,12 +261,16 @@ def cluster_excel_export(results, export_dir="excel_result_Clustered"):
 
 
 
-# ------------------------------------------------------------------------------
 
 
-# 分析 Excel 資料的主邏輯
+# 用於同步 Flask 路由呼叫 async 分析邏輯
 def analyze_excel(filepath, weights=None):
+    return asyncio.run(analyze_excel_async(filepath, weights))
 
+
+
+
+async def analyze_excel_async(filepath, weights=None):
     start_time = time.time()
     default_weights = {
         'keyword': 5.0,
@@ -275,117 +281,24 @@ def analyze_excel(filepath, weights=None):
         'time_cluster': 2.0
     }
     weights = {**default_weights, **(weights or {})}
-    print("🎛️ 使用中的權重設定：", weights)
 
     df = pd.read_excel(filepath)
-    print(f"📊 共讀取 {len(df)} 筆資料\n")
-
     component_counts = df['Role/Component'].value_counts()
-    df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')
     configuration_item_counts = df['Configuration item'].value_counts()
     configuration_item_max = configuration_item_counts.max()
+    df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')
     analysis_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    def analyze_row(row, idx):
-        try:
-            description_text = row.get('Description', 'not filled')
-            short_description_text = row.get('Short description', 'not filled')
-            close_note_text = row.get('Close notes', 'not filled')
-
-            keyword_score = is_high_risk(short_description_text)
-            user_impact_score = is_multi_user(description_text)
-            escalation_score = is_escalated(close_note_text)
-
-            config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)
-            configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0
-
-            role_comp = row.get('Role/Component', 'not filled')
-            count = component_counts.get(role_comp, 0)
-            role_component_freq = 3 if count >= 5 else 2 if count >= 3 else 1 if count == 2 else 0
-
-            this_time = row.get('Opened', 'not filled')
-            if pd.isnull(this_time):
-                time_cluster_score = 1
-            else:
-                others = df[df['Role/Component'] == role_comp]
-                close_events = others[(others['Opened'] >= this_time - pd.Timedelta(hours=24)) &
-                                      (others['Opened'] <= this_time + pd.Timedelta(hours=24))]
-                count_cluster = len(close_events)
-                time_cluster_score = 3 if count_cluster >= 3 else 2 if count_cluster == 2 else 1
-
-            severity_score = round(
-                keyword_score * weights['keyword'] +
-                user_impact_score * weights['multi_user'] +
-                escalation_score * weights['escalation'], 2
-            )
-
-            frequency_score = round(
-                configuration_item_freq * weights['config_item'] +
-                role_component_freq * weights['role_component'] +
-                time_cluster_score * weights['time_cluster'], 2
-            )
-
-            impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
-            risk_level = get_risk_level(impact_score)
-
-            desc = str(row.get('Description', "")).strip()
-            short_desc = str(row.get('Short description', "")).strip()
-            close_notes = str(row.get('Close notes', "")).strip()
-            resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
-            ai_suggestion = extract_resolution_suggestion(resolution_text)
-            ai_summary = extract_problem_with_custom_prompt(f"{short_desc}\n{desc}".strip())
-            recommended = recommend_solution(short_description_text)
-            keywords = extract_keywords(short_description_text)
-
-            return {
-                'id': safe_value(row.get('Incident') or row.get('Number')),
-                'configurationItem': safe_value(row.get('Configuration item')),
-                'roleComponent': safe_value(row.get('Role/Component')),
-                'subcategory': safe_value(row.get('Subcategory')),
-                'aiSummary': safe_value(ai_summary),
-                'originalShortDescription': safe_value(short_desc),
-                'originalDescription': safe_value(desc),
-                'severityScore': safe_value(severity_score),
-                'frequencyScore': safe_value(frequency_score),
-                'impactScore': safe_value(impact_score),
-                'severityScoreNorm': round(severity_score / 10, 2),
-                'frequencyScoreNorm': round(frequency_score / 20, 2),
-                'impactScoreNorm': round(impact_score / 30, 2),
-                'riskLevel': risk_level,
-                'solution': safe_value(ai_suggestion or '無提供解法'),
-                'location': safe_value(row.get('Location')),
-                'analysisTime': analysis_time,
-                'weights': {k: round(v / 10, 2) for k, v in weights.items()},
-            }
-
-        except Exception as e:
-            print(f"❌ 分析第 {idx+1} 筆失敗：", e)
-            return None
-
-    # ✅ 非同步處理所有 row
-    results = []
-    per_row_times = []
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = {}
-        for idx, row in df.iterrows():
-            futures[executor.submit(analyze_row, row, idx)] = idx
-
-        for future in tqdm(as_completed(futures), total=len(futures), desc="📊 非同步分析中"):
-            idx = futures[future]
-            t0 = time.time()
-            res = future.result()
-            t1 = time.time()
-            elapsed = t1 - t0
-            per_row_times.append(elapsed)
-
-            if res:
-                results.append(res)
-            print(f"⏱️ 第 {idx + 1} 筆：{elapsed:.2f} 秒完成")
+    # 非同步處理每筆資料
+    tasks = [
+        analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time)
+        for idx, row in df.iterrows()
+    ]
+    results_raw = await asyncio.gather(*tasks, return_exceptions=True)
+    results = [r for r in results_raw if r and not isinstance(r, Exception)]
 
 
-    # ✅ KMeans 分群（略）
-    # 可依照你原本的邏輯套用 KMeans，如：
-    # ⬇⬇⬇ KMeans 分群邏輯（支援三條件） ⬇⬇⬇
+    # ✅ 分群邏輯（照原本邏輯即可）
     all_scores = [r['impactScore'] for r in results]
     score_range = max(all_scores) - min(all_scores)
     score_std = np.std(all_scores)
@@ -412,11 +325,10 @@ def analyze_excel(filepath, weights=None):
         print("⚠️ 不啟用 KMeans，改用固定門檻分級")
         for r in results:
             r['riskLevel'] = get_risk_level(r['impactScore'])
-    # ⬆⬆⬆ 分群邏輯結束 ⬆⬆⬆
-
 
     total_time = time.time() - start_time
-    avg_time = sum(per_row_times) / len(per_row_times) if per_row_times else 0
+    avg_time = total_time / len(results) if results else 0
+
     print(f"\n🎯 所有分析總耗時：{total_time:.2f} 秒")
     print(f"📊 單筆平均耗時：{avg_time:.2f} 秒")
 
@@ -425,6 +337,277 @@ def analyze_excel(filepath, weights=None):
         'data': results,
         'analysisTime': analysis_time
     }
+
+
+
+
+
+
+
+async def analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time):
+    try:
+        description_text = row.get('Description', 'not filled')
+        short_description_text = row.get('Short description', 'not filled')
+        close_note_text = row.get('Close notes', 'not filled')
+
+        keyword_score = is_high_risk(short_description_text)
+        user_impact_score = is_multi_user(description_text)
+        escalation_score = is_escalated(close_note_text)
+
+        config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)
+        configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0
+
+        role_comp = row.get('Role/Component', 'not filled')
+        count = component_counts.get(role_comp, 0)
+        role_component_freq = 3 if count >= 5 else 2 if count >= 3 else 1 if count == 2 else 0
+
+        this_time = row.get('Opened', 'not filled')
+        if pd.isnull(this_time):
+            time_cluster_score = 1
+        else:
+            others = df[df['Role/Component'] == role_comp]
+            close_events = others[(others['Opened'] >= this_time - pd.Timedelta(hours=24)) &
+                                  (others['Opened'] <= this_time + pd.Timedelta(hours=24))]
+            count_cluster = len(close_events)
+            time_cluster_score = 3 if count_cluster >= 3 else 2 if count_cluster == 2 else 1
+
+        severity_score = round(
+            keyword_score * weights['keyword'] +
+            user_impact_score * weights['multi_user'] +
+            escalation_score * weights['escalation'], 2
+        )
+        frequency_score = round(
+            configuration_item_freq * weights['config_item'] +
+            role_component_freq * weights['role_component'] +
+            time_cluster_score * weights['time_cluster'], 2
+        )
+        impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
+        risk_level = get_risk_level(impact_score)
+
+        desc = str(description_text).strip()
+        short_desc = str(short_description_text).strip()
+        close_notes = str(close_note_text).strip()
+        resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+
+        ai_suggestion, ai_summary = await asyncio.gather(
+            extract_resolution_suggestion(resolution_text),
+            extract_problem_with_custom_prompt(f"{short_desc}\n{desc}".strip())
+        )
+
+        recommended = recommend_solution(short_description_text)
+        keywords = extract_keywords(short_description_text)
+
+        return {
+            'id': safe_value(row.get('Incident') or row.get('Number')),
+            'configurationItem': safe_value(row.get('Configuration item')),
+            'roleComponent': safe_value(row.get('Role/Component')),
+            'subcategory': safe_value(row.get('Subcategory')),
+            'aiSummary': safe_value(ai_summary),
+            'originalShortDescription': safe_value(short_desc),
+            'originalDescription': safe_value(desc),
+            'severityScore': safe_value(severity_score),
+            'frequencyScore': safe_value(frequency_score),
+            'impactScore': safe_value(impact_score),
+            'severityScoreNorm': round(severity_score / 10, 2),
+            'frequencyScoreNorm': round(frequency_score / 20, 2),
+            'impactScoreNorm': round(impact_score / 30, 2),
+            'riskLevel': risk_level,
+            'solution': safe_value(ai_suggestion or '無提供解法'),
+            'location': safe_value(row.get('Location')),
+            'analysisTime': analysis_time,
+            'weights': {k: round(v / 10, 2) for k, v in weights.items()},
+        }
+
+    except Exception as e:
+        print(f"❌ 分析第 {idx+1} 筆失敗：", e)
+        return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------------
+
+
+# # 分析 Excel 資料的主邏輯 
+# def analyze_excel(filepath, weights=None):
+
+#     start_time = time.time()
+#     default_weights = {
+#         'keyword': 5.0,
+#         'multi_user': 3.0,
+#         'escalation': 2.0,
+#         'config_item': 5.0,
+#         'role_component': 3.0,
+#         'time_cluster': 2.0
+#     }
+#     weights = {**default_weights, **(weights or {})}
+#     print("🎛️ 使用中的權重設定：", weights)
+
+#     df = pd.read_excel(filepath)
+#     print(f"📊 共讀取 {len(df)} 筆資料\n")
+
+#     component_counts = df['Role/Component'].value_counts()
+#     df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')
+#     configuration_item_counts = df['Configuration item'].value_counts()
+#     configuration_item_max = configuration_item_counts.max()
+#     analysis_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+#     def analyze_row(row, idx):
+#         try:
+#             description_text = row.get('Description', 'not filled')
+#             short_description_text = row.get('Short description', 'not filled')
+#             close_note_text = row.get('Close notes', 'not filled')
+
+#             keyword_score = is_high_risk(short_description_text)
+#             user_impact_score = is_multi_user(description_text)
+#             escalation_score = is_escalated(close_note_text)
+
+#             config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)
+#             configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0
+
+#             role_comp = row.get('Role/Component', 'not filled')
+#             count = component_counts.get(role_comp, 0)
+#             role_component_freq = 3 if count >= 5 else 2 if count >= 3 else 1 if count == 2 else 0
+
+#             this_time = row.get('Opened', 'not filled')
+#             if pd.isnull(this_time):
+#                 time_cluster_score = 1
+#             else:
+#                 others = df[df['Role/Component'] == role_comp]
+#                 close_events = others[(others['Opened'] >= this_time - pd.Timedelta(hours=24)) &
+#                                       (others['Opened'] <= this_time + pd.Timedelta(hours=24))]
+#                 count_cluster = len(close_events)
+#                 time_cluster_score = 3 if count_cluster >= 3 else 2 if count_cluster == 2 else 1
+
+#             severity_score = round(
+#                 keyword_score * weights['keyword'] +
+#                 user_impact_score * weights['multi_user'] +
+#                 escalation_score * weights['escalation'], 2
+#             )
+
+#             frequency_score = round(
+#                 configuration_item_freq * weights['config_item'] +
+#                 role_component_freq * weights['role_component'] +
+#                 time_cluster_score * weights['time_cluster'], 2
+#             )
+
+#             impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
+#             risk_level = get_risk_level(impact_score)
+
+#             desc = str(row.get('Description', "")).strip()
+#             short_desc = str(row.get('Short description', "")).strip()
+#             close_notes = str(row.get('Close notes', "")).strip()
+#             resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+#             ai_suggestion = extract_resolution_suggestion(resolution_text)
+#             ai_summary = extract_problem_with_custom_prompt(f"{short_desc}\n{desc}".strip())
+#             recommended = recommend_solution(short_description_text)
+#             keywords = extract_keywords(short_description_text)
+
+#             return {
+#                 'id': safe_value(row.get('Incident') or row.get('Number')),
+#                 'configurationItem': safe_value(row.get('Configuration item')),
+#                 'roleComponent': safe_value(row.get('Role/Component')),
+#                 'subcategory': safe_value(row.get('Subcategory')),
+#                 'aiSummary': safe_value(ai_summary),
+#                 'originalShortDescription': safe_value(short_desc),
+#                 'originalDescription': safe_value(desc),
+#                 'severityScore': safe_value(severity_score),
+#                 'frequencyScore': safe_value(frequency_score),
+#                 'impactScore': safe_value(impact_score),
+#                 'severityScoreNorm': round(severity_score / 10, 2),
+#                 'frequencyScoreNorm': round(frequency_score / 20, 2),
+#                 'impactScoreNorm': round(impact_score / 30, 2),
+#                 'riskLevel': risk_level,
+#                 'solution': safe_value(ai_suggestion or '無提供解法'),
+#                 'location': safe_value(row.get('Location')),
+#                 'analysisTime': analysis_time,
+#                 'weights': {k: round(v / 10, 2) for k, v in weights.items()},
+#             }
+
+#         except Exception as e:
+#             print(f"❌ 分析第 {idx+1} 筆失敗：", e)
+#             return None
+
+#     # ✅ 非同步處理所有 row
+#     results = []
+#     per_row_times = []
+#     with ThreadPoolExecutor(max_workers=8) as executor:
+#         futures = {}
+#         for idx, row in df.iterrows():
+#             futures[executor.submit(analyze_row, row, idx)] = idx
+
+#         for future in tqdm(as_completed(futures), total=len(futures), desc="📊 非同步分析中"):
+#             idx = futures[future]
+#             t0 = time.time()
+#             res = future.result()
+#             t1 = time.time()
+#             elapsed = t1 - t0
+#             per_row_times.append(elapsed)
+
+#             if res:
+#                 results.append(res)
+#             print(f"⏱️ 第 {idx + 1} 筆：{elapsed:.2f} 秒完成")
+
+
+#     # ✅ KMeans 分群（略）
+#     # 可依照你原本的邏輯套用 KMeans，如：
+#     # ⬇⬇⬇ KMeans 分群邏輯（支援三條件） ⬇⬇⬇
+#     all_scores = [r['impactScore'] for r in results]
+#     score_range = max(all_scores) - min(all_scores)
+#     score_std = np.std(all_scores)
+
+#     print(f"📈 分群判斷指標：count={len(all_scores)}, range={score_range:.2f}, stddev={score_std:.2f}")
+
+#     if (
+#         len(all_scores) >= KMEANS_MIN_COUNT and
+#         score_range >= KMEANS_MIN_RANGE and
+#         score_std >= KMEANS_MIN_STDDEV
+#     ):
+#         kmeans = KMeans(n_clusters=4, random_state=42)
+#         labels = kmeans.fit_predict(np.array(all_scores).reshape(-1, 1))
+#         centroids = kmeans.cluster_centers_.flatten()
+#         set_kmeans_thresholds_from_centroids(centroids)
+#         print(f"📊 KMeans 分群標籤：{labels}")
+#         label_map = {}
+#         for i, idx in enumerate(np.argsort(centroids)[::-1]):
+#             label_map[idx] = ['高風險', '中風險', '低風險', '忽略'][i]
+#         for i, r in enumerate(results):
+#             r['riskLevel'] = label_map[labels[i]]
+#         print(f"📌 KMeans 分群中心：{sorted(centroids, reverse=True)}")
+#     else:
+#         print("⚠️ 不啟用 KMeans，改用固定門檻分級")
+#         for r in results:
+#             r['riskLevel'] = get_risk_level(r['impactScore'])
+#     # ⬆⬆⬆ 分群邏輯結束 ⬆⬆⬆
+
+
+#     total_time = time.time() - start_time
+#     avg_time = sum(per_row_times) / len(per_row_times) if per_row_times else 0
+#     print(f"\n🎯 所有分析總耗時：{total_time:.2f} 秒")
+#     print(f"📊 單筆平均耗時：{avg_time:.2f} 秒")
+
+#     print("\n✅ 所有資料分析完成！")
+#     return {
+#         'data': results,
+#         'analysisTime': analysis_time
+#     }
 
 
 # ------------------------------------------------------------------------------
@@ -687,6 +870,168 @@ def perform_action():
 # 啟動 Flask 應用
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=True)
+
+
+
+
+
+
+
+
+
+
+
+# async def analyze_excel_async(filepath, weights=None):
+#     start_time = time.time()
+#     default_weights = {
+#         'keyword': 5.0,
+#         'multi_user': 3.0,
+#         'escalation': 2.0,
+#         'config_item': 5.0,
+#         'role_component': 3.0,
+#         'time_cluster': 2.0
+#     }
+#     weights = {**default_weights, **(weights or {})}
+
+#     df = pd.read_excel(filepath)
+#     component_counts = df['Role/Component'].value_counts()
+#     configuration_item_counts = df['Configuration item'].value_counts()
+#     configuration_item_max = configuration_item_counts.max()
+#     df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')
+#     analysis_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+#     # 非同步處理每筆資料
+#     tasks = [
+#         analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time)
+#         for idx, row in df.iterrows()
+#     ]
+#     results_raw = await asyncio.gather(*tasks)
+#     results = [r for r in results_raw if r]
+
+#     # ✅ 分群邏輯（照原本邏輯即可）
+#     all_scores = [r['impactScore'] for r in results]
+#     score_range = max(all_scores) - min(all_scores)
+#     score_std = np.std(all_scores)
+
+#     print(f"📈 分群判斷指標：count={len(all_scores)}, range={score_range:.2f}, stddev={score_std:.2f}")
+
+#     if (
+#         len(all_scores) >= KMEANS_MIN_COUNT and
+#         score_range >= KMEANS_MIN_RANGE and
+#         score_std >= KMEANS_MIN_STDDEV
+#     ):
+#         kmeans = KMeans(n_clusters=4, random_state=42)
+#         labels = kmeans.fit_predict(np.array(all_scores).reshape(-1, 1))
+#         centroids = kmeans.cluster_centers_.flatten()
+#         set_kmeans_thresholds_from_centroids(centroids)
+#         print(f"📊 KMeans 分群標籤：{labels}")
+#         label_map = {}
+#         for i, idx in enumerate(np.argsort(centroids)[::-1]):
+#             label_map[idx] = ['高風險', '中風險', '低風險', '忽略'][i]
+#         for i, r in enumerate(results):
+#             r['riskLevel'] = label_map[labels[i]]
+#         print(f"📌 KMeans 分群中心：{sorted(centroids, reverse=True)}")
+#     else:
+#         print("⚠️ 不啟用 KMeans，改用固定門檻分級")
+#         for r in results:
+#             r['riskLevel'] = get_risk_level(r['impactScore'])
+
+#     total_time = time.time() - start_time
+#     avg_time = total_time / len(results) if results else 0
+
+#     print(f"\n🎯 所有分析總耗時：{total_time:.2f} 秒")
+#     print(f"📊 單筆平均耗時：{avg_time:.2f} 秒")
+
+#     print("\n✅ 所有資料分析完成！")
+#     return {
+#         'data': results,
+#         'analysisTime': analysis_time
+#     }
+
+
+
+
+
+
+
+# async def analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time):
+#     try:
+#         description_text = row.get('Description', 'not filled')
+#         short_description_text = row.get('Short description', 'not filled')
+#         close_note_text = row.get('Close notes', 'not filled')
+
+#         keyword_score = is_high_risk(short_description_text)
+#         user_impact_score = is_multi_user(description_text)
+#         escalation_score = is_escalated(close_note_text)
+
+#         config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)
+#         configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0
+
+#         role_comp = row.get('Role/Component', 'not filled')
+#         count = component_counts.get(role_comp, 0)
+#         role_component_freq = 3 if count >= 5 else 2 if count >= 3 else 1 if count == 2 else 0
+
+#         this_time = row.get('Opened', 'not filled')
+#         if pd.isnull(this_time):
+#             time_cluster_score = 1
+#         else:
+#             others = df[df['Role/Component'] == role_comp]
+#             close_events = others[(others['Opened'] >= this_time - pd.Timedelta(hours=24)) &
+#                                   (others['Opened'] <= this_time + pd.Timedelta(hours=24))]
+#             count_cluster = len(close_events)
+#             time_cluster_score = 3 if count_cluster >= 3 else 2 if count_cluster == 2 else 1
+
+#         severity_score = round(
+#             keyword_score * weights['keyword'] +
+#             user_impact_score * weights['multi_user'] +
+#             escalation_score * weights['escalation'], 2
+#         )
+#         frequency_score = round(
+#             configuration_item_freq * weights['config_item'] +
+#             role_component_freq * weights['role_component'] +
+#             time_cluster_score * weights['time_cluster'], 2
+#         )
+#         impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
+#         risk_level = get_risk_level(impact_score)
+
+#         desc = str(description_text).strip()
+#         short_desc = str(short_description_text).strip()
+#         close_notes = str(close_note_text).strip()
+#         resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+
+#         ai_suggestion, ai_summary = await asyncio.gather(
+#             extract_resolution_suggestion(resolution_text),
+#             extract_problem_with_custom_prompt(f"{short_desc}\n{desc}".strip())
+#         )
+
+#         recommended = recommend_solution(short_description_text)
+#         keywords = extract_keywords(short_description_text)
+
+#         return {
+#             'id': safe_value(row.get('Incident') or row.get('Number')),
+#             'configurationItem': safe_value(row.get('Configuration item')),
+#             'roleComponent': safe_value(row.get('Role/Component')),
+#             'subcategory': safe_value(row.get('Subcategory')),
+#             'aiSummary': safe_value(ai_summary),
+#             'originalShortDescription': safe_value(short_desc),
+#             'originalDescription': safe_value(desc),
+#             'severityScore': safe_value(severity_score),
+#             'frequencyScore': safe_value(frequency_score),
+#             'impactScore': safe_value(impact_score),
+#             'severityScoreNorm': round(severity_score / 10, 2),
+#             'frequencyScoreNorm': round(frequency_score / 20, 2),
+#             'impactScoreNorm': round(impact_score / 30, 2),
+#             'riskLevel': risk_level,
+#             'solution': safe_value(ai_suggestion or '無提供解法'),
+#             'location': safe_value(row.get('Location')),
+#             'analysisTime': analysis_time,
+#             'weights': {k: round(v / 10, 2) for k, v in weights.items()},
+#         }
+
+#     except Exception as e:
+#         print(f"❌ 分析第 {idx+1} 筆失敗：", e)
+#         return None
+
 
 
 
