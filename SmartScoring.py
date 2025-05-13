@@ -8,6 +8,7 @@ import pandas as pd
 import os
 import requests
 import torch  # ✅ 新增 torch 匯入以支援相似度比對
+import time
 # # ---------- 載入模型 ----------
 # # 檢查模型是否已存在，否則自動下載並儲存
 # model_path = './models/paraphrase-MiniLM-L6-v2'
@@ -18,11 +19,34 @@ import torch  # ✅ 新增 torch 匯入以支援相似度比對
 # else:
 #     print("✅ 已找到本地模型，直接載入")
 # 初始化模型
+# ========== 🔍 啟動時間計時器 ==========
+t_start = time.time()
+print("🔥 啟動時間診斷中...")
+
+# ========== ✅ 載入語意模型 ==========
+t_model_load = time.time()
 bert_model = SentenceTransformer('./models/paraphrase-MiniLM-L6-v2')
+print(f"📦 BERT 模型載入完成，用時：{time.time() - t_model_load:.2f} 秒")
+
+# ========== ✅ 初始化 KeyBERT ==========
+t_keybert = time.time()
 keybert_model = KeyBERT(bert_model)
+print(f"🧠 KeyBERT 初始化完成，用時：{time.time() - t_keybert:.2f} 秒")
+
+# ========== ✅ 載入 spaCy 模型 ==========
+t_spacy = time.time()
 nlp = spacy.load("en_core_web_sm")
+print(f"🧬 spaCy 模型載入完成，用時：{time.time() - t_spacy:.2f} 秒")
+
+t_nltk = time.time()
 nltk.download('punkt')
 nltk.download('stopwords')
+
+
+print(f"📚 NLTK 初始化完成，用時：{time.time() - t_nltk:.2f} 秒")
+
+# ========== ✅ 總結 ==========
+print(f"🚀 模型初始化總耗時：約 {time.time() - t_start:.2f} 秒")
 
 # 高風險語句樣本
 high_risk_examples = [

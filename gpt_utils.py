@@ -8,7 +8,7 @@ from datetime import datetime
 from sentence_transformers import SentenceTransformer, util
 import numpy as np
 
-MAX_CONCURRENCY = 30
+MAX_CONCURRENCY = 10
 DEFAULT_MODEL_SOLUTION = "mistral"
 DEFAULT_MODEL_SUMMARY = "phi3:mini"
 semaphore = asyncio.Semaphore(MAX_CONCURRENCY)

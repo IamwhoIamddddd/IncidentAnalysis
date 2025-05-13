@@ -46,10 +46,10 @@ KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
 KMEANS_MIN_STDDEV = 3.0      # 標準差下限
 
 
-
+start = time.time()
 print("🔥 預熱語意模型中...")
 bert_model.encode("warmup")  # 預熱一次，避免第一次使用太慢
-print("✅ 模型已預熱完成")
+print(f"✅ 模型預熱完成，用時：{time.time() - start:.2f} 秒")
 
 # 建立 Flask 應用
 app = Flask(__name__)
@@ -885,7 +885,7 @@ def perform_action():
 
 # 啟動 Flask 應用
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=True)
+    app.run(debug=False, use_reloader=False)
 
 
 
