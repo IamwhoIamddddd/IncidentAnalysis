@@ -5,6 +5,8 @@ import time
 import webbrowser
 import requests
 
+
+
 # ✅ 計算 Analysis.py 的絕對路徑（支援 PyInstaller 打包）
 def get_script_path(filename):
     if getattr(sys, 'frozen', False):  # 是否是打包後執行
