@@ -5,7 +5,9 @@ import time
 import webbrowser
 import requests
 
-
+# # ✅ [防止重啟迴圈關鍵]：PyInstaller 會自動設這個環境變數
+# if os.environ.get("FLASK_CHILD") == "true":
+#     sys.exit(0)
 
 # ✅ 計算 Analysis.py 的絕對路徑（支援 PyInstaller 打包）
 def get_script_path(filename):
@@ -42,6 +44,42 @@ def start_analysis_server():
 
     webbrowser.open("http://127.0.0.1:5000")
     return process, t_ready - t_start
+
+# def start_analysis_server():
+#     print("🚀 Starting Analysis.py Flask server...")
+#     t_start = time.time()  # ← 計時起點
+
+#     # ✅ 避免遞迴：傳入環境變數標記「這是主程序」
+#     env = os.environ.copy()
+#     if env.get("RUN_BY_MAIN") == "1":
+#         print("🛑 偵測到子程序重啟，跳出避免遞迴")
+#         sys.exit(0)
+#     env["RUN_BY_MAIN"] = "1"
+
+#     # ✅ 直接指定虛擬環境的 Python 路徑（最穩定）
+#     python_exe = r"C:\Users\a-timmylin\MicrosoftCode\InternEnv\Scripts\python.exe"
+#     script_path = get_script_path("Analysis.py")
+
+#     process = subprocess.Popen([python_exe, script_path], env=env)
+
+#     # 等待 Flask 啟動
+#     for i in range(240):
+#         try:
+#             res = requests.get("http://127.0.0.1:5000/ping")
+#             if res.status_code == 200:
+#                 t_ready = time.time()
+#                 print(f"✅ Flask server is up! 🕒 啟動耗時：{t_ready - t_start:.2f} 秒")
+#                 break
+#         except:
+#             time.sleep(0.5)
+#     else:
+#         print("❌ Flask server did not start in time.")
+#         return None
+
+#     webbrowser.open("http://127.0.0.1:5000")
+#     return process, t_ready - t_start
+
+
 
 # ✅ 可選：啟動後發送初始化 POST 請求
 def start_analysis_action():
