@@ -6,6 +6,7 @@ import nltk
 import pandas as pd
 # 匯入 os 模組處理檔案與路徑
 import os
+import sys  # ✅ 新增 sys 匯入以支援 PyInstaller 打包
 import requests
 import torch  # ✅ 新增 torch 匯入以支援相似度比對
 import time
@@ -25,7 +26,15 @@ print("🔥 啟動時間診斷中...")
 
 # ========== ✅ 載入語意模型 ==========
 t_model_load = time.time()
-bert_model = SentenceTransformer('./models/paraphrase-MiniLM-L6-v2')
+
+def get_model_path(folder_or_name):
+    base = getattr(sys, '_MEIPASS', os.path.abspath('.'))
+    path = os.path.join(base, 'models', folder_or_name)
+    if not os.path.exists(path):
+        path = os.path.join(os.path.abspath('.'), 'models', folder_or_name)
+    return path
+
+bert_model = SentenceTransformer(get_model_path('paraphrase-MiniLM-L6-v2'))
 print(f"📦 BERT 模型載入完成，用時：{time.time() - t_model_load:.2f} 秒")
 
 # ========== ✅ 初始化 KeyBERT ==========
