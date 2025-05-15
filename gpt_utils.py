@@ -104,7 +104,7 @@ def add_to_semantic_cache(text, response):
 
 # 🧠 主功能：從段落中抽出解決建議句（含空值與快取）
 # 🧠 主功能：從段落中抽出解決建議句（含空值與快取）
-async def extract_resolution_suggestion(text, model="mistral", source_id=""):
+async def extract_resolution_suggestion(text, model= DEFAULT_MODEL_SOLUTION, source_id=""):
     if not isinstance(text, str) or not text.strip():
         return "（無原始描述）"
 
@@ -147,7 +147,7 @@ async def extract_resolution_suggestion(text, model="mistral", source_id=""):
 
 
 # 🧠 主功能：擷取問題摘要（同樣支援 source_id）
-async def extract_problem_with_custom_prompt(text, model="phi3:mini", source_id=""):
+async def extract_problem_with_custom_prompt(text, model= DEFAULT_MODEL_SUMMARY, source_id=""):
     if not isinstance(text, str) or not text.strip():
         return "（無原始描述）"
 

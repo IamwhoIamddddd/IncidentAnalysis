@@ -3,7 +3,6 @@ from flask import Flask, request, jsonify, render_template, session, send_file
 from gpt_utils import extract_resolution_suggestion
 from gpt_utils import extract_problem_with_custom_prompt
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from collections import defaultdict
 from collections import Counter
 import umap
@@ -21,6 +20,7 @@ import re
 import glob
 # 匯入 webbrowser 用於開啟網頁
 import webbrowser
+import socket
 # 匯入 traceback 用於錯誤追蹤
 import traceback
 # 匯入 Werkzeug 的工具函數確保檔案名稱安全
@@ -41,6 +41,7 @@ import time
 # --- 分群啟用條件（可依資料調整）---
 import asyncio
 import math
+
 KMEANS_MIN_COUNT = 4         # 最少資料筆數
 KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
 KMEANS_MIN_STDDEV = 3.0      # 標準差下限
@@ -67,8 +68,6 @@ ALLOWED_EXTENSIONS = {'xlsx'}  # 僅允許上傳 xlsx 檔案
 
 
 basedir = os.path.abspath(os.path.dirname(__file__))  # 取得當前 app.py 的絕對目錄
-
-
 # 確保上傳資料夾存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(os.path.join(basedir, 'json_data'), exist_ok=True)
@@ -95,6 +94,8 @@ def safe_value(val):
         return val
 
 # ------------------------------------------------------------------------------
+
+
 
 
 @app.route('/check-unclustered', methods=['GET'])
@@ -362,6 +363,16 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
             return None
 
         resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+        if len(resolution_text) > 3000:
+            print(f"🟡 [Row#{idx+1}] resolution_text > 3000，使用 short_desc + close_notes")
+            resolution_text = f"{short_desc}\n{close_notes}".strip()
+            if len(resolution_text) > 3000:
+                print(f"🔴 [Row#{idx+1}] short_desc + close_notes > 3000，只用 close_notes")
+                resolution_text = close_notes.strip()
+        else:
+            print(f"🟢 [Row#{idx+1}] resolution_text 使用 desc + short_desc + close_notes")
+
+
 
         keyword_score = is_high_risk(short_desc)
         user_impact_score = is_multi_user(desc)
@@ -397,11 +408,24 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
         impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
         risk_level = get_risk_level(impact_score)
 
+        # ==== 判斷 summary 輸入長度 ====
+        summary_input = f"{short_desc}\n{desc}".strip()
+        if len(summary_input) > 2000:
+            print(f"🟡 [Row#{idx+1}] summary_input > 2000，使用 short_desc + close_notes")
+            summary_input = f"{short_desc}\n{close_notes}".strip()
+            if len(summary_input) > 2000:
+                print(f"🔴 [Row#{idx+1}] short_desc + close_notes > 2000，只用 short_desc")
+                summary_input = short_desc.strip()
+        else:
+            print(f"🟢 [Row#{idx+1}] summary_input 使用 short_desc + desc")
+
+
+
         # GPT 處理允許失敗
         try:
             ai_suggestion, ai_summary = await asyncio.gather(
                 extract_resolution_suggestion(resolution_text, source_id=f"Row#{idx+1}"),
-                extract_problem_with_custom_prompt(f"{short_desc}\n{desc}".strip(), source_id=f"Row#{idx+1}")
+                extract_problem_with_custom_prompt(summary_input, source_id=f"Row#{idx+1}")
             )
 
         except Exception as e:
@@ -883,8 +907,25 @@ def perform_action():
 
 # ------------------------------------------------------------------------------
 
-# 啟動 Flask 應用
-if __name__ == '__main__':
+def is_flask_running():
+    """檢查 Flask (127.0.0.1:5000) 是否已啟動"""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.connect(("127.0.0.1", 5000))
+        s.shutdown(socket.SHUT_RDWR)
+        return True
+    except:
+        return False
+    finally:
+        s.close()
+
+if __name__ == "__main__":
+    # 判斷 Flask 是否已經有服務
+    if not is_flask_running():
+        print("🌐 開啟瀏覽器 http://127.0.0.1:5000")
+        webbrowser.open("http://127.0.0.1:5000")
+    else:
+        print("⚠️ Flask 已在運作，不重複開啟瀏覽器")
     app.run(debug=False, use_reloader=False)
 
 

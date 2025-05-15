@@ -42,7 +42,6 @@ def start_analysis_server():
         print("❌ Flask server did not start in time.")
         return None
 
-    webbrowser.open("http://127.0.0.1:5000")
     return process, t_ready - t_start
 
 # def start_analysis_server():
