@@ -230,7 +230,6 @@ function navigateTo1(page) {
     cluster: "/generate_cluster",
     manual: "/manual_input",
     gpt_prompt: "/gpt_prompt",
-    chat: "/chat_ui"
   };
   if (routes[page]) window.location.href = routes[page];
 }

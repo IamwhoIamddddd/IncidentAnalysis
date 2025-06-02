@@ -943,79 +943,11 @@ body.dark-mode .weight-ok {
 }
 
 
-/* 📋 Excel 預覽表格容器（限制高度 + 捲軸） */
-#previewTableWrapper {
-  max-height: 420px;         /* 顯示約兩筆資料 */
-  overflow-y: auto;
-  overflow-x: auto;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 4px;
-  background-color: #fff;
-}
-
-/* ✅ 深色模式配色 */
-body.dark-mode #previewTableWrapper {
-  background-color: #2a2d4a;
-  border-color: #555;
-}
-
-
-@keyframes dotsAnimation {
-  0%   { content: ""; }
-  33%  { content: "."; }
-  66%  { content: ".."; }
-  100% { content: "..."; }
-}
-
-#kbStatusBar .dots::after {
-  content: "";
-  animation: dotsAnimation 1.5s infinite steps(3, end);
-}
-
-body.dark-mode #kbStatusBar .dots::after {
-  color: #ffe082;
-}
-
-/* ✅ 深色模式下的 Modal 背景與字體 */
-body.dark-mode #kbModalContent {
-  background-color: #1e1e2f;
-  color: #d6e4ff;
-  border: 1px solid #2c3e50;
-}
-
-body.dark-mode #kbModalContent .btn {
-  background-color: #0d6efd;
-  border: none;
-}
-
-body.dark-mode #kbModalContent .btn:hover {
-  background-color: #0b5ed7;
-}
-
-/* ☀️ 淺色模式下也可套用圓角 + 陰影 */
-#kbModalContent {
-  border-radius: 1rem;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-}
 
 
 
 
-/* ✅ Modal 深色模式樣式 */
-body.dark-mode #kbLockModalContent {
-  background-color: #2b2b2b;
-  color: #f1f1f1;
-}
 
-body.dark-mode #kbLockModalContent .btn-secondary {
-  background-color: #444;
-  border-color: #666;
-  color: #fff;
-}
 
-body.dark-mode #kbLockModalContent .text-muted {
-  color: #ccc !important;
-}
 
 

@@ -8,9 +8,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const historyList = document.getElementById('historyList');
     // 從 localStorage 取得歷史紀錄資料，若無資料則設為空陣列
     const savedHistory = JSON.parse(localStorage.getItem('historyData') || '[]');
-    
     const noHistoryMsg = document.getElementById('no-history-msg');
-    
     if (savedHistory.length === 0) {
         noHistoryMsg.style.display = 'block';
     } else {
@@ -112,8 +110,6 @@ function navigateTo1(page) {
         window.location.href = '/manual_input';  // ✅ 對應後端路由名稱
     } else if (page === 'gpt_prompt') {
         window.location.href = '/gpt_prompt';  // ✅ 對應後端路由名稱
-    } else if (page === 'chat') {
-        window.location.href = '/chat_ui';  // ✅ 對應後端路由名稱
     }
 
 }

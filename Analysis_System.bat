@@ -17,8 +17,7 @@ start powershell -NoLogo -WindowStyle Hidden -Command ^
   "Add-Type -AssemblyName PresentationFramework; [System.Windows.MessageBox]::Show('系統正在啟動中，請稍候...','🚀 Microsoft Analytics',0,64)"
 
 :: 🐍 設定虛擬環境 Python 執行檔
-set "PYTHON_EXE=C:\Users\a-timmylin\MicrosoftCode\InternEnv\Scripts\python.exe"
-
+set "PYTHON_EXE=%~dp0InternEnv\Scripts\python.exe"
 :: ❌ 檢查 Python 是否存在
 if not exist "%PYTHON_EXE%" (
     echo.

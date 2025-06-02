@@ -373,8 +373,5 @@ function navigateTo1(page) {
         window.location.href = '/manual_input';  // ✅ 對應後端路由名稱
     } else if (page === 'gpt_prompt') {
         window.location.href = '/gpt_prompt';  // ✅ 對應後端路由名稱
-    } else if (page === 'chat') {
-        window.location.href = '/chat_ui';  // ✅ 對應後端路由名稱
     }
-    
 }

@@ -11,6 +11,46 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body class="dark-mode">
+
+
+<div id="kbStatusBar" style="
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px;
+  font-weight: bold;
+  text-align: center;
+  z-index: 9999;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+  overflow: hidden;
+">
+  正在建立知識庫，請稍候<span class="dots"></span>
+</div>
+
+
+
+<!-- 📦 Modal：建置完成提示（深色模式友善 + 無右上角） -->
+<div class="modal fade" id="kbFinishedModal" tabindex="-1" aria-labelledby="kbFinishedLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4" id="kbModalContent">
+      <div class="modal-body text-center p-5">
+        <div class="fs-1 mb-3">✅</div>
+        <h4 class="fw-bold mb-3">知識庫已建立完成</h4>
+        <p class="mb-4">剛才的分析結果已成功加入知識庫，您可以繼續使用系統 🎉</p>
+        <button type="button" class="btn btn-success px-4" data-bs-dismiss="modal">我知道了</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
   <div class="sidebar" id="sidebar">
     <h4>功能選單</h4>
     <ul>
@@ -18,6 +58,11 @@
       <li onclick="navigateTo1('result')"><i class="fas fa-chart-line"></i> 分析結果</li>
       <li onclick="navigateTo1('history')"><i class="fas fa-history"></i> 歷史紀錄</li>
       <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
+      <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
+      <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
+      <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+
+
     </ul>
     <div class="sidebar-bottom">
       <button type="button" id="toggleDarkMode" class="dark-mode-btn">🌙 深色模式</button>
@@ -70,6 +115,7 @@
 <!-- 你自己的 JS 檔放最後 -->
 <script src="{{ url_for('static', filename='js/result.js') }}"></script>
 <script src="{{ url_for('static', filename='charts/resultViz.js') }}"></script>
+
 </body>
 </html>
 <!-- 這裡是 JavaScript 的結尾，沒有其他內容 -->

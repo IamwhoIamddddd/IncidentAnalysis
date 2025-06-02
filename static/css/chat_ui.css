@@ -1,0 +1,452 @@
+body {
+  font-family: "Segoe UI", sans-serif;
+  background-color: #f4f4f9;
+}
+
+.chat-container {
+  max-width: 800px;
+  margin: 60px auto;
+  background: #fff;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  height: 85vh;
+}
+
+#chatBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #f9f9fc;
+  color: #222;
+  padding: 20px;
+  border-radius: 10px;
+  overflow-y: auto;
+  font-size: 15.5px;
+  line-height: 1.6;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.05);
+    max-height: 65vh;              /* 最多佔 65% 螢幕高度，可依需求調整 */
+      overflow-y: auto;              /* 內容超出時出現垂直滾輪 */
+  scroll-behavior: smooth;       /* 捲動平滑 */
+
+}
+
+/* 單則訊息基本樣式 */
+#chatBox .msg {
+  max-width: 75%;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+
+/* 使用者訊息（靠右） */
+/* 淺色模式 - 使用者訊息 */
+#chatBox .msg.user {
+  background-color: #1976d2;
+  color: white;
+  align-self: flex-end;
+  text-align: right;
+  margin-left: auto;
+}
+
+/* 淺色模式 - GPT 機器人訊息 */
+#chatBox .msg.bot {
+  background-color: #e3f2fd;
+  color: #1a237e;
+  align-self: flex-start;
+  margin-right: auto;
+}
+
+.msg {
+  display: inline-block;
+    margin-bottom: 10px;
+  max-width: 80%;
+  width: fit-content;
+  padding: 14px 18px;
+  margin: 10px 0;
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    word-wrap: break-word;
+    align-self: flex-start;   /* 預設左對齊 */
+}
+
+.msg.user {
+    align-self: flex-end;
+  text-align: right;
+  color: #1e88e5;
+}
+.msg.bot {
+    align-self: flex-start;
+  text-align: left;
+  color: #6a1b9a;
+}
+.msg .timestamp {
+  display: block;
+  font-size: 12px;
+  color: #999;
+  margin-top: 6px;
+  text-align: right;
+}
+
+/* 時間戳 */
+#chatBox .timestamp {
+  display: block;
+  font-size: 12px;
+  color: #999;
+  margin-top: 6px;
+  opacity: 0.7;
+}
+
+.msg pre {
+  background: #2d2d2d;
+  color: #f8f8f2;
+  padding: 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: Consolas, monospace;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+#chatForm {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  padding-top: 15px;
+}
+
+#chatInput {
+  resize: none;         /* 禁止使用者拖曳改變大小 */
+  overflow-y: auto;
+  max-height: 300px;    /* 避免過長，超出時會出現捲動條 */
+  transition: height 0.2s ease;
+  line-height: 1.6;
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+    background-color: #ffffff;
+      color: #222;
+
+}
+
+
+
+button[type="submit"] {
+  white-space: nowrap;
+}
+
+.typing-indicator {
+  display: inline-block;
+  width: 60px;
+  text-align: left;
+}
+
+.typing-indicator span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 2px;
+  background-color: #999;
+  border-radius: 50%;
+  animation: blink 1.4s infinite both;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+  0%, 80%, 100% {
+    transform: scale(0);
+  } 40% {
+    transform: scale(1);
+  }
+}
+
+
+
+
+
+/* ===== 歷史紀錄欄位主樣式（可共用）===== */
+#chatHistorySidebar {
+  background-color: #f4f4f8;
+  color: #333;
+  border-right: 1px solid #ccc;
+  padding: 16px 12px;
+  min-width: 320px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  
+}
+
+#chatHistorySidebar h5 {
+  font-size: 16px;
+  font-weight: bold;
+  color: #222;
+  border-bottom: 1px solid #bbb;
+  padding-bottom: 6px;
+  margin-bottom: 16px;
+}
+
+#chatHistorySidebar .list-group-item {
+  background-color: transparent;
+  color: #333;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#chatHistorySidebar .list-group-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #000;
+}
+
+#chatHistorySidebar .list-group-item.active {
+  background-color: #4a67f0;
+  color: white;
+  font-weight: bold;
+}
+
+
+#historyListUI .list-group-item.active {
+  background-color: #5566dd;
+  color: #fff;
+  font-weight: bold;
+}
+
+
+
+body.dark-mode #chatInput {
+  background-color: #2a2d3a;   /* 微微帶藍的深灰，不會太深 */
+  color: #f0f0f0;
+  border: 1px solid #555;
+}
+
+body.dark-mode #chatInput::placeholder {
+  color: #aaa;                /* 灰一點，顯示提示文字 */
+  opacity: 0.8;
+}
+
+#chatInput:focus {
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+body.dark-mode #chatInput:focus {
+  border-color: #7a6af0;
+  box-shadow: 0 0 0 3px rgba(122, 106, 240, 0.2);
+}
+
+
+#modelSelect {
+  background-color: #ffffff;
+  color: #222;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 15.5px;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+
+#modelSelect:hover {
+  border-color: #4CAF50;
+}
+
+body.dark-mode #modelSelect:hover {
+  border-color: #7a6af0;
+}
+
+
+
+
+/* ===== 深色模式覆蓋 ===== */
+
+body.dark-mode #modelSelect {
+  background-color: #2a2d4a;  /* 深藍灰底 */
+  color: #f0f0f0;             /* 白字 */
+  border: 1px solid #555;
+}
+body.dark-mode #modelSelect option {
+  background-color: #2a2d4a;  /* 選單打開時的底色 */
+  color: #f0f0f0;
+}
+
+body.dark-mode #chatBox {
+  background-color: #1a1d2e;
+  color: #e0e0e0;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.15);
+}
+
+body.dark-mode #chatBox .msg.user {
+  background-color: #42a5f5;
+  color: #fff;
+}
+
+body.dark-mode #chatBox .msg.bot {
+  background-color: #6a1b9a;
+  color: #f3e5f5;
+}
+
+body.dark-mode #chatBox .timestamp {
+  color: #bbb;
+}
+
+/* ===== 深色模式覆蓋樣式 ===== */
+body.dark-mode #chatHistorySidebar {
+  background-color: #1e213f;
+  color: #f0f0f0;
+  border-right: 1px solid #444;
+}
+
+body.dark-mode #chatHistorySidebar h5 {
+  color: #ffffff;
+  border-bottom: 1px solid #555;
+}
+
+body.dark-mode #chatHistorySidebar .list-group-item {
+  color: #ccc;
+}
+
+body.dark-mode #chatHistorySidebar .list-group-item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+body.dark-mode #chatHistorySidebar .list-group-item.active {
+  background-color: #5566dd;
+  color: #fff;
+}
+
+@keyframes dotsAnimation {
+  0%   { content: ""; }
+  33%  { content: "."; }
+  66%  { content: ".."; }
+  100% { content: "..."; }
+}
+
+#kbStatusBar .dots::after {
+  content: "";
+  animation: dotsAnimation 1.5s infinite steps(3, end);
+}
+
+body.dark-mode #kbStatusBar .dots::after {
+  color: #ffe082;
+}
+
+
+
+/* 通用搜尋框美化 */
+.styled-search {
+  padding: 10px 16px;
+  font-size: 15px;
+  border-radius: 12px;
+  border: 1px solid #d0d7de;
+  background-color: #fefefe;
+  color: #1f2328;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.styled-search::placeholder {
+  color: #888;
+  font-style: italic;
+}
+
+.styled-search:focus {
+  outline: none;
+  border-color: #3182ce;
+  background-color: #ffffff;
+  box-shadow: 0 0 6px rgba(49, 130, 206, 0.3);
+}
+
+/* 深色模式 */
+body.dark-mode .styled-search {
+  background-color: #1e1e1e;
+  color: #f0f0f0;
+  border-color: #444;
+  box-shadow: inset 0 0 0 1px #333;
+}
+
+body.dark-mode .styled-search::placeholder {
+  color: #777;
+}
+
+body.dark-mode .styled-search:focus {
+  border-color: #63b3ed;
+  box-shadow: 0 0 6px rgba(99, 179, 237, 0.4);
+}
+
+
+.list-group-item .dropdown {
+  visibility: hidden;
+}
+.list-group-item:hover .dropdown {
+  visibility: visible;
+}
+
+.dropdown-menu {
+  position: absolute !important;
+  z-index: 9999 !important;
+  inset: auto !important;
+
+  /* 上移選單 */
+  transform: translateY(-10px);
+
+  /* ✅ 先不要用 opacity/visibility，直接用 Bootstrap 預設的 toggle 顯示方式 */
+  margin-top: 0 !important;
+}
+
+
+#chatHistorySidebar,
+#historyListUI,
+#historyListUI .list-group-item {
+  overflow: visible !important;
+  position: relative;
+}
+
+
+
+body.dark-mode .modal-content {
+  background-color: #1e1e1e;
+  color: #f1f1f1;
+  border: 1px solid #444;
+}
+
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer {
+  border-color: #555;
+}
+
+body.dark-mode .btn-close {
+  filter: invert(1); /* 讓關閉按鈕變成白色 */
+}
+
+body.dark-mode .btn-light {
+  background-color: #444;
+  color: #fff;
+  border: 1px solid #777;
+}
+
+body.dark-mode .btn-light:hover {
+  background-color: #666;
+}

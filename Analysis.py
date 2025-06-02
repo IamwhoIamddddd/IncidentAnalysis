@@ -2,9 +2,14 @@
 from flask import Flask, request, jsonify, render_template, session, send_file
 from gpt_utils import extract_resolution_suggestion
 from gpt_utils import extract_problem_with_custom_prompt
+from gptChat import run_offline_gpt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 from collections import Counter
+import hashlib
+import subprocess
+import sys
+from pathlib import Path
 import umap
 import hdbscan
 # 匯入數學運算模組
@@ -26,10 +31,10 @@ import traceback
 # 匯入 Werkzeug 的工具函數確保檔案名稱安全
 from werkzeug.utils import secure_filename
 # ✅ 匯入語意分析模組
-from SmartScoring import is_high_risk, is_escalated, is_multi_user, extract_keywords, recommend_solution
+from SmartScoring1 import is_high_risk, is_escalated, is_multi_user, extract_keywords, recommend_solution, is_actionable_resolution, load_embeddings, load_examples_from_json
 # ✅ 預先 encode 一筆資料以加速首次請求
-from SmartScoring import bert_model  # 確保你有從 SmartScoring 載入模型
-from SmartScoring import extract_cluster_name  # 匯入自定的 cluster 命名函式
+from SmartScoring1 import bert_model  # 確保你有從 SmartScoring 載入模型
+from SmartScoring1 import extract_cluster_name  # 匯入自定的 cluster 命名函式
 from tqdm import tqdm
 from sentence_transformers import util
 # ✅ 匯入關鍵字抽取模組
@@ -41,6 +46,14 @@ import time
 # --- 分群啟用條件（可依資料調整）---
 import asyncio
 import math
+import requests
+import threading
+import json
+import tempfile
+from jsonschema import validate, ValidationError
+
+
+
 
 KMEANS_MIN_COUNT = 4         # 最少資料筆數
 KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
@@ -74,7 +87,7 @@ os.makedirs(os.path.join(basedir, 'json_data'), exist_ok=True)
 os.makedirs(os.path.join(basedir, 'excel_result_Unclustered'), exist_ok=True)  # 新增未分群資料夾
 os.makedirs(os.path.join(basedir, 'excel_result_Clustered'), exist_ok=True) # 新增分群資料夾
 
-
+# ------------------------------------------------------------------------------
 
 # 判斷是否允許的檔案格式
 def allowed_file(filename):
@@ -261,13 +274,18 @@ def cluster_excel_export(results, export_dir="excel_result_Clustered"):
     print("✅ 分群 Excel 檔案已儲存！")
 
 
-# 用於同步 Flask 路由呼叫 async 分析邏輯
-def analyze_excel(filepath, weights=None):
-    return asyncio.run(analyze_excel_async(filepath, weights))
+
+
 
 
 # 用於同步 Flask 路由呼叫 async 分析邏輯
-async def analyze_excel_async(filepath, weights=None):
+def analyze_excel(filepath, weights=None, resolution_priority=None, summary_priority=None):
+    return asyncio.run(analyze_excel_async(filepath, weights, resolution_priority, summary_priority))
+
+
+
+# 用於同步 Flask 路由呼叫 async 分析邏輯
+async def analyze_excel_async(filepath, weights=None, resolution_priority=None, summary_priority=None):
     start_time = time.time()
     default_weights = {
         'keyword': 5.0,
@@ -278,8 +296,41 @@ async def analyze_excel_async(filepath, weights=None):
         'time_cluster': 2.0
     }
     weights = {**default_weights, **(weights or {})}
+    print(f"🟩 本次分析開始，將即時讀取三類語句 json 檔案...")
+    # ⭐ 讀取語句和 embedding
+    high_risk_examples, high_risk_embeddings = load_embeddings("high_risk")
+    escalation_examples, escalation_embeddings = load_embeddings("escalate")
+    multi_user_examples, multi_user_embeddings = load_embeddings("multi_user")
 
     df = pd.read_excel(filepath)
+
+
+    # ✅ 欄位順位 fallback 預設
+    resolution_priority = resolution_priority or ['Description', 'Short description', 'Close notes']
+    summary_priority = summary_priority or ['Short description', 'Description']
+
+    def combine_fields_with_priority(row, field_order, limit):
+        parts = []
+        for f in field_order:
+            if f in row and pd.notna(row[f]):
+                parts.append(str(row[f]).strip())
+
+        combined = "\n".join(parts)
+        while len(combined) > limit and len(parts) > 1:
+            removed = parts.pop()
+            print(f"🔁 移除欄位：{removed[:20]}...")
+            combined = "\n".join(parts)
+
+        # 額外：印出實際使用的欄位名稱
+        used_fields = field_order[:len(parts)]
+        print(f"✅ 實際使用欄位：{used_fields}，合併長度：{len(combined)}")
+        return combined.strip()
+
+    # ✅ 產生 resolution_input / summary_input 給 GPT 用
+    df['resolution_input'] = df.apply(lambda row: combine_fields_with_priority(row, resolution_priority, 10000), axis=1)
+    df['summary_input'] = df.apply(lambda row: combine_fields_with_priority(row, summary_priority, 8000), axis=1)
+
+
     component_counts = df['Role/Component'].value_counts()
     configuration_item_counts = df['Configuration item'].value_counts()
     configuration_item_max = configuration_item_counts.max()
@@ -288,7 +339,13 @@ async def analyze_excel_async(filepath, weights=None):
 
     # 非同步處理
     tasks = [
-        analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time)
+        analyze_row_async(
+            row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time,
+            high_risk_examples, high_risk_embeddings,
+            escalation_examples, escalation_embeddings,
+            multi_user_examples, multi_user_embeddings,
+            row['resolution_input'], row['summary_input']  # ✅ 新增這兩欄
+        )
         for idx, row in df.iterrows()
     ]
     results_raw = await asyncio.gather(*tasks, return_exceptions=True)
@@ -345,7 +402,14 @@ async def analyze_excel_async(filepath, weights=None):
 
 
 
-async def analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time):
+async def analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time,     
+    high_risk_examples, high_risk_embeddings,
+    escalation_examples, escalation_embeddings,
+    multi_user_examples, multi_user_embeddings,
+    resolution_text, summary_input):
+    print(f"[分析 Row#{idx+1}] 本次用的高風險語句數：{len(high_risk_examples)}，倒數兩句：{high_risk_examples[-2:] if high_risk_examples else '空'}")
+    print(f"[分析 Row#{idx+1}] 本次用的升級語句數：{len(escalation_examples)}，倒數兩句：{escalation_examples[-2:] if escalation_examples else '空'}")
+    print(f"[分析 Row#{idx+1}] 本次用的影響多使用者語句數：{len(multi_user_examples)}，倒數兩句：{multi_user_examples[-2:] if multi_user_examples else '空'}")
     try:
         # 原始欄位保留
         description_text = row.get('Description', 'not filled')
@@ -362,21 +426,29 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
             print(f"⚠️ 第 {idx+1} 筆內容全為空白，略過分析")
             return None
 
-        resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
-        if len(resolution_text) > 3000:
-            print(f"🟡 [Row#{idx+1}] resolution_text > 3000，使用 short_desc + close_notes")
-            resolution_text = f"{short_desc}\n{close_notes}".strip()
-            if len(resolution_text) > 3000:
-                print(f"🔴 [Row#{idx+1}] short_desc + close_notes > 3000，只用 close_notes")
-                resolution_text = close_notes.strip()
-        else:
-            print(f"🟢 [Row#{idx+1}] resolution_text 使用 desc + short_desc + close_notes")
+        # ✅ 改用合併後欄位（已由前段 fallback 處理）
+        print(f"🧠 [Row#{idx+1}] 使用 resolution_text（長度：{len(resolution_text)}）")
+        print(f"📌 Resolution 欄位原始合併內容：\n{resolution_text[:1000]}")
+        print(f"🧠 [Row#{idx+1}] 使用 summary_input（長度：{len(summary_input)}）")
+        print(f"📌 Summary 欄位原始合併內容：\n{summary_input[:1000]}")
 
 
 
-        keyword_score = is_high_risk(short_desc)
-        user_impact_score = is_multi_user(desc)
-        escalation_score = is_escalated(close_notes)
+        # resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
+
+        # if len(resolution_text) > 10000:
+        #     print(f"🟡 [Row#{idx+1}] resolution_text > 3000，使用 short_desc + close_notes")
+        #     resolution_text = f"{short_desc}\n{close_notes}".strip()
+        #     if len(resolution_text) > 10000:
+        #         print(f"🔴 [Row#{idx+1}] short_desc + close_notes > 3000，只用 close_notes")
+        #         resolution_text = close_notes.strip()
+        # else:
+        #     print(f"🟢 [Row#{idx+1}] resolution_text 使用 desc + short_desc + close_notes")
+
+
+        keyword_score = is_high_risk(short_desc, high_risk_examples, high_risk_embeddings)
+        user_impact_score = is_multi_user(desc, multi_user_examples, multi_user_embeddings)
+        escalation_score = is_escalated(close_notes, escalation_examples, escalation_embeddings)
 
         config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)
         configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0
@@ -409,15 +481,15 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
         risk_level = get_risk_level(impact_score)
 
         # ==== 判斷 summary 輸入長度 ====
-        summary_input = f"{short_desc}\n{desc}".strip()
-        if len(summary_input) > 2000:
-            print(f"🟡 [Row#{idx+1}] summary_input > 2000，使用 short_desc + close_notes")
-            summary_input = f"{short_desc}\n{close_notes}".strip()
-            if len(summary_input) > 2000:
-                print(f"🔴 [Row#{idx+1}] short_desc + close_notes > 2000，只用 short_desc")
-                summary_input = short_desc.strip()
-        else:
-            print(f"🟢 [Row#{idx+1}] summary_input 使用 short_desc + desc")
+        # summary_input = f"{short_desc}\n{desc}".strip()
+        # if len(summary_input) > 8000:
+        #     print(f"🟡 [Row#{idx+1}] summary_input > 2000，使用 short_desc + close_notes")
+        #     summary_input = f"{short_desc}\n{close_notes}".strip()
+        #     if len(summary_input) > 8000:
+        #         print(f"🔴 [Row#{idx+1}] short_desc + close_notes > 2000，只用 short_desc")
+        #         summary_input = short_desc.strip()
+        # else:
+        #     print(f"🟢 [Row#{idx+1}] summary_input 使用 short_desc + desc")
 
 
 
@@ -453,8 +525,12 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
             'riskLevel': risk_level,
             'solution': safe_value(ai_suggestion or '無提供解法'),
             'location': safe_value(row.get('Location')),
+            'opened': row.get('Opened'),  # ✅ 新增這行
             'analysisTime': analysis_time,
             'weights': {k: round(v / 10, 2) for k, v in weights.items()},
+            'usedResolutionInput': safe_value(resolution_text),
+            'usedSummaryInput': safe_value(summary_input),
+
         }
 
     except Exception as e:
@@ -470,6 +546,99 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
 
 
 
+SENTENCE_DIR = os.path.join("data", "sentences")
+os.makedirs(SENTENCE_DIR, exist_ok=True)
+
+def get_file_path(tag):
+    return os.path.join(SENTENCE_DIR, f"{tag}.json")
+
+@app.route("/get-sentence-db")
+def get_sentence_db():
+    result = []
+    for tag in ["high_risk", "escalate", "multi_user"]:
+        path = get_file_path(tag)
+        if os.path.exists(path):
+            with open(path, encoding='utf-8') as f:
+                sentences = json.load(f)
+                for entry in sentences:
+                    result.append({"text": entry["text"], "tag": tag})
+    return jsonify(result)
+
+@app.route("/save-sentence-db", methods=["POST"])
+def save_sentence():
+    new_entry = request.get_json()
+    tag = new_entry.get("tag")
+    if tag not in ["high_risk", "escalate", "multi_user"]:
+        return jsonify({"message": "invalid tag"}), 400
+
+    path = get_file_path(tag)
+    if os.path.exists(path):
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    else:
+        data = []
+
+    if any(d['text'] == new_entry['text'] for d in data):
+        return jsonify({"message": "duplicate"}), 409
+
+    data.append({"text": new_entry['text']})
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    return get_sentence_db()
+
+@app.route("/delete-sentence", methods=["POST"])
+def delete_sentence():
+    req = request.get_json()
+    tag = req.get("tag")
+    text = req.get("text")
+    if tag not in ["high_risk", "escalate", "multi_user"] or not text:
+        return jsonify({"message": "invalid input"}), 400
+
+    path = get_file_path(tag)
+    if not os.path.exists(path):
+        return jsonify({"message": "not found"}), 404
+
+    with open(path, encoding='utf-8') as f:
+        data = json.load(f)
+
+    new_data = [d for d in data if d['text'] != text]
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(new_data, f, ensure_ascii=False, indent=2)
+
+    return get_sentence_db()
+
+@app.route("/edit-sentence", methods=["POST"])
+def edit_sentence():
+    req = request.get_json()
+    tag = req.get("tag")
+    old_text = req.get("oldText")
+    new_text = req.get("newText")
+
+    if tag not in ["high_risk", "escalate", "multi_user"] or not old_text or not new_text:
+        return jsonify({"message": "invalid input"}), 400
+
+    path = get_file_path(tag)
+    if not os.path.exists(path):
+        return jsonify({"message": "not found"}), 404
+
+    with open(path, encoding='utf-8') as f:
+        data = json.load(f)
+
+    updated = False
+    for d in data:
+        if d['text'] == old_text:
+            d['text'] = new_text
+            updated = True
+            break
+
+    if not updated:
+        return jsonify({"message": "not found"}), 404
+
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    return get_sentence_db()
 
 
 
@@ -478,179 +647,128 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
 
 
 
+GPT_DATA_DIR = "gpt_data"
+PROMPT_FILE = os.path.join(GPT_DATA_DIR, "gpt_prompts.json")
+MAP_FILE = os.path.join(GPT_DATA_DIR, "gpt_prompt_map.json")
 
+os.makedirs(GPT_DATA_DIR, exist_ok=True)
 
+def read_json(path, default=None):
+    if os.path.exists(path):
+        with open(path, encoding='utf-8') as f:
+            return json.load(f)
+    return default if default is not None else {}
 
+def write_json(path, obj):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
 
-# ------------------------------------------------------------------------------
+@app.route('/get-gpt-prompts')
+def get_gpt_prompts():
+    all_data = read_json(PROMPT_FILE, {})
+    # 包成 {用途: {"prompts": [...]} }
+    wrapped = {k: {"prompts": v if isinstance(v, list) else [v]} for k, v in all_data.items()}
+    return jsonify(wrapped)
 
+@app.route('/save-gpt-prompt', methods=['POST'])
+def save_gpt_prompt():
+    """
+    新增一筆 prompt 到某個分類。body: { "task": "solution", "prompt": "xxx" }
+    """
+    data = request.get_json()
+    task = data.get('task')
+    prompt = data.get('prompt', '').strip()
 
-# # 分析 Excel 資料的主邏輯 
-# def analyze_excel(filepath, weights=None):
+    if not task or not prompt:
+        return jsonify(success=False, message='❌ 缺少 task 或 prompt'), 400
 
-#     start_time = time.time()
-#     default_weights = {
-#         'keyword': 5.0,
-#         'multi_user': 3.0,
-#         'escalation': 2.0,
-#         'config_item': 5.0,
-#         'role_component': 3.0,
-#         'time_cluster': 2.0
-#     }
-#     weights = {**default_weights, **(weights or {})}
-#     print("🎛️ 使用中的權重設定：", weights)
+    all_prompts = read_json(PROMPT_FILE, {})
+    prompt_list = all_prompts.get(task, [])
+    if not isinstance(prompt_list, list):
+        prompt_list = [prompt_list]
 
-#     df = pd.read_excel(filepath)
-#     print(f"📊 共讀取 {len(df)} 筆資料\n")
+    if prompt not in prompt_list:
+        prompt_list.append(prompt)
+    else:
+        return jsonify(success=False, message='⚠️ 該 prompt 已存在'), 409
 
-#     component_counts = df['Role/Component'].value_counts()
-#     df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')
-#     configuration_item_counts = df['Configuration item'].value_counts()
-#     configuration_item_max = configuration_item_counts.max()
-#     analysis_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    all_prompts[task] = prompt_list
+    write_json(PROMPT_FILE, all_prompts)
 
-#     def analyze_row(row, idx):
-#         try:
-#             description_text = row.get('Description', 'not filled')
-#             short_description_text = row.get('Short description', 'not filled')
-#             close_note_text = row.get('Close notes', 'not filled')
+    return jsonify(success=True, allPrompts=all_prompts)
 
-#             keyword_score = is_high_risk(short_description_text)
-#             user_impact_score = is_multi_user(description_text)
-#             escalation_score = is_escalated(close_note_text)
+@app.route('/delete-gpt-prompt', methods=['POST'])
+def delete_gpt_prompt():
+    """
+    支援刪除分類或分類下的單一句子。
+    body: { "task": "solution", "prompt": "xxx" } 或只給 task 代表整類刪除。
+    """
+    data = request.get_json()
+    task = data.get('task')
+    prompt = data.get('prompt', '').strip()
 
-#             config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)
-#             configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0
+    all_prompts = read_json(PROMPT_FILE, {})
 
-#             role_comp = row.get('Role/Component', 'not filled')
-#             count = component_counts.get(role_comp, 0)
-#             role_component_freq = 3 if count >= 5 else 2 if count >= 3 else 1 if count == 2 else 0
+    if task not in all_prompts:
+        return jsonify(success=False, message=f'找不到用途 {task}'), 404
 
-#             this_time = row.get('Opened', 'not filled')
-#             if pd.isnull(this_time):
-#                 time_cluster_score = 1
-#             else:
-#                 others = df[df['Role/Component'] == role_comp]
-#                 close_events = others[(others['Opened'] >= this_time - pd.Timedelta(hours=24)) &
-#                                       (others['Opened'] <= this_time + pd.Timedelta(hours=24))]
-#                 count_cluster = len(close_events)
-#                 time_cluster_score = 3 if count_cluster >= 3 else 2 if count_cluster == 2 else 1
+    if prompt:
+        prompt_list = all_prompts[task]
+        if prompt in prompt_list:
+            prompt_list.remove(prompt)
+            if prompt_list:
+                all_prompts[task] = prompt_list
+            else:
+                del all_prompts[task]
+        else:
+            return jsonify(success=False, message='找不到該 prompt'), 404
+    else:
+        del all_prompts[task]  # 刪整類
 
-#             severity_score = round(
-#                 keyword_score * weights['keyword'] +
-#                 user_impact_score * weights['multi_user'] +
-#                 escalation_score * weights['escalation'], 2
-#             )
+    write_json(PROMPT_FILE, all_prompts)
 
-#             frequency_score = round(
-#                 configuration_item_freq * weights['config_item'] +
-#                 role_component_freq * weights['role_component'] +
-#                 time_cluster_score * weights['time_cluster'], 2
-#             )
+    # 刪掉 mapping 中的對應
+    mapping = read_json(MAP_FILE, {})
+    if task in mapping:
+        del mapping[task]
+        write_json(MAP_FILE, mapping)
 
-#             impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
-#             risk_level = get_risk_level(impact_score)
+    return jsonify(success=True, allPrompts=all_prompts)
 
-#             desc = str(row.get('Description', "")).strip()
-#             short_desc = str(row.get('Short description', "")).strip()
-#             close_notes = str(row.get('Close notes', "")).strip()
-#             resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
-#             ai_suggestion = extract_resolution_suggestion(resolution_text)
-#             ai_summary = extract_problem_with_custom_prompt(f"{short_desc}\n{desc}".strip())
-#             recommended = recommend_solution(short_description_text)
-#             keywords = extract_keywords(short_description_text)
+@app.route('/get-gpt-prompt-map')
+def get_gpt_prompt_map():
+    return jsonify(read_json(MAP_FILE, {}))
 
-#             return {
-#                 'id': safe_value(row.get('Incident') or row.get('Number')),
-#                 'configurationItem': safe_value(row.get('Configuration item')),
-#                 'roleComponent': safe_value(row.get('Role/Component')),
-#                 'subcategory': safe_value(row.get('Subcategory')),
-#                 'aiSummary': safe_value(ai_summary),
-#                 'originalShortDescription': safe_value(short_desc),
-#                 'originalDescription': safe_value(desc),
-#                 'severityScore': safe_value(severity_score),
-#                 'frequencyScore': safe_value(frequency_score),
-#                 'impactScore': safe_value(impact_score),
-#                 'severityScoreNorm': round(severity_score / 10, 2),
-#                 'frequencyScoreNorm': round(frequency_score / 20, 2),
-#                 'impactScoreNorm': round(impact_score / 30, 2),
-#                 'riskLevel': risk_level,
-#                 'solution': safe_value(ai_suggestion or '無提供解法'),
-#                 'location': safe_value(row.get('Location')),
-#                 'analysisTime': analysis_time,
-#                 'weights': {k: round(v / 10, 2) for k, v in weights.items()},
-#             }
+@app.route('/save-gpt-prompt-map', methods=['POST'])
+def save_gpt_prompt_map():
+    data = request.get_json()
 
-#         except Exception as e:
-#             print(f"❌ 分析第 {idx+1} 筆失敗：", e)
-#             return None
+    solution_prompt = data.get("solution")
+    summary_prompt = data.get("ai_summary")
+    models = data.get("models", {})
 
-#     # ✅ 非同步處理所有 row
-#     results = []
-#     per_row_times = []
-#     with ThreadPoolExecutor(max_workers=8) as executor:
-#         futures = {}
-#         for idx, row in df.iterrows():
-#             futures[executor.submit(analyze_row, row, idx)] = idx
+    new_mapping = {
+        "solution": {
+            "prompt": solution_prompt,
+            "model": models.get("solution", "")
+        },
+        "ai_summary": {
+            "prompt": summary_prompt,
+            "model": models.get("ai_summary", "")
+        }
+    }
 
-#         for future in tqdm(as_completed(futures), total=len(futures), desc="📊 非同步分析中"):
-#             idx = futures[future]
-#             t0 = time.time()
-#             res = future.result()
-#             t1 = time.time()
-#             elapsed = t1 - t0
-#             per_row_times.append(elapsed)
+    write_json(MAP_FILE, new_mapping)
+    return jsonify(success=True, mapping=new_mapping)
 
-#             if res:
-#                 results.append(res)
-#             print(f"⏱️ 第 {idx + 1} 筆：{elapsed:.2f} 秒完成")
-
-
-#     # ✅ KMeans 分群（略）
-#     # 可依照你原本的邏輯套用 KMeans，如：
-#     # ⬇⬇⬇ KMeans 分群邏輯（支援三條件） ⬇⬇⬇
-#     all_scores = [r['impactScore'] for r in results]
-#     score_range = max(all_scores) - min(all_scores)
-#     score_std = np.std(all_scores)
-
-#     print(f"📈 分群判斷指標：count={len(all_scores)}, range={score_range:.2f}, stddev={score_std:.2f}")
-
-#     if (
-#         len(all_scores) >= KMEANS_MIN_COUNT and
-#         score_range >= KMEANS_MIN_RANGE and
-#         score_std >= KMEANS_MIN_STDDEV
-#     ):
-#         kmeans = KMeans(n_clusters=4, random_state=42)
-#         labels = kmeans.fit_predict(np.array(all_scores).reshape(-1, 1))
-#         centroids = kmeans.cluster_centers_.flatten()
-#         set_kmeans_thresholds_from_centroids(centroids)
-#         print(f"📊 KMeans 分群標籤：{labels}")
-#         label_map = {}
-#         for i, idx in enumerate(np.argsort(centroids)[::-1]):
-#             label_map[idx] = ['高風險', '中風險', '低風險', '忽略'][i]
-#         for i, r in enumerate(results):
-#             r['riskLevel'] = label_map[labels[i]]
-#         print(f"📌 KMeans 分群中心：{sorted(centroids, reverse=True)}")
-#     else:
-#         print("⚠️ 不啟用 KMeans，改用固定門檻分級")
-#         for r in results:
-#             r['riskLevel'] = get_risk_level(r['impactScore'])
-#     # ⬆⬆⬆ 分群邏輯結束 ⬆⬆⬆
-
-
-#     total_time = time.time() - start_time
-#     avg_time = sum(per_row_times) / len(per_row_times) if per_row_times else 0
-#     print(f"\n🎯 所有分析總耗時：{total_time:.2f} 秒")
-#     print(f"📊 單筆平均耗時：{avg_time:.2f} 秒")
-
-#     print("\n✅ 所有資料分析完成！")
-#     return {
-#         'data': results,
-#         'analysisTime': analysis_time
-#     }
-
-
-# ------------------------------------------------------------------------------
+def get_prompt_for_use(use_type):
+    mapping = read_json(MAP_FILE, {})
+    all_prompts = read_json(PROMPT_FILE, {})
+    mapped_key = mapping.get(use_type, use_type)
+    prompt_list = all_prompts.get(mapped_key, [])
+    if isinstance(prompt_list, list):
+        return {'prompt': prompt_list[0] if prompt_list else '', 'model': mapping.get(mapped_key, {}).get("model", "")}
+    return {'prompt': prompt_list, 'model': mapping.get(mapped_key, {}).get("model", "")}
 
 # 定義首頁路由
 @app.route('/')
@@ -673,7 +791,158 @@ def history_page():
 def generate_cluster_page():
     return render_template('generate_cluster.html')  # 渲染生成分群頁面
 
+@app.route("/manual_input")
+def manual_input_page():
+    return render_template("manual_input.html")
+
+@app.route("/gpt_prompt")
+def gpt_prompt_page():
+    return render_template("gpt_prompt.html")
+
+@app.route("/chat_ui")
+def helpdesk_ui():
+    return render_template("chat.html")
+
+
+
 # ------------------------------------------------------------------------------
+
+
+@app.route("/chat", methods=["POST"])
+def chat_with_model():
+    data = request.get_json()
+    message = data.get("message", "")
+    model = data.get("model", "mistral")
+    history = data.get("history", [])
+    chat_id = data.get("chatId", "")  # ✅ 前端傳入的唯一 ID
+
+    if not chat_id:
+        return jsonify({"error": "Missing chatId"}), 400
+
+    # 建立資料夾與檔案路徑
+    os.makedirs("chat_history", exist_ok=True)
+    file_path = os.path.join("chat_history", f"{chat_id}.json")
+
+    try:
+        # ✅ 呼叫 GPT 模型處理（你的核心邏輯）
+        reply = run_offline_gpt(message, model=model, history=history)
+
+        # ✅ 判斷是新話題還是繼續聊
+        if not os.path.exists(file_path):
+            # 🆕 首次建立新檔案
+            chat_record = {
+                "id": chat_id,
+                "title": chat_id,     # 固定為檔名
+                "edit_title": "",     # 預設空
+                "model": model,
+                "timestamp": datetime.now().isoformat(),
+                "history": history + [
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": reply}
+                ]
+            }
+        else:
+            # 🔁 載入原檔案並追加
+            with open(file_path, "r", encoding="utf-8") as f:
+                chat_record = json.load(f)
+
+            chat_record["history"].append({"role": "user", "content": message})
+            chat_record["history"].append({"role": "assistant", "content": reply})
+
+        # ✅ 寫回檔案
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(chat_record, f, ensure_ascii=False, indent=2)
+
+        return jsonify({"reply": reply})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    
+
+@app.route("/rename-chat", methods=["POST"])
+def rename_chat():
+    data = request.get_json()
+    chat_id = data.get("chatId")
+    new_title = data.get("newTitle")
+
+    if not chat_id or new_title is None:
+        return jsonify({"error": "缺少參數"}), 400
+
+    file_path = Path(f"chat_history/{chat_id}.json")
+    if not file_path.exists():
+        return jsonify({"error": "找不到檔案"}), 404
+
+    try:
+        with open(file_path, encoding="utf-8") as f:
+            record = json.load(f)
+        record["edit_title"] = new_title  # ✅ 寫入新標題
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+@app.route("/delete-chat/<chat_id>", methods=["DELETE"])
+def delete_chat(chat_id):
+    file_path = Path(f"chat_history/{chat_id}.json")
+    if file_path.exists():
+        try:
+            file_path.unlink()  # 刪除檔案
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"error": f"無法刪除：{e}"}), 500
+    return jsonify({"error": "檔案不存在"}), 404
+
+
+
+@app.route("/chat-history-list")
+def get_chat_history_list():
+    records = []
+    path = Path("chat_history")
+    if not path.exists():
+        return jsonify([])
+
+    for file in path.glob("*.json"):
+        with open(file, encoding="utf-8") as f:
+            try:
+                obj = json.load(f)
+                records.append({
+                    "id": obj.get("id"),
+                    "title": obj.get("edit_title") or obj.get("title"),
+                    "timestamp": obj.get("timestamp"),
+                    "model": obj.get("model")
+                })
+            except:
+                continue
+    return jsonify(sorted(records, key=lambda x: x["timestamp"], reverse=True))
+
+@app.route("/chat-history/<id>")
+def get_chat_history_by_id(id):
+    file_path = Path(f"chat_history/{id}.json")
+    if not file_path.exists():
+        return jsonify({"error": "not found"}), 404
+    with open(file_path, encoding="utf-8") as f:
+        return jsonify(json.load(f))
+
+
+
+
+@app.route('/preview-excel', methods=['POST'])
+def preview_excel():
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'error': '未提供檔案'})
+
+    try:
+        df = pd.read_excel(file)
+        columns = df.columns.tolist()
+        rows = df.head(50).fillna('').astype(str).to_dict(orient='records')  # 預覽前 50 筆資料
+        return jsonify({'columns': columns, 'rows': rows})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
 
 
 
@@ -683,32 +952,29 @@ def ping():
     return "pong", 200
 
 
-# 定義檔案上傳路由
+
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    print("📥 收到上傳請求")  # 紀錄請求
+    print("📥 收到上傳請求")
 
-
-
-    if 'file' not in request.files:  # 檢查是否有檔案欄位
+    if 'file' not in request.files:
         print("❌ 沒有 file 欄位")
         return jsonify({'error': '沒有找到檔案欄位'}), 400
 
-    file = request.files['file']  # 取得檔案
-    if file.filename == '':  # 檢查檔案名稱是否為空
+    file = request.files['file']
+    if file.filename == '':
         print("⚠️ 檔案名稱為空")
         return jsonify({'error': '未選擇檔案'}), 400
 
-    if not allowed_file(file.filename):  # 檢查檔案格式是否允許
+    if not allowed_file(file.filename):
         print("⚠️ 檔案類型不符")
         return jsonify({'error': '請上傳 .xlsx 檔案'}), 400
-        
-    # 接收自訂權重
-    weights_raw = request.form.get('weights')
-    if not weights_raw:
-        print("ℹ️ 未提供自訂權重，使用預設值分析")
 
+    # 接收權重設定
     weights = None
+    weights_raw = request.form.get('weights')
     if weights_raw:
         try:
             weights = json.loads(weights_raw)
@@ -716,40 +982,78 @@ def upload_file():
         except Exception as e:
             print(f"⚠️ 權重解析失敗：{e}")
             return jsonify({'error': '權重解析失敗'}), 400
-        
+    else:
+        print("ℹ️ 未提供自訂權重，使用預設值分析")
+
+    # 解析 resolution/summary 欄位順位
+    try:
+        resolution_priority = json.loads(request.form.get('resolution_priority', '[]'))
+        summary_priority = json.loads(request.form.get('summary_priority', '[]'))
+        print("📌 Resolution 順位欄位：", resolution_priority)
+        print("📌 Summary 順位欄位：", summary_priority)
+    except Exception as e:
+        print(f"⚠️ 欄位順位解析失敗：{e}")
+        return jsonify({'error': '欄位順位解析失敗'}), 400
+
     # 產生時間戳記與檔名
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    uid = f"result_{timestamp}" # 例如 result_20250423_152301 分析結果檔名稱
-    original_filename = f"original_{timestamp}.xlsx" # 例如 original_20250423_152301.xlsx 原始黨名稱
+    uid = f"result_{timestamp}"
+    original_filename = f"original_{timestamp}.xlsx"
     original_path = os.path.join('uploads', original_filename)
 
-
-
     try:
-        file.save(original_path)  # 儲存原始檔案
-        print(f" 原始檔已儲存：{original_path}")
+        file.save(original_path)
+        print(f"📁 原始檔已儲存：{original_path}")
     except Exception as e:
         return jsonify({'error': f'儲存原始檔失敗：{str(e)}'}), 500
 
     try:
-        analysis_result = analyze_excel(original_path, weights=weights)
-        results = analysis_result['data']  # 取得分析結果
-
-
-        save_analysis_files(analysis_result, uid)  # 儲存分析結果檔案
-
+        # 呼叫分析主邏輯
+        analysis_result = analyze_excel(
+            original_path,
+            weights=weights,
+            resolution_priority=resolution_priority,
+            summary_priority=summary_priority
+        )
+        results = analysis_result['data']
+        save_analysis_files(analysis_result, uid)
         print(f"✅ 分析完成，共 {len(results)} 筆")
-        session['analysis_data'] = results  # 儲存分析結果到 session
+
+
+
+
+        # 自動觸發建庫腳本
+        print("🚀 自動執行 build_kb.py 建立知識庫")
+        # 呼叫本地的 Python 執行 build_kb.py（保證和 Flask 用同一個解譯器）
+        script_path = os.path.join(os.path.dirname(__file__), "build_kb.py")
+        print("🚀 嘗試用 sys.executable 執行：", script_path)
+        subprocess.Popen([sys.executable, script_path])
+
+
+
+        
+
+        session['analysis_data'] = results
         return jsonify({'data': results, 'uid': uid, 'weights': weights}), 200
-
-
-    
-
 
     except Exception as e:
         print(f"❌ 分析時發生錯誤：{e}")
-        traceback.print_exc()  # 印出完整錯誤堆疊
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+    
+
+
+def make_json_serializable(obj):
+    if isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: make_json_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [make_json_serializable(v) for v in obj]
+    return obj
+
+
+    
     
 def save_analysis_files(result, uid):
     os.makedirs('json_data', exist_ok=True)
@@ -759,7 +1063,7 @@ def save_analysis_files(result, uid):
     json_path = os.path.join(basedir, 'json_data', f"{uid}.json")
     print(f"📝 預計儲存 JSON：{json_path}")
     with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
+        json.dump(make_json_serializable(result), f, ensure_ascii=False, indent=2)
     print("✅ JSON 檔案已寫入成功")
 
     # 儲存分析報表 Excel（只儲存 result['data']）
@@ -781,10 +1085,239 @@ def save_analysis_files(result, uid):
     timestamp = uid.replace("result_", "")
     original_excel_path = os.path.abspath(os.path.join(basedir, 'uploads', f"original_{timestamp}.xlsx"))
 
+        # ✅ 自動送出到 Power Automate
+    try:
+        send_to_power_automate_from_file(json_path)
+        print("✅ 已自動送出到 Power Automate")
+    except Exception as e:
+        print(f"⚠️ 發送到 Power Automate 失敗：{e}")
+
+
     if os.path.exists(original_excel_path):
         print("📁 原始檔絕對路徑：", original_excel_path)
     else:
         print("⚠️ 找不到原始 Excel 路徑！")
+
+
+
+# ✅ Power Automate 的 URL（請換成你自己的）
+FLOW_URL = "https://prod-32.southeastasia.logic.azure.com:443/workflows/a016bdb3910146859b049fb7f0b6793b/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VefuSepIkpp5OhHGX7l6cgSs-rg7NykrpPhmXfKjnNk"
+
+# ✅ 欄位名稱對照：原始名稱 → 要送出的名稱
+FIELD_MAPPING = {
+    "id": "id",
+    "configurationItem": "configurationItem",
+    "roleComponent": "roleComponent",
+    "subcategory": "subcategory",
+    "aiSummary": "problem",  # ← 改這行
+    "solution": "solution",
+    "severityScore": "severityScore",
+    "frequencyScore": "frequencyScore",
+    "impactScore": "impactScore",
+    "severityScoreNorm": "severityScore",
+    "frequencyScoreNorm": "frequencyScore",
+    "impactScoreNorm": "impactScore",
+    "riskLevel": "riskLevel",
+    "location": "location",
+    "opened": "opened"
+}
+
+def default_value_for(field):
+    default_values = {
+        "id": "N/A",
+        "configurationItem": "Unknown",
+        "roleComponent": "Unknown",
+        "subcategory": "Unknown",
+        "problem": "（無原始描述）",
+        "solution": "（無原始描述）",
+        "severityScore": 0.0,
+        "frequencyScore": 0.0,
+        "impactScore": 0.0,
+        "riskLevel": "未知",
+        "location": "未填",
+        "opened": "1970-01-01T00:00:00"
+    }
+    return default_values.get(field, None)
+
+
+def enforce_schema_types(filtered_item):
+    for field in ["severityScore", "frequencyScore", "impactScore"]:
+        try:
+            filtered_item[field] = float(filtered_item.get(field, 0.0))
+        except:
+            filtered_item[field] = 0.0
+
+    for field in ["id", "configurationItem", "roleComponent", "subcategory",
+                  "problem", "solution", "riskLevel", "location", "opened"]:
+        val = filtered_item.get(field)
+        if val is not None:
+            filtered_item[field] = str(val)
+        else:
+            filtered_item[field] = default_value_for(field)
+
+
+
+
+
+# 🔒 加入你原始的 schema（放在程式開頭或一個變數中）
+SCHEMA = {
+    "type": "object",
+    "properties": {
+        "data": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "configurationItem": {"type": "string"},
+                    "roleComponent": {"type": "string"},
+                    "subcategory": {"type": "string"},
+                    "problem": {"type": "string"},
+                    "solution": {"type": "string"},
+                    "severityScore": {"type": "number"},
+                    "frequencyScore": {"type": "number"},
+                    "impactScore": {"type": "number"},
+                    "riskLevel": {"type": "string"},
+                    "location": {"type": "string"},
+                    "opened": {"type": "string"}
+                },
+                "required": [
+                    "id", "configurationItem", "roleComponent", "subcategory",
+                    "problem", "solution", "severityScore", "frequencyScore",
+                    "impactScore", "riskLevel", "location", "opened"
+                ]
+            }
+        },
+        "analysisTime": {"type": "string"}
+    },
+    "required": ["data", "analysisTime"]
+}
+
+
+def send_to_power_automate_from_file(json_path):
+    if not os.path.exists(json_path):
+        print(f"❌ 找不到分析結果檔案：{json_path}")
+        return
+
+    def _post():
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                raw_data = json.load(f)
+
+            filtered_data = []
+            for i, item in enumerate(raw_data.get("data", [])):
+                filtered_item = {}
+                for old_k, new_k in FIELD_MAPPING.items():
+                    if old_k in item:
+                        filtered_item[new_k] = item[old_k]
+                    else:
+                        default_val = default_value_for(new_k)
+                        print(f"⚠️ 第 {i+1} 筆資料欄位缺失：{old_k}（對應 {new_k}），已使用預設值：{default_val}")
+                        filtered_item[new_k] = default_val
+
+                enforce_schema_types(filtered_item)  # ✅ 型別與預設值保護
+                filtered_data.append(filtered_item)
+
+            payload = {
+                "data": filtered_data,
+                "analysisTime": raw_data.get("analysisTime")
+            }
+            print("📤 正在送出以下 payload 給 Power Automate：")
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+
+
+
+            # 檢查 schema 是否符合
+            try:
+                validate(instance=payload, schema=SCHEMA)
+                print("✅ JSON payload 符合指定 schema，可以送出。")
+            except ValidationError as ve:
+                print("❌ JSON payload 不符合 schema！")
+                print("📍 錯誤位置：", ve.json_path)
+                print("📋 詳細錯誤：", ve.message)
+                print("📌 發生於 payload 第", i+1, "筆（可能）資料")
+                return
+
+
+            headers = {"Content-Type": "application/json"}
+            response = requests.post(FLOW_URL, headers=headers, json=payload, timeout=120)
+
+            if response.status_code == 200:
+                print("✅ 成功送出資料給 Power Automate")
+            else:
+                print(f"⚠️ 已送出，但 HTTP 狀態：{response.status_code}")
+        except Exception as e:
+            print(f"⚠️ 發送 Power Automate 時錯誤（忽略回應）：{e}")
+
+    threading.Thread(target=_post).start()
+    
+    
+    
+    
+@app.route("/compare-file", methods=["POST"])
+def compare_file():
+    print("📥 收到檔案比對請求") 
+    uploaded_file = request.files.get("file")
+    if not uploaded_file:
+        print("❌ 沒有收到上傳的檔案")
+        return jsonify({"error": "No file uploaded"}), 400
+ 
+    try:
+        # ✅ 建立暫存資料夾
+        temp_dir = "tmp_upload"
+        os.makedirs(temp_dir, exist_ok=True)
+        print(f"📁 確保暫存資料夾存在：{temp_dir}")
+ 
+        # ✅ 儲存上傳檔案
+        temp_path = os.path.join(temp_dir, uploaded_file.filename)
+        uploaded_file.save(temp_path)
+        print(f"📄 已儲存上傳檔案至暫存：{temp_path}")
+ 
+        # ✅ 讀取上傳的檔案
+        df_new = pd.read_excel(temp_path)
+        print("📊 成功讀取上傳檔案為 DataFrame")
+ 
+        # ✅ 比對 uploads 中的檔案
+        uploads_dir = "uploads"
+        print(f"🔍 開始比對 uploads 資料夾內檔案，共 {len(os.listdir(uploads_dir))} 個")
+ 
+        for fname in os.listdir(uploads_dir):
+            fpath = os.path.join(uploads_dir, fname)
+            try:
+                df_existing = pd.read_excel(fpath)
+                print(f"📎 正在比對：{fname}")
+                if df_new.equals(df_existing):
+                    print(f"✅ 發現重複檔案：{fname}")
+                    os.remove(temp_path)
+                    print(f"🧹 已刪除暫存檔案：{temp_path}")
+                    return jsonify({"duplicate": True})
+            except Exception as ex:
+                print(f"⚠️ 無法讀取檔案 {fname}：{ex}")
+                continue
+ 
+        os.remove(temp_path)
+        print(f"🧹 比對完成，未發現重複。已刪除暫存檔案：{temp_path}")
+        return jsonify({"duplicate": False})
+ 
+    except Exception as e:
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
+            print(f"❗發生錯誤，刪除暫存檔案：{temp_path}")
+        print(f"❌ 發生錯誤：{e}")
+        return jsonify({"error": str(e)}), 500
+ 
+
+
+
+@app.route('/kb-status')
+def kb_status():
+    lock_exists = os.path.exists("kb_building.lock")
+    print(f"[DEBUG] lock file exists? {lock_exists}")
+    return jsonify({"building": lock_exists})
+
+
 
 
 @app.route('/get-results')
@@ -926,7 +1459,7 @@ if __name__ == "__main__":
         webbrowser.open("http://127.0.0.1:5000")
     else:
         print("⚠️ Flask 已在運作，不重複開啟瀏覽器")
-    app.run(debug=False, use_reloader=False)
+    app.run(debug=True, use_reloader=True)
 
 
 

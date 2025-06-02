@@ -1,3 +1,16 @@
+/* 捲軸美化 */
+::-webkit-scrollbar {
+  width: 10px;
+  background: #e6e9f5;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #b2f2e5, #a3c9f7);
+  border-radius: 8px;
+}
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #444a9f, #20c997);
+}
 .main-title {
     font-size: 40px;
     font-weight: bold;
@@ -829,4 +842,20 @@ hr {
 .dark-mode hr {
     border-top: 1px solid #555;
     opacity: 0.5;
+}
+
+@keyframes dotsAnimation {
+  0%   { content: ""; }
+  33%  { content: "."; }
+  66%  { content: ".."; }
+  100% { content: "..."; }
+}
+
+#kbStatusBar .dots::after {
+  content: "";
+  animation: dotsAnimation 1.5s infinite steps(3, end);
+}
+
+body.dark-mode #kbStatusBar .dots::after {
+  color: #ffe082;
 }

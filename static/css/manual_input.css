@@ -1,0 +1,425 @@
+/* 📁 manual_input.css - 美化強化版 */
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f5f6fa;
+  margin: 0;
+  padding: 0;
+  color: #2c3e50;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.dark-mode {
+  background-color: #0f1020;
+  color: #c7cfff;
+}
+
+.container {
+  margin-left: 260px;
+  padding: 60px 30px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: inherit;
+  transition: all 0.3s ease;
+}
+
+.main-title {
+  font-size: 2.6rem;
+  font-weight: 700;
+  margin-bottom: 0px;
+  color: inherit;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100vh;
+  background-color: #2d2f6d;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 25px 18px;
+  box-shadow: 3px 0 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  transition: transform 0.3s ease;
+}
+
+.sidebar h4 {
+  font-size: 20px;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar ul li {
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background-color: #3c3f85;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar ul li:hover {
+  background-color: #5559d1;
+}
+
+.sidebar ul li i {
+  margin-right: 12px;
+  color: #fff;
+  transition: color 0.2s ease;
+}
+
+.sidebar ul li:hover i {
+  color: #ffeb3b;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  padding-top: 40px;
+  text-align: center;
+}
+
+
+
+
+
+body.sidebar-collapsed .sidebar {
+  transform: translateX(-100%);
+}
+
+body.sidebar-collapsed .container {
+  margin-left: 0;
+}
+
+body.dark-mode .sidebar {
+  background-color: #1e213f;
+}
+
+body.dark-mode .sidebar ul li {
+  background-color: #2a2d4a;
+  color: #ddd;
+}
+
+body.dark-mode .sidebar ul li:hover {
+  background-color: #444a9f;
+}
+
+
+
+form {
+  background-color: #ffffff;
+  border-radius: 14px;
+  padding: 35px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  max-width: 700px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+body.dark-mode form {
+  background-color: #202346;
+  color: #fff;
+}
+
+.card {
+  width: 100%;
+  margin-top: 100px; /* ✅ 新增這行讓它靠近 main-title */
+  background: linear-gradient(120deg, #f0f2f8 80%, #e6f9f2 100%);
+  padding: 28px 28px 22px 28px;
+  border-radius: 18px;
+  border: 1.5px solid #e0e6f7;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.09), 0 1.5px 4px rgba(40,167,69,0.04);
+  margin-bottom: 24px;
+  transition: transform 0.25s cubic-bezier(.4,2,.6,1), box-shadow 0.25s;
+}
+
+.card:hover {
+  transform: translateY(-7px) scale(1.015);
+  box-shadow: 0 16px 32px rgba(32, 201, 151, 0.13), 0 2px 8px rgba(40,167,69,0.08);
+}
+
+body.dark-mode .card {
+  background-color: #2a2d4a;
+  color: #eee;
+}
+
+.card h5 {
+  font-size: 20px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #1e213f;
+}
+
+.card ul {
+  padding-left: 24px;
+  line-height: 1.8;
+  font-size: 17px;
+  color: #3a3a4a;
+}
+
+.card li {
+  margin-bottom: 8px;
+  position: relative;
+  padding-left: 8px;
+}
+
+.card li::before {
+  content: "•";
+  color: #20c997;
+  position: absolute;
+  left: -12px;
+  font-size: 1.1em;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #28a745 60%, #20c997 100%);
+  border: none;
+  padding: 12px 28px;
+  font-size: 17px;
+  font-weight: 700;
+  border-radius: 12px;
+  transition: all 0.22s cubic-bezier(.4,2,.6,1);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(32, 201, 151, 0.10);
+  letter-spacing: 0.5px;
+}
+.btn-primary:hover, .btn-primary:focus {
+  background: linear-gradient(135deg, #20c997 60%, #28a745 100%);
+  box-shadow: 0 4px 18px rgba(32, 201, 151, 0.18);
+  transform: translateY(-2px) scale(1.03);
+  outline: none;
+}
+
+select.form-select,
+input.form-control,
+textarea.form-control {
+  background-color: #fefefe;
+  border-radius: 10px;
+  border: 1.5px solid #cfd8dc;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  padding: 10px 14px;
+  font-size: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(40,167,69,0.03);
+}
+
+input.form-control:focus,
+select.form-select:focus,
+textarea.form-control:focus {
+  border-color: #20c997;
+  box-shadow: 0 0 0 0.18rem rgba(32, 201, 151, 0.18);
+}
+
+/* 捲軸美化 */
+::-webkit-scrollbar {
+  width: 10px;
+  background: #e6e9f5;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #b2f2e5, #a3c9f7);
+  border-radius: 8px;
+}
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #444a9f, #20c997);
+}
+
+/* 深色模式細節 */
+body.dark-mode .card {
+  background: linear-gradient(120deg, #23244a 80%, #1e213f 100%);
+  color: #e0e6f7;
+  border: 1.5px solid #23244a;
+}
+
+body.dark-mode .card h5 {
+  color: #b2f2e5;
+}
+
+body.dark-mode .card ul {
+  color: #c7cfff;
+}
+
+
+body.dark-mode .btn-primary {
+  background: linear-gradient(135deg, #20c997 60%, #28a745 100%);
+  color: #fff;
+}
+
+body.dark-mode .btn-primary:hover, 
+body.dark-mode .btn-primary:focus {
+  background: linear-gradient(135deg, #28a745 60%, #20c997 100%);
+  box-shadow: 0 4px 18px rgba(32, 201, 151, 0.22);
+}
+
+
+
+body.dark-mode select.form-select,
+body.dark-mode input.form-control,
+body.dark-mode textarea.form-control {
+  background-color: #23244a;
+  color: #e0e6f7;
+  border: 1.5px solid #444a9f;
+}
+
+/* 保證語句卡片有 margin 距離 */
+#existingSentences .card {
+  height: 100%;
+  transition: box-shadow 0.2s ease;
+}
+#existingSentences .card:hover {
+  box-shadow: 0 0 10px rgba(0,255,170,0.15);
+}
+#existingSentences .card h5 {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: #333;
+}
+#existingSentences .card ul {
+  padding-left: 20px;
+  line-height: 1.6;
+  font-size: 1rem;
+  color: #555;
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+.dark-mode-btn {
+    margin-top: 20px;
+    margin-bottom: 50px;
+    padding: 10px 20px;  
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;  
+    background: linear-gradient(135deg, #5765b5, #6a78cc); /* 淺一些的藍紫色 */
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(106, 90, 205, 0.6);
+    transition: 0.3s ease;
+}
+
+.dark-mode-btn:hover {
+    background: linear-gradient(135deg, #7880d9, #8a97e1); /* 當按鈕被懸停時使用更亮的過渡顏色 */
+    box-shadow: 0 0 15px rgba(130, 110, 255, 0.8);}
+
+
+body.dark-mode .dark-mode-btn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #6a5acd, #4f59d4);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 0 10px rgba(80, 100, 250, 0.3);
+    transition: 0.3s ease;
+}
+
+
+body.dark-mode .dark-mode-btn:hover {
+    background: linear-gradient(135deg, #7a6af0, #5c6ae6);
+    box-shadow: 0 0 12px rgba(100, 120, 255, 0.6);
+}
+
+body.dark-mode .sentence-item {
+  color: #f1f1f1;
+}
+
+body.dark-mode .sentence-card-body {
+  background-color: #2a2d4a;
+  border-radius: 10px;
+}
+
+/* Modal 深色模式 */
+body.dark-mode .modal-content.dark-aware-modal {
+  background-color: #2c2f48;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+body.dark-mode .modal-content.dark-aware-modal .form-label {
+  color: #ddd;
+}
+
+body.dark-mode .modal-content.dark-aware-modal .form-control {
+  background-color: #3a3d5c;
+  color: #fff;
+  border-color: #555;
+}
+
+body.dark-mode .modal-content.dark-aware-modal .form-control:focus {
+  background-color: #444768;
+  border-color: #888;
+  color: #fff;
+}
+
+body.dark-mode .modal-content.dark-aware-modal .btn-secondary {
+  background-color: #555;
+  border-color: #777;
+}
+
+body.dark-mode .modal-content.dark-aware-modal .btn-primary {
+  background-color: #3498db;
+  border-color: #2980b9;
+}
+
+
+body.dark-mode .form-text.text-muted {
+  color: #ffd166 !important;   /* 明亮的黃色，可根據喜好調整 */
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+
+.accordion-button {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+body.dark-mode .accordion-button {
+  background: #23234d;
+  color: #ffe082;
+}
+
+
+/* 側邊欄收合效果 */
+
+@keyframes dotsAnimation {
+  0%   { content: ""; }
+  33%  { content: "."; }
+  66%  { content: ".."; }
+  100% { content: "..."; }
+}
+
+#kbStatusBar .dots::after {
+  content: "";
+  animation: dotsAnimation 1.5s infinite steps(3, end);
+}
+
+body.dark-mode #kbStatusBar .dots::after {
+  color: #ffe082;
+}

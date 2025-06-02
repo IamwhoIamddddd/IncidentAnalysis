@@ -190,6 +190,14 @@ toast.innerHTML = `
 // 表單提交事件
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault(); // 阻止表單的預設提交行為（避免整頁刷新）
+
+    window.kbLocked = true;   // ✅ 一送出就鎖定
+
+    
+
+
+
+
     const fileInput = document.getElementById('excelFile'); // 取得檔案輸入框
     const file = droppedFile || fileInput.files[0]; // 優先使用拖曳的檔案，否則使用輸入框選擇的檔案
     const spinner = document.getElementById('spinner'); // 取得加載指示器
@@ -210,6 +218,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         role_component: parseFloat(document.getElementById('weightRoleComponent')?.value || 0.3),
         time_cluster: parseFloat(document.getElementById('weightTimeCluster')?.value || 0.2)
     };
+
     // ✅ 先檢查加總（以 1 為基準）
     const severityTotal = rawWeights.keyword + rawWeights.multi_user + rawWeights.escalation;
     const frequencyTotal = rawWeights.config_item + rawWeights.role_component + rawWeights.time_cluster;
@@ -225,6 +234,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         );
         return;
     }
+
     // ✅ 再轉為 0~10 區間給後端
     const weights = {
         keyword: rawWeights.keyword * 10,
@@ -234,25 +244,30 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         role_component: rawWeights.role_component * 10,
         time_cluster: rawWeights.time_cluster * 10
     };
+
     if (!file) {
         alert('請選擇檔案'); // 如果沒有檔案，顯示提示訊息
         spinner.style.display = 'none'; // 隱藏加載指示器
         progressContainer.style.display = 'none'; // 隱藏進度條容器
         return;
     }
+
     if (submitBtn.disabled) {
     alert('⚠️ 權重設定不正確，請確認嚴重性與頻率加總是否為 10');
     return;
     }
+
     const resolutionPriority = [
     document.getElementById('resolutionField1').value,
     document.getElementById('resolutionField2').value,
     document.getElementById('resolutionField3').value
     ].filter(Boolean);  // 去除空值
+
     const summaryPriority = [
     document.getElementById('summaryField1').value,
     document.getElementById('summaryField2').value
     ].filter(Boolean);
+
     if (resolutionPriority.length === 0) {
     alert('⚠️ 請至少選擇一個 Resolution 欄位作為分析依據');
     return;
@@ -261,6 +276,10 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     alert('⚠️ 請至少選擇一個 Summary 欄位作為分析依據');
     return;
     }
+
+
+
+
     // 初始化 UI
     spinner.style.display = 'block'; // 顯示加載指示器
     resultDiv.innerHTML = ''; // 清空結果區域
@@ -271,17 +290,23 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
 
 
 
+
+
     const formData = new FormData(); // 建立表單資料物件
     formData.append('file', file); // 將檔案加入表單資料
     formData.append('weights', JSON.stringify(weights)); // 將權重物件轉為 JSON 字串並加入表單資料
+
+
+
+
     formData.append('resolution_priority', JSON.stringify(resolutionPriority));
     formData.append('summary_priority', JSON.stringify(summaryPriority));
-
 
 
     const xhr = new XMLHttpRequest(); // 建立 XMLHttpRequest 物件
     xhr.open('POST', '/upload', true); // 設定請求方法和目標 URL
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); // 設定請求標頭，表明這是 AJAX 請求
+
     // 上傳進度監控
     xhr.upload.onprogress = function(event) {
         if (event.lengthComputable) {
@@ -291,102 +316,39 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         }
     };
 
-
     // 在送出前檢查是否重複上傳
-  
-
-
-
-    // const checkDuplicateAndUpload = () => {
-    //     const xhrCheck = new XMLHttpRequest(); // 建立 XMLHttpRequest 物件
-    //     xhrCheck.open('GET', '/files', true); // 發送 GET 請求到伺服器以檢查檔案是否已存在
-    //     xhrCheck.onload = function () {
-    //         if (xhrCheck.status === 200) { // 如果伺服器回應成功
-    //             const existingFiles = JSON.parse(xhrCheck.responseText).files; // 解析伺服器回應的檔案列表
-    //             if (existingFiles.includes(filename)) { // 如果檔案已存在
-    //                 spinner.style.display = 'none'; // 隱藏加載指示器
-    //                 progressContainer.style.display = 'none'; // 隱藏進度條容器
-    //                 alert(`❌ 上傳失敗：檔案 "${filename}" 已存在，請重新命名或更換檔案`); // 顯示錯誤提示
-    //                 fileInfo.innerText = `❌ "${filename}" 已存在，請重新命名`; // 更新檔案資訊顯示
-    //                 fileInfo.style.color = 'red'; // 設定文字顏色為紅色
-    //                 return; // 結束函數執行
-    //             }
-    //             xhr.send(formData); // 發送檔案到伺服器
-    //         } 
-    //         else {
-    //             alert('⚠️ 無法檢查檔案是否重複，請稍後再試'); // 顯示錯誤提示
-    //         }
-    //     };
-    //     xhrCheck.onerror = function () {
-    //         alert('⚠️ 檢查檔案是否存在時發生錯誤'); // 顯示錯誤提示
-    //     };
-    //     xhrCheck.send(); // 發送檢查請求
-    // };
-
-
-    
-    // 在送出前檢查是否重複上傳
-  const checkDuplicateAndUpload = async () => {
-  const filename = file.name;
-
-  // 第一步：快速比對檔名
-  const xhrCheck = new XMLHttpRequest();
-  xhrCheck.open('GET', '/files', true);
-  xhrCheck.onload = async function () {
-    if (xhrCheck.status === 200) {
-      const existingFiles = JSON.parse(xhrCheck.responseText).files;
-      if (existingFiles.includes(filename)) {
-        spinner.style.display = 'none';
-        progressContainer.style.display = 'none';
-        alert(`❌ 檔案 "${filename}" 已存在，請重新命名`);
-        fileInfo.innerText = `❌ "${filename}" 已存在`;
-        fileInfo.style.color = 'red';
-        return;
-      }
-
-      // 第二步：比對檔案內容
-      const checkFormData = new FormData();
-      checkFormData.append("file", file);
-      const res = await fetch("/compare-file", {
-        method: "POST",
-        body: checkFormData
-      });
-
-      const result = await res.json();
-      if (result.duplicate) {
-        console.log("⚠️ 偵測內容重複，彈出確認");
-        spinner.style.display = 'none';
-        progressContainer.style.display = 'none';
-        const modal = new bootstrap.Modal(document.getElementById('duplicateConfirmModal'));
-        modal.show();
-        document.getElementById('confirmUploadBtn').onclick = () => {
-          modal.hide();
-          window.kbLocked = true;   // ✅ 一送出就鎖定
-          xhr.send(formData);  // ✅ 真正分析上傳
+    const filename = file.name;// 取得檔案名稱
+    const checkDuplicateAndUpload = () => {
+        const xhrCheck = new XMLHttpRequest(); // 建立 XMLHttpRequest 物件
+        xhrCheck.open('GET', '/files', true); // 發送 GET 請求到伺服器以檢查檔案是否已存在
+        xhrCheck.onload = function () {
+            if (xhrCheck.status === 200) { // 如果伺服器回應成功
+                const existingFiles = JSON.parse(xhrCheck.responseText).files; // 解析伺服器回應的檔案列表
+                if (existingFiles.includes(filename)) { // 如果檔案已存在
+                    spinner.style.display = 'none'; // 隱藏加載指示器
+                    progressContainer.style.display = 'none'; // 隱藏進度條容器
+                    alert(`❌ 上傳失敗：檔案 "${filename}" 已存在，請重新命名或更換檔案`); // 顯示錯誤提示
+                    fileInfo.innerText = `❌ "${filename}" 已存在，請重新命名`; // 更新檔案資訊顯示
+                    fileInfo.style.color = 'red'; // 設定文字顏色為紅色
+                    return; // 結束函數執行
+                }
+                xhr.send(formData); // 發送檔案到伺服器
+            } 
+            else {
+                alert('⚠️ 無法檢查檔案是否重複，請稍後再試'); // 顯示錯誤提示
+            }
         };
-      } else {
-        xhr.send(formData);  // 無重複就直接送
-      }
-    } else {
-      alert("⚠️ 無法檢查檔名是否重複");
-    }
-  };
-  xhrCheck.onerror = () => alert("⚠️ 檢查檔名時發生錯誤");
-  xhrCheck.send();
-};
-
-
-
-
-
-
-
-
+        xhrCheck.onerror = function () {
+            alert('⚠️ 檢查檔案是否存在時發生錯誤'); // 顯示錯誤提示
+        };
+        xhrCheck.send(); // 發送檢查請求
+    };
 //--------------------------------------------------------------------------------------------------------------------------------
     // 處理上傳完成的回應
     xhr.onload = function () {
         spinner.style.display = 'none'; // 隱藏加載指示器
         progressContainer.style.display = 'none'; // 隱藏進度條容器
+
         if (xhr.status === 200) {
             const data = JSON.parse(xhr.responseText); // 解析伺服器回應的 JSON 資料
             console.log("✅ 後端回傳內容：", data);
@@ -397,11 +359,11 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
             analysisTime: data.data[0]?.analysisTime || new Date().toISOString(),
             data: data.data
             })); // 儲存最後的結果到 localStorage
-
-
             kbAnalysisTriggered = true;  // ✅ 表示這次真的送出分析了
+
             showKbStatusBar();          // ✅ 主動顯示提示條（不用等輪詢）
             pollKbStatus();             // ✅ 啟動輪詢，等建庫結束再自動隱藏
+
 
             if (data.error) {
                 resultDiv.innerHTML = `<p style="color:red">錯誤：${data.error}</p>`; // 顯示錯誤訊息
@@ -409,11 +371,8 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                 return;
             }
 
-
-
-          
-
             const resultText = JSON.stringify(data.data, null, 2); // 將結果資料轉為格式化的 JSON 字串
+
             // 渲染表格 HTML
             const tableHtml = `
             <div class="table-responsive">
@@ -450,6 +409,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                 </div>
             `;
             resultDiv.innerHTML = tableHtml; // 更新結果區域的 HTML
+
             // 初始化 DataTable 並插入按鈕
             $(document).ready(function () {
                 const table = $('#resultTable').DataTable({
@@ -470,12 +430,15 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                         previewBtn.id = 'previewAllBtn'; // 設定按鈕 ID
                         previewBtn.innerText = '📋 預覽所有資料'; // 設定按鈕文字
                         previewBtn.style.marginLeft = '12px'; // 設定按鈕的左邊距
+
                         const lengthControl = document.querySelector('.dataTables_length'); // 取得 DataTable 的長度控制區域
                         lengthControl.appendChild(previewBtn); // 將按鈕插入到長度控制區域
+
                         // 綁定按鈕的點擊事件
                         previewBtn.onclick = function () {
                             const modalContent = document.getElementById('modalContent'); // 取得 Modal 的內容區域
                             const headers = ["Incident", "Config Item", "Severity (0–1)", "Frequency (0–1)", "Impact (0–1)", "Risk Level", "Solution", "Location"];
+
                             let html = `<table class="table table-bordered table-sm"><thead><tr>`;
                             headers.forEach(h => html += `<th>${h}</th>`); // 生成表格標題列
                             html += `</tr></thead><tbody>`;
@@ -505,6 +468,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                     }
                 });
             });
+
             updateSummary(data.data); // 更新統計摘要
             // 顯示分析完成提示
             const analysisTime = data.data[0]?.analysisTime || '未知時間';
@@ -521,6 +485,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
             console.log('📦 Response Text:', xhr.responseText); // 在控制台輸出伺服器回應文字
         }
     };
+
     xhr.onerror = function() {
         spinner.style.display = 'none'; // 隱藏加載指示器
         progressContainer.style.display = 'none'; // 隱藏進度條容器

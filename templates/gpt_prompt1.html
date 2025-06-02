@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPT Prompt 管理</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/FrontEndCss.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/manual_input.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/gpt_prompt.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="dark-mode">
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <h4>功能選單</h4>
+    <ul>
+      <li onclick="navigateTo1('upload')"><i class="fas fa-upload"></i> 上傳分析</li>
+      <li onclick="navigateTo1('result')"><i class="fas fa-chart-line"></i> 分析結果</li>
+      <li onclick="navigateTo1('history')"><i class="fas fa-history"></i> 歷史紀錄</li>
+      <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
+      <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
+      <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
+    </ul>
+    <div class="sidebar-bottom">
+      <button type="button" id="toggleDarkMode" class="dark-mode-btn">🌙 深色模式</button>
+    </div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle">←</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container-fluid">
+    <div class="container">
+
+      <!-- 目前系統設定 -->
+      <h2 class="main-title">🤖 GPT Prompt 管理</h2>
+      <h4>目前系統設定</h4>
+      <div class="card mb-5 shadow gpt-wide-card w-100">
+        <div class="card-body" id="currentSetting">
+          <!-- JS 動態渲染目前用的 Prompt 與 GPT -->
+        </div>
+      </div>
+      <!-- Mapping 對應區 -->
+      <div class="card shadow mt-5 mb-4 gpt-mapping-card1 w-100">
+        <div class="card-body">
+          <h5 class="mb-3 gpt-section-title">設定各用途目前實際使用的 Prompt</h5>
+          <form id="mappingForm">
+            <!-- Solution 一行 -->
+            <div class="mb-3 row align-items-center">
+              <label class="col-sm-3 col-form-label">Solution 用途：</label>
+              <div class="col-sm-4">
+                <select id="currentSolutionPrompt" class="form-select"></select>
+              </div>
+                <!-- Solution 模型選擇 -->
+                <label class="col-sm-2 col-form-label text-end">GPT 模型名稱：</label>
+                <div class="col-sm-3">
+                <select id="currentSolutionModelSelect" class="form-select">
+                <option value="llama3:8b">llama3:8b（約 GPT-3.5）</option>
+                <option value="phi4">phi4（約 GPT-3.5～4）</option>
+                <option value="gemma:2b">gemma:2b（約 GPT-3 Mini）</option>
+                <option value="gemma:7b">gemma:7b（約 GPT-3.5）</option>
+                <option value="mistral">mistral（約 GPT-3.5）</option>
+                <option value="phi3:mini">phi3:mini（約 GPT-3.5 Mini）</option>
+                <option value="phi4-mini">phi4-mini（約 GPT-3.5 Mini+）</option>
+                <option value="tinyllama">tinyllama（約 GPT-3 Mini）</option>
+                <option value="custom">📝 自行輸入</option>
+
+ 
+                </select>
+                <input type="text" class="form-control mt-2 d-none" id="currentSolutionModelCustom" placeholder="輸入自訂模型名稱">
+                </div>
+
+            </div>
+            <!-- AI Summary 一行 -->
+            <div class="mb-3 row align-items-center">
+              <label class="col-sm-3 col-form-label">AI Summary 用途：</label>
+              <div class="col-sm-4">
+                <select id="currentSummaryPrompt" class="form-select"></select>
+              </div>
+                <label class="col-sm-2 col-form-label text-end">GPT 模型名稱：</label>
+                <div class="col-sm-3">
+                    <select id="currentSummaryModelSelect" class="form-select">
+                    <option value="llama3:8b">llama3:8b（約 GPT-3.5）</option>
+                    <option value="phi4">phi4（約 GPT-3.5～4）</option>
+                    <option value="gemma:2b">gemma:2b（約 GPT-3 Mini）</option>
+                    <option value="gemma:7b">gemma:7b（約 GPT-3.5）</option>
+                    <option value="mistral">mistral（約 GPT-3.5）</option>
+                    <option value="phi3:mini">phi3:mini（約 GPT-3.5 Mini）</option>
+                    <option value="phi4-mini">phi4-mini（約 GPT-3.5 Mini+）</option>
+                    <option value="tinyllama">tinyllama（約 GPT-3 Mini）</option>
+                    <option value="custom">📝 自行輸入</option>
+
+ 
+                    </select>
+                    <input type="text" id="currentSummaryModelCustom" class="form-control mt-2 d-none" placeholder="請輸入自訂模型">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-success w-100">💾 儲存目前用途對應</button>
+          </form>
+          <!-- 所有 Prompt 一覽表，JS 渲染 -->
+          <div id="allPromptList" class="mt-4"></div>
+        </div>
+      </div>
+      <!-- 新增／編輯 Prompt 區 -->
+      <div class="card mb-5 shadow gpt-mapping-card w-100">
+        <div class="card-body">
+          <h5 class="mb-4 gpt-section-title">➕ 新增 GPT Prompt</h5>
+          <p class="gpt-muted-desc mb-4">
+            請選擇用途並輸入對應的 GPT Prompt 內容。
+          </p>
+          <form id="gptPromptForm">
+            <div class="mb-3">
+              <label class="form-label">選擇用途：</label>
+              <select class="form-select" id="promptTask">
+                <option value="solution">Solution（AI解決建議）</option>
+                <option value="ai_summary">AI Summary（AI問題摘要）</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">GPT Prompt 內容：</label>
+              <textarea class="form-control gpt-textarea" rows="5" id="promptText" required placeholder="請輸入此用途的 prompt..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">新增</button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- 獨立 JS：gpt_prompt.js -->
+  <script src="{{ url_for('static', filename='js/gpt_prompt.js') }}"></script>
+
+    <!-- 編輯 Prompt 的 Modal -->
+  <div class="modal fade" id="editPromptModal" tabindex="-1" aria-labelledby="editPromptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editPromptModalLabel">編輯 GPT Prompt</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+        </div>
+        <div class="modal-body">
+          <textarea id="editPromptTextarea" class="form-control" rows="5"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="saveEditPromptBtn">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

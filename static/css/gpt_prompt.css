@@ -1,0 +1,476 @@
+/* gpt_prompt.css - 針對 GPT Prompt 管理頁專用強化 */
+/* 捲軸美化 */
+::-webkit-scrollbar {
+  width: 10px;
+  background: #e6e9f5;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #b2f2e5, #a3c9f7);
+  border-radius: 8px;
+}
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #444a9f, #20c997);
+}
+
+
+body {
+  background: #f7f9fb;
+}
+
+body.dark-mode {
+  background: #10182a;
+}
+
+.main-title {
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: #383d51;
+  letter-spacing: 0.05em;
+  margin-bottom: 32px;
+}
+body.dark-mode .main-title {
+  color: #ffd166;
+  text-shadow: 0 2px 16px #212a4188;
+}
+
+.card {
+  border-radius: 1.2rem;
+  box-shadow: 0 4px 32px 0 rgba(52, 77, 163, 0.08);
+  border: none;
+}
+
+.gpt-wide-card {
+  max-width: 100vw !important;
+  width: 75% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  border-radius: 1.2rem;
+  /* 可以加 box-shadow/背景色等想要的效果 */
+}
+.gpt-wide-card .card-body {
+  width: 100% !important;
+  padding-left: 50px;
+  padding-right: 0;
+  /* 或加大 padding，自訂內距 */
+}
+
+
+body.dark-mode .card-body {
+  background: #232b46;
+}
+
+label.form-label {
+  font-weight: 600;
+  color: #2c3e50;
+}
+body.dark-mode label.form-label {
+  color: #ffd166;
+}
+
+.form-control, .form-select {
+  border-radius: 0.8rem;
+  font-size: 1.1rem;
+}
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+  background: #181f31;
+  color: #fff9c9;
+  border: 1.5px solid #3e4c72;
+}
+
+.btn-primary {
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  border-radius: 0.8rem;
+  padding: 0.75rem 0;
+  font-size: 1.15rem;
+  box-shadow: 0 2px 6px #212a4136;
+}
+
+#currentSetting .card {
+  background: #f2f6fa;
+  border-left: 4px solid #397dfa;
+}
+body.dark-mode #currentSetting .card {
+  background: #181f31;
+  border-left: 4px solid #ffd166;
+}
+
+#currentSetting pre {
+  background: transparent;
+  color: #4175fc;
+  font-size: 0.99rem;
+  padding-left: 0;
+  margin-bottom: 0;
+  border: none;
+  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+}
+body.dark-mode #currentSetting pre {
+  color: #ffd166;
+}
+
+@media (max-width: 1500px) {
+  .container {
+    padding: 12px !important;
+  }
+}
+
+/* --- GPT Prompt 專用卡片與表單寬度 --- */
+.gpt-mapping-card,
+.gpt-mapping-card1 {
+  width: 100vw;
+  max-width: 1200px;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  border-radius: 1.2rem;
+  box-shadow: 0 0.25rem 2rem 0 rgba(24,56,104,0.10);
+  padding-left: 2.5rem;
+  padding-right: 2.5rem;
+}
+
+#currentSetting .row {
+  border-bottom: 1px solid #3331;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+#currentSetting .row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+#gptPromptForm {
+  width: 100%;
+  max-width: 2400px;
+
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  border-radius: 1.2rem;
+  background: #ffffff;
+  padding: 35px;
+  position: relative;
+}
+
+#mappingForm {
+  width: 100%;
+  max-width: 2400px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  border-radius: 1.2rem;
+  background: #ffffff;
+  padding: 35px;
+  position: relative;
+}
+
+
+/* --- 深色模式表單 & 卡片 --- */
+body.dark-mode .gpt-mapping-card,
+body.dark-mode .gpt-mapping-card1,
+body.dark-mode #gptPromptForm,
+body.dark-mode #mappingForm {
+  background: #181f31;
+  box-shadow: 0 0.25rem 2rem 0 rgba(32, 50, 120, 0.23);
+  border: none;
+}
+
+/* 深色表單內容 */
+body.dark-mode #gptPromptForm,
+body.dark-mode #mappingForm {
+  background: #232b46;
+  color: #ffe4a0;
+  box-shadow: 0 12px 32px rgba(42, 56, 100, 0.28);
+}
+
+body.dark-mode .gpt-mapping-card .card-body,
+body.dark-mode .gpt-mapping-card1 .card-body {
+  background: #232b46;
+  color: #ffd166;
+}
+
+/* label, input, select 強化對比 */
+body.dark-mode .form-label,
+body.dark-mode label.col-form-label {
+  color: #ffd166;
+}
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+  background: #181f31 !important;
+  color: #ffeeb5 !important;
+  border: 1.5px solid #3e4c72;
+  box-shadow: none;
+}
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+  border-color: #ffd166 !important;
+  background: #202744 !important;
+  color: #ffeebb !important;
+}
+
+body.dark-mode .btn-primary,
+body.dark-mode .btn-success {
+  background: #ffd166;
+  color: #232b46;
+  border: none;
+}
+body.dark-mode .btn-primary:hover,
+body.dark-mode .btn-success:hover {
+  background: #ffe08c;
+  color: #232b46;
+}
+
+.gpt-section-title {
+  color: #4669e8;            /* 預設淺色模式的主色（微微偏深藍紫） */
+  letter-spacing: 0.02em;
+  font-weight: 700;
+}
+
+body.dark-mode .gpt-section-title {
+  color: #ffa950;            /* 深色模式下可選亮橘/亮黃/亮藍，看你主視覺 */
+  /* 常見亮色 #ffa950、#ffd166、#82b1ff、#7ecbff 都可以 */
+}
+
+.gpt-muted-desc {
+  color: #6c757d; /* Bootstrap .text-muted 預設灰 */
+}
+
+body.dark-mode .gpt-muted-desc {
+  color: #ffd166;  /* 深色模式下亮黃色橘，或改用 #ffcb69 #ffe082 #b0dfff 都行 */
+  /* 你也可以改成 #aad7ff #89e5f5 #f7e685 這類亮色 */
+}
+
+.gpt-textarea {
+  background-color: #fff;
+  color: #232323;
+  border-radius: 0.5rem;
+  font-size: 1.03rem;
+  transition: background 0.2s, color 0.2s;
+}
+
+body.dark-mode .gpt-textarea {
+  background-color: #191a2a;   /* 深藍黑或 #212339 */
+  color: #ffd166;              /* 亮色文字，黃或亮藍都可以 */
+  border: 1px solid #ffd166;   /* 或亮藍 #7ecbff、#82b1ff */
+}
+
+.gpt-textarea::placeholder {
+  color: #a9a9a9;
+  opacity: 1;
+}
+
+body.dark-mode .gpt-textarea::placeholder {
+  color: #ffefab;
+  opacity: 0.85;
+}
+
+
+.dashboard-block {
+  display: flex;
+  align-items: stretch;
+  gap: 22px;
+  background: linear-gradient(120deg, #f8faff 80%, #e2ecf7 100%);
+  border-radius: 1.4rem;
+  box-shadow: 0 2px 16px rgba(54, 91, 170, 0.08);
+  padding: 28px 28px 22px 32px;
+  margin-bottom: 30px;
+  transition: box-shadow 0.22s;
+  border-left: 8px solid #377dff;
+  min-height: 200px;
+  position: relative;
+}
+
+/* Solution 專屬卡片 */
+.dashboard-block-solution {
+  border-left: 8px solid #377dff;
+  background: linear-gradient(120deg, #f8faff 80%, #e2ecf7 100%);
+  margin-left: 20px;
+
+}
+.dashboard-block-solution .dash-icon {
+  background: linear-gradient(135deg, #377dff, #52a6ff);
+}
+
+/* AI Summary 專屬卡片 */
+.dashboard-block-summary {
+  border-left: 8px solid #ffd600;
+  background: linear-gradient(120deg, #fffbe7 80%, #fff7d1 100%);
+  height:max-content;
+  margin-left: 40px;
+}
+.dashboard-block-summary .dash-icon {
+  background: linear-gradient(135deg, #ffe07a, #ffc531);
+  color: #876700;
+}
+
+.dash-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+/* .dashboard-block + .dashboard-block {
+  margin-top: 10px;
+} */
+
+.dashboard-flex-row {
+  display: flex;
+  gap: 100px;
+  align-items: stretch;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.dashboard-flex-row .dashboard-block {
+  flex: 1 1 350px;
+  min-width: 320px;
+  max-width: 520px;
+  margin-bottom: 0;
+}
+@media (max-width: 1050px) {
+  .dashboard-flex-row .dashboard-block {
+    min-width: 240px;
+    flex: 1 1 100%;
+    margin-bottom: 18px;
+  }
+  .dashboard-flex-row {
+    gap: 16px;
+  }
+}
+
+.dash-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 66px;
+  height: 66px;
+  font-size: 2.2rem;
+  border-radius: 50%;
+  color: #fff;
+  margin-right: 10px;
+  box-shadow: 0 0 10px rgba(54, 91, 170, 0.14);
+  flex-shrink: 0;
+}
+
+.bg-blue { background: linear-gradient(135deg, #377dff, #52a6ff); }
+.bg-yellow { background: linear-gradient(135deg, #ffe07a, #ffc531); color: #876700; }
+
+.dash-title {
+  font-size: 1.24rem;
+  font-weight: 800;
+  color: #3b5bbf;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+  text-shadow: 0 1px 0 #fff;
+}
+.dash-prompt-label {
+  font-size: 0.96rem;
+  color: #7084aa;
+  font-weight: 600;
+  margin-bottom: 2px;
+  margin-top: 6px;
+}
+.dash-prompt-text {
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: #18407e;
+  background: rgba(80,120,200,0.08);
+  border-radius: 0.7em;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  word-break: break-all;
+  box-shadow: 0 1px 2px rgba(55,125,255,0.03);
+}
+
+.dash-meta {
+  font-size: 0.98rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dash-meta-label {
+  color: #4b79ae;
+  font-weight: 600;
+  margin-right: 5px;
+}
+.dash-meta-value {
+  background: #e7fff3;
+  color: #157e4d;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-weight: 700;
+}
+
+
+
+.bg-yellow .fa-lightbulb {
+  color: #fff000;
+}
+
+/* 深色模式 - 共用 */
+body.dark-mode .dashboard-block {
+  background: linear-gradient(120deg, #191f38 80%, #222641 100%);
+  border-left: 8px solid #5ad1f7;
+  box-shadow: 0 2px 18px rgba(60, 90, 170, 0.14);
+}
+
+/* 深色模式 - Solution */
+body.dark-mode .dashboard-block-solution {
+  border-left: 8px solid #5ad1f7;
+  background: linear-gradient(120deg, #191f38 80%, #222641 100%);
+}
+body.dark-mode .dashboard-block-solution .dash-icon {
+  background: linear-gradient(135deg, #298de1, #29e0e7);
+}
+
+/* 深色模式 - Summary */
+body.dark-mode .dashboard-block-summary {
+  border-left: 8px solid #ffe37a;
+  background: linear-gradient(120deg, #23221b 80%, #292915 100%);
+}
+body.dark-mode .dashboard-block-summary .dash-icon {
+  background: linear-gradient(135deg, #ffe37a, #ffcb52);
+  color: #4c3900;
+}
+
+body.dark-mode .dash-title {
+  color: #7db5ff;
+  text-shadow: none;
+}
+body.dark-mode .dash-prompt-text {
+  background: rgba(45,160,230,0.18);
+  color: #e8f6ff;
+}
+body.dark-mode .dash-prompt-label {
+  color: #a0bbf7;
+}
+body.dark-mode .dash-meta-label {
+  color: #99e2ff;
+}
+body.dark-mode .dash-meta-value {
+  background: #142e2d;
+  color: #45fba3;
+}
+
+.dash-prompt-text summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: #444;
+}
+body.dark-mode .dash-prompt-text summary {
+  color: #ccc;
+}
+
+@keyframes dotsAnimation {
+  0%   { content: ""; }
+  33%  { content: "."; }
+  66%  { content: ".."; }
+  100% { content: "..."; }
+}
+
+#kbStatusBar .dots::after {
+  content: "";
+  animation: dotsAnimation 1.5s infinite steps(3, end);
+}
+
+body.dark-mode #kbStatusBar .dots::after {
+  color: #ffe082;
+}
+

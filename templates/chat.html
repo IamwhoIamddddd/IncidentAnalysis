@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>🔧 離線 GPT 聊天室</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/FrontEndCss.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_ui.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="dark-mode">
+  <div id="kbStatusBar" style="
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px;
+  font-weight: bold;
+  text-align: center;
+  z-index: 9999;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+  overflow: hidden;
+">
+  正在建立知識庫，請稍候<span class="dots"></span>
+</div>
+
+
+<!-- ✅ Modal：資料處理中（含 spacing 微調） -->
+<div class="modal fade" id="kbLockModal" tabindex="-1"
+     data-bs-backdrop="static" data-bs-keyboard="false"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow border-0 rounded-4 bg-dark text-light">
+      <div class="modal-body text-center p-5">
+        <div class="fs-1 mb-3">⏳</div>
+        <h4 id="kbLockModalBody" class="fw-bold mb-3">資料正在處理中，請稍候...</h4>
+        <button type="button" class="btn btn-outline-light px-4 mt-4" data-bs-dismiss="modal">我知道了</button>
+      </div>
+    </div>
+  </div>
+</div>
+ 
+
+
+
+
+
+<!-- ✅ Modal：訊息發送成功提示 -->
+<div class="modal fade" id="chatSuccessModal" tabindex="-1" aria-labelledby="chatSuccessLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow border-0 rounded-4 bg-dark text-light">
+      <div class="modal-body text-center p-5">
+        <div class="fs-1 mb-3">✅</div>
+        <h4 class="fw-bold mb-3">訊息已發送成功</h4>
+        <p class="mb-4">您已成功與離線 GPT 模型互動 🎉</p>
+        <button type="button" class="btn btn-outline-light px-4" data-bs-dismiss="modal">我知道了</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- 📦 Modal：建置完成提示（深色模式友善 + 無右上角） -->
+<div class="modal fade" id="kbFinishedModal" tabindex="-1" aria-labelledby="kbFinishedLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4" id="kbModalContent">
+      <div class="modal-body text-center p-5">
+        <div class="fs-1 mb-3">✅</div>
+        <h4 class="fw-bold mb-3">知識庫已建立完成</h4>
+        <p class="mb-4">剛才的分析結果已成功加入知識庫，您可以繼續使用系統 🎉</p>
+        <button type="button" class="btn btn-success px-4" data-bs-dismiss="modal">我知道了</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+  <!-- 側邊欄 -->
+  <div class="sidebar" id="sidebar">
+    <h4>功能選單</h4>
+    <ul>
+      <li onclick="navigateTo1('upload')"><i class="fas fa-upload"></i> 上傳分析</li>
+      <li onclick="navigateTo1('result')"><i class="fas fa-chart-line"></i> 分析結果</li>
+      <li onclick="navigateTo1('history')"><i class="fas fa-history"></i> 歷史紀錄</li>
+      <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
+      <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
+      <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
+      <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+    </ul>
+    <div class="sidebar-bottom">
+      <button type="button" id="toggleDarkMode" class="dark-mode-btn">🌙 深色模式</button>
+    </div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle">←</button>
+  </div>
+
+
+
+
+
+  <!-- 主畫面兩欄 -->
+  <div class="container-fluid d-flex" style="height: 100vh; padding-left: 240px;">
+
+
+
+
+
+    <!-- 左欄：歷史紀錄 -->
+<div id="chatHistorySidebar" class="p-3" style="width: 260px; overflow-y: auto;">
+  <h5 class="mb-3">📚 歷史對話</h5>
+
+  
+
+  <!-- 搜尋框 -->
+  <div class="search-wrapper mb-3">
+    <input
+      type="text"
+      id="historySearchInput"
+      class="form-control styled-search"
+      placeholder="🔍 搜尋歷史話題..."
+    />
+  </div>
+
+  <!-- 歷史清單 -->
+  <ul id="historyListUI" class="list-group list-group-flush"></ul>
+</div>
+
+
+
+
+
+
+
+    <!-- 右欄：聊天主區 -->
+    <div class="flex-grow-1 p-4 d-flex flex-column">
+      <h2 class="main-title">🤖 OfflineAgent</h2>
+
+      <!-- 模型選擇 -->
+      <div class="mb-3">
+        <label for="modelSelect" class="form-label">選擇使用的 GPT 模型：</label>
+        <select id="modelSelect" class="form-select">
+                  <option value="orca2">orca2:latest（約 GPT-4 Mini）</option>
+                  <option value="tinyllama">tinyllama:latest（約 GPT-3 Mini）</option>
+                  <option value="phi4-mini">phi4-mini:latest（約 GPT-3.5 Mini+）</option>
+                  <option value="phi4">phi4:latest（約 GPT-3.5～4）</option>
+                  <option value="gemma-2b">gemma:2b（約 GPT-3 Mini）</option>
+                  <option value="gemma-7b">gemma:7b（約 GPT-3.5）</option>
+                  <option value="llama3-8b">llama3:8b（約 GPT-3.5）</option>
+                  <option value="phi3:mini">phi3:mini（約 GPT-3.5 Mini）</option>
+                  <option value="mistral">mistral:latest（約 GPT-3.5）</option>
+                  <option value="custom">📝 自行輸入</option>
+        </select>
+      </div>
+
+      <!-- 聊天訊息框 -->
+      <div id="chatBox" class="chat-box flex-grow-1 mb-3"></div>
+
+      <!-- 控制區 -->
+<div class="d-flex justify-content-start gap-2 mb-3">
+  <button id="clearChatBtn" class="btn btn-outline-danger btn-sm">🧹 清空紀錄</button>
+<button id="showHistoryBtn" class="btn btn-outline-secondary btn-sm">📂 收合歷史</button>
+</div>
+
+      <div id="chatHistoryList" class="mb-4" style="display:none;">
+        <ul id="historyListUI" class="list-group"></ul>
+      </div>
+
+      <!-- 輸入表單 -->
+      <form id="chatForm" class="d-flex gap-2">
+<textarea id="chatInput" class="form-control" rows="1" placeholder="輸入訊息..." required></textarea>
+<button type="submit" id="submitBtn" class="btn btn-primary">送出</button>
+      </form>
+    </div>
+  </div>
+
+
+
+  
+
+  <!-- JS -->
+  <script src="{{ url_for('static', filename='js/chat_ui.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
+
+</body>
+</html>

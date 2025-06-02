@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>語意比對語句管理</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/FrontEndCss.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/manual_input.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="dark-mode">
+
+<div id="kbStatusBar" style="
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px;
+  font-weight: bold;
+  text-align: center;
+  z-index: 9999;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+  overflow: hidden;
+">
+  正在建立知識庫，請稍候<span class="dots"></span>
+</div>
+
+
+
+
+<!-- 📦 Modal：建置完成提示（深色模式友善 + 無右上角） -->
+<div class="modal fade" id="kbFinishedModal" tabindex="-1" aria-labelledby="kbFinishedLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4" id="kbModalContent">
+      <div class="modal-body text-center p-5">
+        <div class="fs-1 mb-3">✅</div>
+        <h4 class="fw-bold mb-3">知識庫已建立完成</h4>
+        <p class="mb-4">剛才的分析結果已成功加入知識庫，您可以繼續使用系統 🎉</p>
+        <button type="button" class="btn btn-success px-4" data-bs-dismiss="modal">我知道了</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <h4>功能選單</h4>
+    <ul>
+      <li onclick="navigateTo1('upload')"><i class="fas fa-upload"></i> 上傳分析</li>
+      <li onclick="navigateTo1('result')"><i class="fas fa-chart-line"></i> 分析結果</li>
+      <li onclick="navigateTo1('history')"><i class="fas fa-history"></i> 歷史紀錄</li>
+      <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
+      <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
+      <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
+      <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+
+    </ul>
+    <div class="sidebar-bottom">
+      <button type="button" id="toggleDarkMode" class="dark-mode-btn">🌙 深色模式</button>
+    </div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle">←</button>
+  </div>
+
+  <!-- Main Container -->
+  <div class="container-fluid">
+    <div class="container">
+      <h2 class="main-title">📚 語意比對語句管理</h2>
+
+      <!-- Input Form -->
+      <div class="card mb-5 shadow">
+        <div class="card-body">
+          <form id="sentenceForm">
+            <div class="mb-3">
+              <label for="sentenceText" class="form-label">輸入語句：</label>
+              <input type="text" id="sentenceText" class="form-control" required>
+              <small class="form-text text-muted">※ 輸入時自動去除多餘空白、引號，逗號分隔多句會自動分開儲存</small>
+
+            </div>
+            <div class="mb-3">
+              <label for="sentenceTag" class="form-label">選擇分類：</label>
+              <select id="sentenceTag" class="form-select">
+                <option value="high_risk">高風險</option>
+                <option value="escalate">升級</option>
+                <option value="multi_user">影響多人</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">➕ 儲存語句</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Existing Sentences -->
+<h3 class="mb-3">📂 現有語句</h3>
+<div class="accordion mb-4" id="sentenceAccordion">
+  <div class="accordion-item">
+    <h2 class="accordion-header" id="headingSentences">
+      <button class="accordion-button collapsed" type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#collapseSentences"
+        aria-expanded="false"
+        aria-controls="collapseSentences"
+        id="toggleAccordionBtn">  <!-- 新增 id -->
+        點擊展開
+      </button>
+    </h2>
+    <div id="collapseSentences" class="accordion-collapse collapse"
+         aria-labelledby="headingSentences"
+         data-bs-parent="#sentenceAccordion">
+      <div class="accordion-body">
+        <div id="existingSentences" class="row g-4"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content dark-aware-modal">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editModalLabel">✏️ 編輯語句</h5>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editTag">
+          <input type="hidden" id="editOldText">
+          <div class="mb-3">
+            <label for="editNewText" class="form-label">新的語句：</label>
+            <input type="text" class="form-control" id="editNewText">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="saveEditBtn">💾 儲存變更</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='js/manual_input.js') }}"></script>
+
+</body>
+</html>
