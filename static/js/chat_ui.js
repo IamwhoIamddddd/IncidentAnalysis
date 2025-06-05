@@ -3,12 +3,26 @@
 
 
 function renderMessage(content) {
-  if (content.includes("<img")) return content;  // 若是圖表 HTML，直接回傳
-  return content
-    .replace(/```([^`]+)```/gs, '<pre><code>$1</code></pre>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\n/g, "<br>");
+  if (content.includes("<img")) return content;
+
+  // 分段切割，遇到 code block 就特殊處理
+  let parts = content.split(/```([^`]+)```/gs);
+  // parts 會是 ["前文", "codeblock1", "中間文", "codeblock2", ...]
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 2 === 0) {
+      // 非 code block，正常處理
+      parts[i] = parts[i]
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n/g, "<br>");
+    } else {
+      // code block，本身就是多行，保留原始格式
+      parts[i] = `<pre><code>${parts[i]}</code></pre>`;
+    }
+  }
+  return parts.join("");
 }
+
+
 
 
 
@@ -302,7 +316,7 @@ successModal.show();
       }
 
       tempReply += finalChars[i++];
-      contentSpan.textContent = tempReply;
+  contentSpan.innerHTML = renderMessage(tempReply); // ← 用 innerHTML+renderMessage
       scrollToBottom();
     }, 5);
 

@@ -57,10 +57,25 @@ body {
 
 /* 淺色模式 - GPT 機器人訊息 */
 #chatBox .msg.bot {
-  background-color: #e3f2fd;
+  background-color: #f9f3fd;
   color: #1a237e;
   align-self: flex-start;
   margin-right: auto;
+
+  /* ✅ 最佳寬度控制 */
+  max-width: 800px;
+  min-width: 200px;
+
+  /* ✅ 自動撐高 */
+  /* 不需要設定 min-height 或 max-height，預設會根據內容撐高 */
+
+  padding: 10px 14px;
+  border-radius: 8px;
+
+  /* ✅ 文字與排版處理 */
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
 }
 
 .msg {
@@ -85,11 +100,8 @@ body {
   text-align: right;
   color: #1e88e5;
 }
-.msg.bot {
-    align-self: flex-start;
-  text-align: left;
-  color: #6a1b9a;
-}
+
+
 .msg .timestamp {
   display: block;
   font-size: 12px;
@@ -116,7 +128,11 @@ body {
   font-family: Consolas, monospace;
   margin-top: 8px;
   line-height: 1.5;
+  max-width: 100%;
+  max-height: 50%;
+
 }
+
 
 #chatForm {
   display: flex;
@@ -450,3 +466,6 @@ body.dark-mode .btn-light {
 body.dark-mode .btn-light:hover {
   background-color: #666;
 }
+
+
+
