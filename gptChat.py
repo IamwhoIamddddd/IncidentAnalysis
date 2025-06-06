@@ -35,9 +35,7 @@ kb_model, kb_index, kb_texts = load_kb()
 # ----------- 知識庫摘要壓縮 -----------
 
 
-
-def summarize_retrieved_kb(retrieved, primary_model="orca2:13b"):
-    print("🔍 開始知識庫摘要處理...")
+def summarize_retrieved_kb(retrieved, model="orca2:13b"):
     if not retrieved:
         print("⚠️ 無資料可摘要（retrieved 為空）")
         return ""
@@ -54,20 +52,15 @@ def summarize_retrieved_kb(retrieved, primary_model="orca2:13b"):
         "deepseek-coder-v2:latest": 16384,
         "deepseek-coder:latest": 16384,
     }
-
-    fallback_models = ["nous-hermes2:10.7b", "mistral", "phi4:mini"]
-    token_limit = model_token_limits.get(primary_model, 4096)
+    token_limit = model_token_limits.get(model, 4096)
     prompt_reserve = 500
     available_tokens = token_limit - prompt_reserve
-    print(f"🧠 模型 {primary_model} 可用 token 限制：{available_tokens}")
     def estimate_token(text):
         return int(len(text) / 4)
     # 分段
-
     groups = []
     group = []
     token_sum = 0
-
     for text in retrieved:
         tokens = estimate_token(text)
         if token_sum + tokens > available_tokens and group:
@@ -79,23 +72,6 @@ def summarize_retrieved_kb(retrieved, primary_model="orca2:13b"):
             token_sum += tokens
     if group:
         groups.append(group)
-    def try_models(prompt):
-        for model in [primary_model] + fallback_models:
-            try:
-                print(f"🧠 使用模型摘要：{model}")
-                result = subprocess.run(
-                    ["ollama", "run", model],
-                    input=prompt.encode("utf-8"),
-                    capture_output=True,
-                    timeout=240  # 設定較長的 timeout 以避免超時
-                )
-                if result.returncode == 0:
-                    return result.stdout.decode("utf-8").strip()
-                else:
-                    print(f"⚠️ 模型 {model} 摘要失敗")
-            except Exception as e:
-                print(f"❌ 模型 {model} 錯誤：{e}")
-        return "❌ 全部模型摘要失敗"
     # 對每段進行摘要
     chunk_summaries = []
     for i, group in enumerate(groups, 1):
@@ -103,13 +79,38 @@ def summarize_retrieved_kb(retrieved, primary_model="orca2:13b"):
         for j, txt in enumerate(group, 1):
             prompt += f"{j}. {txt.strip()}\n"
         prompt += "\nPlease provide a single summary paragraph:"
-        reply = try_models(prompt)
-        chunk_summaries.append(reply)
-        print(f"✅ 第 {i} 組摘要完成")
+        try:
+            result = subprocess.run(
+                ["ollama", "run", model],
+                input=prompt.encode("utf-8"),
+                capture_output=True,
+                timeout=600
+            )
+            if result.returncode == 0:
+                reply = result.stdout.decode("utf-8").strip()
+                chunk_summaries.append(reply)
+                print(f"✅ 摘要完成（第 {i} 組）")
+            else:
+                print(f"⚠️ 第 {i} 組摘要失敗，嘗試使用 fallback 模型 nous-hermes2:10.7b...")
+                fallback_result = subprocess.run(
+                    ["ollama", "run", "nous-hermes2:10.7b"],
+                    input=prompt.encode("utf-8"),
+                    capture_output=True,
+                    timeout=600
+                )
+                if fallback_result.returncode == 0:
+                    reply = fallback_result.stdout.decode("utf-8").strip()
+                    chunk_summaries.append(reply)
+                    print(f"✅ Fallback 成功（第 {i} 組）")
+                else:
+                    chunk_summaries.append("❌ 本段摘要失敗")
+        except Exception as e:
+            print(f"❌ 第 {i} 段呼叫模型失敗：{e}")
+            chunk_summaries.append("❌ 摘要失敗")
+    # 若只剩一組摘要，直接回傳
     if len(chunk_summaries) == 1:
         return chunk_summaries[0]
-    # 合併摘要遞迴
-
+    # 再次檢查是否會超出 token 限制
     def recursive_merge(summaries):
         available_tokens = token_limit - prompt_reserve
         merged_groups = []
@@ -132,10 +133,36 @@ def summarize_retrieved_kb(retrieved, primary_model="orca2:13b"):
             for j, s in enumerate(group, 1):
                 merge_prompt += f"（第 {j} 段摘要）{s}\n\n"
             merge_prompt += "Please provide an overall concluding observation:"
-            reply = try_models(merge_prompt)
-            results.append(reply)
+            try:
+                result = subprocess.run(
+                    ["ollama", "run", model],
+                    input=merge_prompt.encode("utf-8"),
+                    capture_output=True,
+                    timeout=600
+                )
+                if result.returncode == 0:
+                    results.append(result.stdout.decode("utf-8").strip())
+                else:
+                    print(f"⚠️ 合併失敗（第 {i} 組），fallback 使用 nous-hermes2:10.7b...")
+                    fallback = subprocess.run(
+                        ["ollama", "run", "nous-hermes2:10.7b"],
+                        input=merge_prompt.encode("utf-8"),
+                        capture_output=True,
+                        timeout=600
+                    )
+                    if fallback.returncode == 0:
+                        results.append(fallback.stdout.decode("utf-8").strip())
+                    else:
+                        results.append("❌ 合併失敗")
+            except Exception as e:
+                print(f"❌ 合併摘要時錯誤：{e}")
+                results.append("❌ 合併摘要錯誤")
         return results[0] if len(results) == 1 else recursive_merge(results)
     return recursive_merge(chunk_summaries)
+
+
+
+
 
 def determine_top_k_with_llm(user_input, fallback=3, min_top_k=1, max_top_k=10):
     print("🧠 使用 LLM 預測合適的 top_k 數量...")
