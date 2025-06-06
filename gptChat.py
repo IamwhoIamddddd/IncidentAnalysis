@@ -36,33 +36,38 @@ kb_model, kb_index, kb_texts = load_kb()
 
 
 
-
-def summarize_retrieved_kb(retrieved, model="phi4-mini"):
+def summarize_retrieved_kb(retrieved, primary_model="orca2:13b"):
+    print("🔍 開始知識庫摘要處理...")
     if not retrieved:
         print("⚠️ 無資料可摘要（retrieved 為空）")
         return ""
-
     print("🧠 正在進行分段摘要處理（retrieved KB）...")
     print(f"📦 輸入筆數：{len(retrieved)}")
-
     model_token_limits = {
+        "orca2:13b": 8192,
+        "nous-hermes2:10.7b": 8192,
+        "mistral": 8192,
         "phi4-mini": 4096,
         "phi3:mini": 4096,
-        "mistral": 8192,
+        "command-r7b:latest": 4096,
+        "openchat:7b": 4096,
+        "deepseek-coder-v2:latest": 16384,
         "deepseek-coder:latest": 16384,
-        "deepseek-coder-v2": 16384,
     }
-    token_limit = model_token_limits.get(model, 4096)
+
+    fallback_models = ["nous-hermes2:10.7b", "mistral", "phi4:mini"]
+    token_limit = model_token_limits.get(primary_model, 4096)
     prompt_reserve = 500
     available_tokens = token_limit - prompt_reserve
-
+    print(f"🧠 模型 {primary_model} 可用 token 限制：{available_tokens}")
     def estimate_token(text):
         return int(len(text) / 4)
-
     # 分段
+
     groups = []
     group = []
     token_sum = 0
+
     for text in retrieved:
         tokens = estimate_token(text)
         if token_sum + tokens > available_tokens and group:
@@ -74,7 +79,23 @@ def summarize_retrieved_kb(retrieved, model="phi4-mini"):
             token_sum += tokens
     if group:
         groups.append(group)
-
+    def try_models(prompt):
+        for model in [primary_model] + fallback_models:
+            try:
+                print(f"🧠 使用模型摘要：{model}")
+                result = subprocess.run(
+                    ["ollama", "run", model],
+                    input=prompt.encode("utf-8"),
+                    capture_output=True,
+                    timeout=240  # 設定較長的 timeout 以避免超時
+                )
+                if result.returncode == 0:
+                    return result.stdout.decode("utf-8").strip()
+                else:
+                    print(f"⚠️ 模型 {model} 摘要失敗")
+            except Exception as e:
+                print(f"❌ 模型 {model} 錯誤：{e}")
+        return "❌ 全部模型摘要失敗"
     # 對每段進行摘要
     chunk_summaries = []
     for i, group in enumerate(groups, 1):
@@ -82,47 +103,18 @@ def summarize_retrieved_kb(retrieved, model="phi4-mini"):
         for j, txt in enumerate(group, 1):
             prompt += f"{j}. {txt.strip()}\n"
         prompt += "\nPlease provide a single summary paragraph:"
-
-        try:
-            result = subprocess.run(
-                ["ollama", "run", model],
-                input=prompt.encode("utf-8"),
-                capture_output=True,
-                timeout=600
-            )
-            if result.returncode == 0:
-                reply = result.stdout.decode("utf-8").strip()
-                chunk_summaries.append(reply)
-                print(f"✅ 摘要完成（第 {i} 組）")
-            else:
-                print(f"⚠️ 第 {i} 組摘要失敗，嘗試使用 fallback 模型 phi3:mini...")
-                fallback_result = subprocess.run(
-                    ["ollama", "run", "phi3:mini"],
-                    input=prompt.encode("utf-8"),
-                    capture_output=True,
-                    timeout=600
-                )
-                if fallback_result.returncode == 0:
-                    reply = fallback_result.stdout.decode("utf-8").strip()
-                    chunk_summaries.append(reply)
-                    print(f"✅ Fallback 成功（第 {i} 組）")
-                else:
-                    chunk_summaries.append("❌ 本段摘要失敗")
-        except Exception as e:
-            print(f"❌ 第 {i} 段呼叫模型失敗：{e}")
-            chunk_summaries.append("❌ 摘要失敗")
-
-    # 若只剩一組摘要，直接回傳
+        reply = try_models(prompt)
+        chunk_summaries.append(reply)
+        print(f"✅ 第 {i} 組摘要完成")
     if len(chunk_summaries) == 1:
         return chunk_summaries[0]
+    # 合併摘要遞迴
 
-    # 再次檢查是否會超出 token 限制
     def recursive_merge(summaries):
         available_tokens = token_limit - prompt_reserve
         merged_groups = []
         group = []
         token_count = 0
-
         for s in summaries:
             t = estimate_token(s)
             if token_count + t > available_tokens and group:
@@ -134,48 +126,19 @@ def summarize_retrieved_kb(retrieved, model="phi4-mini"):
                 token_count += t
         if group:
             merged_groups.append(group)
-
         results = []
         for i, group in enumerate(merged_groups, 1):
             merge_prompt = "Based on the following summaries, please synthesize the main insights:\n\n"
             for j, s in enumerate(group, 1):
                 merge_prompt += f"（第 {j} 段摘要）{s}\n\n"
             merge_prompt += "Please provide an overall concluding observation:"
-            try:
-                result = subprocess.run(
-                    ["ollama", "run", model],
-                    input=merge_prompt.encode("utf-8"),
-                    capture_output=True,
-                    timeout=600
-                )
-                if result.returncode == 0:
-                    results.append(result.stdout.decode("utf-8").strip())
-                else:
-                    print(f"⚠️ 合併失敗（第 {i} 組），fallback 使用 phi3:mini")
-                    fallback = subprocess.run(
-                        ["ollama", "run", "phi3:mini"],
-                        input=merge_prompt.encode("utf-8"),
-                        capture_output=True,
-                        timeout=600
-                    )
-                    if fallback.returncode == 0:
-                        results.append(fallback.stdout.decode("utf-8").strip())
-                    else:
-                        results.append("❌ 合併失敗")
-            except Exception as e:
-                print(f"❌ 合併摘要時錯誤：{e}")
-                results.append("❌ 合併摘要錯誤")
-
+            reply = try_models(merge_prompt)
+            results.append(reply)
         return results[0] if len(results) == 1 else recursive_merge(results)
-
     return recursive_merge(chunk_summaries)
 
-
-
-
-def determine_top_k_with_llm(user_input, fallback=3, model="phi4-mini", min_top_k=1, max_top_k=10):
+def determine_top_k_with_llm(user_input, fallback=3, min_top_k=1, max_top_k=10):
     print("🧠 使用 LLM 預測合適的 top_k 數量...")
-
     prompt = (
         "You are a knowledge retrieval assistant. Based on the user's question, decide how many similar cases (top_k) should be retrieved from the knowledge base.\n\n"
         "Guidelines:\n"
@@ -185,31 +148,34 @@ def determine_top_k_with_llm(user_input, fallback=3, model="phi4-mini", min_top_
         "- Only reply with a **single integer** between 1 and 10. Do not add explanation.\n\n"
         f"User question: {user_input}\n\nAnswer:"
     )
+ 
+    def try_model(model_name):
+        try:
+            print(f"🧠 嘗試模型：{model_name}")
+            result = subprocess.run(
+                ["ollama", "run", model_name],
+                input=prompt.encode("utf-8"),
+                capture_output=True,
+                timeout=240  # 設定較長的 timeout 以避免超時
+            )
+            if result.returncode == 0:
+                reply = result.stdout.decode("utf-8").strip()
+                print(f"📥 模型回覆：{reply}")
+                match = re.search(r"\b([1-9]|10)\b", reply)
+                if match:
+                    top_k = int(match.group(1))
+                    return max(min_top_k, min(top_k, max_top_k))
+        except Exception as e:
+            print(f"❌ 模型 {model_name} 失敗：{e}")
+        return None
+    for model in ["command-r7b:latest", "openchat:7b", "phi4-mini"]:
+        top_k = try_model(model)
+        if top_k:
+            return top_k
+    print("⚠️ 全部模型失敗，使用 fallback")
+    return fallback
 
-    try:
-        result = subprocess.run(
-            ["ollama", "run", model],
-            input=prompt.encode("utf-8"),
-            capture_output=True,
-            timeout=60
-        )
-
-        if result.returncode == 0:
-            reply = result.stdout.decode("utf-8").strip()
-            print(f"📥 LLM 回覆的 top_k 數值為：{reply}")
-            try:
-                top_k = int(reply)
-                # Enforce bounds
-                top_k = max(min_top_k, min(top_k, max_top_k))
-                return top_k
-            except:
-                pass
-        print("⚠️ 無法解析 top_k，改用 fallback")
-        return fallback
-
-    except Exception as e:
-        print(f"❌ 呼叫 LLM 判斷 top_k 失敗：{e}")
-        return fallback
+ 
 
 
 
@@ -282,11 +248,12 @@ def classify_query_type(message):
             print(f"❌ 模型 {model_name} 錯誤：{str(e)}")
             return None
 
-    # 嘗試先用 phi4-mini，再 fallback 用 phi3:mini
-    reply = try_model("phi4-mini", timeout_sec=120)
+    # 嘗試先用 command-r7b:latest，再 fallback 用 openchat:7b
+    reply = try_model("command-r7b:latest", timeout_sec=120)
     if not reply:
-        print("⚠️ phi4-mini 回覆失敗，改用 phi3:mini")
-        reply = try_model("phi3:mini", timeout_sec=120)
+        print("⚠️ command-r7b:latest 回覆失敗，改用 openchat:7b")
+        reply = try_model("openchat:7b", timeout_sec=120)
+        print(f"🔄 嘗試使用 openchat:7b 模型進行分類...")
 
     if not reply:
         print("⚠️ 無法取得分類結果，預設為 Semantic Query")
@@ -690,7 +657,7 @@ def save_query_context(chat_id, query, result_type, filter_info=None, result_sum
 
 
 
-# ----------- 延伸查詢處理 -----------
+# ----------- 延伸查詢處理 ----------- (not completed)
 def is_follow_up_query(message: str) -> bool:
     print("🧠 判斷是否為追問查詢...")
     print(f"📝 輸入訊息：{message}")
@@ -709,7 +676,7 @@ def is_follow_up_query(message: str) -> bool:
 
 
 
-# 處理追問查詢
+# 處理追問查詢 (not completed)
 def handle_follow_up(chat_id, message):
     filepath = f"chat_history/{chat_id}.json"
     print(f"📂 嘗試讀取歷史記錄：{filepath}")
@@ -870,7 +837,15 @@ def build_sql_prompt(user_question):
     prompt = f"{schema_info}\n\nUser question: {user_question}\nSQL:"
     return prompt
 
-def generate_sql_with_llm(prompt, model="mistral"):
+
+#產生 SQL 查詢語句
+
+def generate_sql_with_llm(prompt, model="deepseek-coder-v2:latest"):
+    print("🧠 嘗試使用 LLM 產生 SQL 查詢語句...")
+    print(f"📝 使用者輸入：{prompt}")
+    if not prompt.strip():
+        print("⚠️ 提示語句為空，無法產生 SQL")
+        return None
     try:
         print("🚀 呼叫模型產生 SQL 中...")
         result = subprocess.run(
@@ -980,7 +955,8 @@ def calculate_dynamic_chunk_size(df, model_name="phi4-mini", prompt_reserve_toke
         "mistral": 8192,
         "orca2": 8192,
         "deepseek-coder:latest": 16384,
-        "deepseek-coder-v2": 16384,
+        "orca2-13b": 8192,
+        "deepseek-coder-v2:latest": 16384,
     }
     max_tokens = model_token_limits.get(model_name, 4096)
     tokens_per_row = estimate_tokens_per_row(df)
@@ -993,14 +969,13 @@ def estimate_token_count(text):
     return len(text) // 4
 
 
-
-
-def split_and_merge_summaries(summaries, model, token_limit=4096, prompt_reserve=500):
+def split_and_merge_summaries(summaries, primary_model="orca2:13b", token_limit=8192, prompt_reserve=500):
+    fallback_models = ["nous-hermes2:10.7b", "mistral", "phi3:mini"]
     available_tokens = token_limit - prompt_reserve
     grouped = []
     group = []
     token_count = 0
-
+ 
     for s in summaries:
         s_tokens = estimate_token_count(s)
         if token_count + s_tokens > available_tokens:
@@ -1012,53 +987,49 @@ def split_and_merge_summaries(summaries, model, token_limit=4096, prompt_reserve
             token_count += s_tokens
     if group:
         grouped.append(group)
-
+ 
+    def run_with_model(m, prompt):
+        try:
+            result = subprocess.run(
+                ["ollama", "run", m],
+                input=prompt.encode("utf-8"),
+                capture_output=True,
+                timeout=300
+            )
+            if result.returncode == 0:
+                return result.stdout.decode("utf-8").strip()
+        except Exception as e:
+            print(f"❌ 模型 {m} 發生錯誤：{e}")
+        return None
+ 
     merged_chunks = []
     for i, group in enumerate(grouped, 1):
         merge_prompt = f"You are a data analyst. Please summarize the key points from the following group {i} of summaries:\n\n"
-
         for idx, s in enumerate(group, 1):
             merge_prompt += f"（摘要 {idx}）{s}\n\n"
         merge_prompt += "Please consolidate the main observations:"
-
-        def run_with_model(m):
-            try:
-                result = subprocess.run(
-                    ["ollama", "run", m],
-                    input=merge_prompt.encode("utf-8"),
-                    capture_output=True,
-                    timeout=300
-                )
-                if result.returncode == 0:
-                    return result.stdout.decode("utf-8").strip()
-                else:
-                    print(f"⚠️ 模型 {m} 回傳失敗")
-                    return None
-            except Exception as e:
-                print(f"❌ 模型 {m} 發生錯誤：{e}")
-                return None
-
-        # 嘗試主模型
-        reply = run_with_model(model)
-        if not reply:
-            print("🔁 使用 fallback 模型：phi3:mini")
-            reply = run_with_model("phi3:mini")
-
+ 
+        # 模型輪替呼叫
+        reply = run_with_model(primary_model, merge_prompt)
+        for fallback in fallback_models:
+            if reply:
+                break
+            print(f"🔁 使用 fallback 模型：{fallback}")
+            reply = run_with_model(fallback, merge_prompt)
+ 
         merged_chunks.append(reply if reply else "❌ 本段摘要失敗")
-
+ 
     if len(merged_chunks) == 1:
         return f"📊 GPT 整合摘要如下：\n{merged_chunks[0]}"
     else:
-        return split_and_merge_summaries(merged_chunks, model, token_limit, prompt_reserve)
+        return split_and_merge_summaries(merged_chunks, primary_model, token_limit, prompt_reserve)
 
 
 
 
-
-
-
-
-def summarize_sql_result_with_llm(df, model="phi4-mini"):
+def summarize_sql_result_with_llm(df, model="orca2:13b"):
+    print("🧠 嘗試使用 LLM 進行 SQL 結果摘要...")
+    print(f"📝 資料筆數：{len(df)}")
     if df.empty:
         return "📭 查無資料結果。"
 
@@ -1101,7 +1072,8 @@ def summarize_sql_result_with_llm(df, model="phi4-mini"):
         merge_prompt += f"（第 {idx} 段摘要）{s}\n\n"
     merge_prompt += "Please provide the key insights and observations:"
 
-    def run_with_fallback(prompt, primary_model, fallback_model="phi3:mini"):
+    def run_with_fallback(prompt, primary_model, fallback_model="deepseek-coder-v2:latest"):
+        print(f"🔍 嘗試使用主模型 {primary_model} 進行整合摘要...")
         try:
             result = subprocess.run(
                 ["ollama", "run", primary_model],
@@ -1118,6 +1090,7 @@ def summarize_sql_result_with_llm(df, model="phi4-mini"):
 
         # 嘗試 fallback 模型
         try:
+            print(f"🔁 使用 fallback 模型 {fallback_model} 進行整合摘要...")
             result = subprocess.run(
                 ["ollama", "run", fallback_model],
                 input=prompt.encode("utf-8"),
@@ -1139,6 +1112,8 @@ def summarize_sql_result_with_llm(df, model="phi4-mini"):
     else:
         print("⚠️ 合併摘要失敗，回傳各段摘要集合")
         return "\n\n".join(chunk_summaries)
+
+
 
 
 # ----------- GPT 主函式 -----------
@@ -1243,10 +1218,10 @@ def run_offline_gpt(message, model="mistral", history=[], chat_id=None):
     else:
         print("[RAG] ⚠️ 未找到相似資料")
 
-    print(f"[🔧 壓縮用模型] 使用模型：phi4-mini")
+    print(f"[🔧 壓縮用模型] 使用模型： orca2:13b")
     print(f"[🎯 回答用模型] 使用模型：{model}")
 
-    kb_context = summarize_retrieved_kb(retrieved, model="phi4-mini")
+    kb_context = summarize_retrieved_kb(retrieved, model="orca2:13b")
     print("📚 知識庫摘要完成")
 
     # 組合對話歷史
