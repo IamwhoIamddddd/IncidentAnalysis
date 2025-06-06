@@ -1144,7 +1144,7 @@ def summarize_sql_result_with_llm(df, model="orca2:13b"):
 
 
 # ----------- GPT 主函式 -----------
-def run_offline_gpt(message, model="mistral", history=[], chat_id=None):
+def run_offline_gpt(message, model="orca2:13b", history=[], chat_id=None):
     print("🟢 啟動 GPT 回答流程...")
     print(f"📝 使用者輸入：{message}")
     print(f"🧠 使用模型：{model} / chat_id: {chat_id}")
