@@ -812,7 +812,7 @@ def helpdesk_ui():
 def chat_with_model():
     data = request.get_json()
     message = data.get("message", "")
-    model = data.get("model", "mistral")
+    model = data.get("model", "mistral") # model 預設是 mistral
     history = data.get("history", [])
     chat_id = data.get("chatId", "")  # ✅ 前端傳入的唯一 ID
 
@@ -843,20 +843,21 @@ def chat_with_model():
             }
         else:
             # 🔁 載入原檔案並追加
-            with open(file_path, "r", encoding="utf-8") as f:
-                chat_record = json.load(f)
+            with open(file_path, "r", encoding="utf-8") as f: # 打開既有的對話紀錄檔案（JSON 格式）
+                chat_record = json.load(f) 
 
-            chat_record["history"].append({"role": "user", "content": message})
-            chat_record["history"].append({"role": "assistant", "content": reply})
+            chat_record["history"].append({"role": "user", "content": message}) # 追加使用者的訊息
+            chat_record["history"].append({"role": "assistant", "content": reply}) # 追加助手的回覆
 
         # ✅ 寫回檔案
-        with open(file_path, "w", encoding="utf-8") as f:
+        with open(file_path, "w", encoding="utf-8") as f: # 打開檔案準備寫入,如果檔案已存在，會覆蓋原內容。
+            # 將對話紀錄寫入 JSON 檔案
             json.dump(chat_record, f, ensure_ascii=False, indent=2)
 
-        return jsonify({"reply": reply})
+        return jsonify({"reply": reply}) # 回傳助手的回覆用json形式
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500 # 如果發生錯誤，回傳錯誤訊息
     
     
 
