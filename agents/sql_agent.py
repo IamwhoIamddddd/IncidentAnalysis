@@ -190,9 +190,7 @@ class SQLAgent:
     # 如果合併失敗，則會嘗試使用備用模型進行合併
     # 如果所有模型都失敗，則返回一個錯誤訊息
     # 📌 固定使用 8192 token 限制切 prompt，即使 fallback 模型上限更小（如 phi3）
-
-    def _split_and_merge_summaries(self, summaries, token_limit=8192, prompt_reserve=500):
-        # 這個函數用來估算文本的 token 數量
+    def _split_and_merge_summaries(self, summaries, token_limit=8192, prompt_reserve=500, is_top_level=True):
         def estimate_token_count(text):
             return len(text) // 4
 
@@ -251,9 +249,13 @@ class SQLAgent:
             merged_chunks.append(reply if reply else "❌ 本段摘要失敗")
 
         if len(merged_chunks) == 1:
-            return f"📊 GPT 整合摘要如下：\n{merged_chunks[0]}"
+            result = merged_chunks[0]
+            if is_top_level:
+                return f"📊 GPT 整合摘要如下：\n{result}"
+            else:
+                return result
         else:
-            return self._split_and_merge_summaries(merged_chunks, token_limit, prompt_reserve)
+            return self._split_and_merge_summaries(merged_chunks, token_limit, prompt_reserve, is_top_level=False)
 
 
 
@@ -278,7 +280,7 @@ class SQLAgent:
         if df.empty:
             return "📭 查無資料結果。"
 
-        chunk_size = self._calculate_dynamic_chunk_size(df, self.model)
+        chunk_size = self._calculate_dynamic_chunk_size(df)
         print(f"📐 預估 chunk_size = {chunk_size} 筆（模型：{self.model}）")
 
         chunk_summaries = []
@@ -319,7 +321,7 @@ class SQLAgent:
         final_summary = self._split_and_merge_summaries(chunk_summaries)
         print("📝 整合摘要完成，長度：", len(final_summary))
         if final_summary:
-            return f"📊 GPT 整合摘要如下：\n{final_summary}"
+            return final_summary
         else:
             print("⚠️ 合併摘要失敗，回傳各段摘要集合")
             return "\n\n".join(chunk_summaries)

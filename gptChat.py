@@ -12,6 +12,7 @@ import io
 import base64
 import sqlite3
 import requests
+from autogen import ConversableAgent
 from agents.sql_agent import SQLAgent  # ✅ 請確保你已經建立這個檔案並放好 class
 from agents.semantic_agent import SemanticAgent  # ✅ 請確保你已經建立這個檔案並放好 class
 from agents.query_classifier_agent import QueryClassifierAgent
@@ -21,10 +22,60 @@ import json
 # ----------- 全域設定 -----------
 DB_PATH = "resultDB.db"  # 你在 build_kb.py 裡設定的 DB 名稱
 kb_model, kb_index, kb_texts = load_kb() # 載入知識庫模型、索引和文本
+
+
+# ----------- 初始化代理 -----------
 classifier = QueryClassifierAgent() # ✅ 初始化查詢分類代理
 sql_agent = SQLAgent() # ✅ 初始化 SQLAgent
 semantic_agent = SemanticAgent(kb_model=kb_model, kb_index=kb_index, kb_texts=kb_texts) # ✅ 初始化語意代理
 followup_agent = FollowUpAgent()  # ✅ 初始化追問代理
+
+
+# ConversableAgent 包裝
+classifier_agent = ConversableAgent(
+    name="ClassifierAgent",
+    llm_config={},  # 這裡不用給 LLM config，反正你只用 .generate_reply() 包 handle
+    description="Classify the user's query as either a Semantic Query or a Structured SQL Query. Helps determine which agent should handle the request.",
+    human_input_mode="NEVER",  # 不需要人工回覆
+    code_execution_config=False,
+    is_termination_msg=lambda x: True,  # 結果永遠只回 1 次
+    function_map={
+        "handle": classifier.handle
+    }
+)
+sql_agent_wrapper = ConversableAgent(
+    name="SQLAgent",
+    llm_config={},
+    description="Execute structured SQL queries on the incident database. Suitable for questions involving counts, trends, filters, and structured data summaries.",
+    human_input_mode="NEVER",
+    code_execution_config=False,
+    is_termination_msg=lambda x: True,
+    function_map={
+        "handle": sql_agent.handle
+    }
+)
+semantic_agent_wrapper = ConversableAgent(
+    name="SemanticAgent",
+    llm_config={},
+    description="Perform semantic search using vector embeddings to retrieve similar historical incidents and suggest relevant solutions. Best for vague, context-based queries.",
+    human_input_mode="NEVER",
+    code_execution_config=False,
+    is_termination_msg=lambda x: True,
+    function_map={
+        "handle": semantic_agent.handle
+    }
+)
+followup_agent_wrapper = ConversableAgent(
+    name="FollowUpAgent",
+    llm_config={},
+    description="Handle follow-up questions by leveraging previous context. Useful when the user refers to past queries like 'the previous one' or 'that issue you mentioned earlier'.",
+    human_input_mode="NEVER",
+    code_execution_config=False,
+    is_termination_msg=lambda x: True,
+    function_map={
+        "handle": followup_agent.handle
+    }
+)
 
 # ----------- 儲存查詢上下文 -----------
 def save_query_context(chat_id, query, result_type, filter_info=None, result_summary=None):
@@ -86,31 +137,55 @@ def run_offline_gpt(message, model="orca2:13b", history=[], chat_id=None):
     print("🟢 啟動 GPT 回答流程...")
     print(f"📝 使用者輸入：{message}")
     print(f"🧠 使用模型：{model} / chat_id: {chat_id}")
-    query_type = classifier.handle(message)
+
+    # 分類器 → AutoGen agent
+    classify_result = classifier_agent.generate_reply(
+        message,
+        function_call="handle"
+    )
+    query_type = classify_result["content"] if isinstance(classify_result, dict) and "content" in classify_result else classify_result
     print(f"🔍 判斷結果：{query_type}")
+
+
     # 如果是追問查詢，直接轉交處理(尚未完成) 應該要併到 classify_query_type 裡面
     # 這裡假設追問查詢會有 chat_id，否則無法找到對應的歷史記錄
     # 在 run_offline_gpt 裡面這段改寫：
+    # 追問查詢
     if followup_agent.is_follow_up(message) and chat_id:
         print("🔁 偵測為追問查詢，轉交 FollowUpAgent 處理...")
-        return followup_agent.handle(chat_id, message)
+        result = followup_agent_wrapper.generate_reply(
+            (chat_id, message),
+            function_call="handle"
+        )
+        return result["content"] if isinstance(result, dict) and "content" in result else result
+
+
     # 如果是sql 結構化查詢，走sql查詢流程 
     if query_type == "Structured SQL":
         print("🧾 類型為 SQL 結構化查詢，改由 SQLAgent 處理...")
-        sql_agent.set_model("deepseek-coder-v2:latest")  # ✅ 設定 SQLAgent 使用的模型
-        print("🧠 使用 SQLAgent 處理查詢...")
-        reply = sql_agent.handle(message)
+        sql_agent.set_model("deepseek-coder-v2:latest")
+        result = sql_agent_wrapper.generate_reply(
+            message,
+            function_call="handle"
+        )
+        reply = result["content"] if isinstance(result, dict) and "content" in result else result
         print(f"📥 SQLAgent 回覆（前 500 字）：{reply[:500]}{'...' if len(reply) > 500 else ''}")
         if not reply:
             print("⚠️ SQLAgent 回覆為空，可能是查詢語句生成失敗")
             return "⚠️ 無法生成有效的 SQL 查詢語句。請檢查您的問題描述。"
-        # ✅ 記得存回查詢紀錄
         save_query_context(chat_id, message, query_type, result_summary=reply[:500])
         return reply
+    
+
+
     # 預設為 Semantic Query
     semantic_agent.model = model  # ✅ 動態指定使用者當前選擇的模型
     print("🔄 類型為語意查詢，改由 SemanticAgent 處理...")
-    kb_context = semantic_agent.handle(message)
+    result = semantic_agent_wrapper.generate_reply(
+        message,
+        function_call="handle"
+    )
+    kb_context = result["content"] if isinstance(result, dict) and "content" in result else result
     print("🧠 知識庫摘要處理完成")
     print(f"📚 知識庫檢索結果筆數：{len(kb_context)}")
     print(f"📚 知識庫摘要（前 300 字）：{kb_context[:300]}{'...' if len(kb_context) > 300 else ''}")
