@@ -1,3 +1,4 @@
+
 import subprocess
 import os
 import pickle
@@ -218,4 +219,3 @@ class SemanticAgent:
         retrieved = self._search_knowledge_base(query, top_k)
         summary = self._summarize_retrieved_kb(retrieved)
         return summary
-

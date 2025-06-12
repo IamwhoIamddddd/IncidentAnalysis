@@ -15,6 +15,60 @@ class SQLAgent:
     def set_model(self, model_name):
         self.model = model_name
         print(f"✅ [SQLAgent] 模型已更新為：{self.model}")
+        
+        
+        
+        
+        # 拆解問題並分成兩部分，並使用 LLM 處理
+    def _split_user_question(self, message):
+        # LLM 用來根據使用者的問題拆解為兩個部分
+        prompt = (
+            "You are an expert assistant. Based on the user's question, split the task into two parts:\n\n"
+            "1. **SQL Query Prompt**:\n"
+            "- Generate a prompt for another LLM to create a SQL query.\n"
+            "- Use aggregation functions (e.g., COUNT, GROUP BY) to summarize data based on broad categories.\n"
+            "- Do not include any filtering conditions (e.g., WHERE clauses), unless explicitly requested by the user.\n\n"
+            "2. **Analysis Prompt**:\n"
+            "- Create a prompt for another LLM to analyze the SQL query results.\n"
+            "- Describe the user's intent (e.g., trends, insights, summarization).\n"
+            "- Provide instructions on interpreting the results and deriving insights.\n"
+            "- Suggest trends, anomalies, or patterns if applicable.\n\n"
+            "Return both prompts separately, labeled as 'SQL Query Prompt' and 'Analysis Prompt'."
+        )
+
+
+        # 在提示語句中加入使用者問題
+        print("📝 [SQLAgent] 構造拆解問題的提示語句...")
+        prompt = f"{prompt}\n\nUser Question: {message}\n\n"
+
+        # 呼叫 LLM 來拆解問題並生成兩個部分
+        try:
+            print("🚀 發送拆解問題的提示到 LLM...")
+            result = subprocess.run(
+                ["ollama", "run", self.model],
+                input=prompt.encode("utf-8"),
+                capture_output=True,
+                timeout=600
+            )
+            if result.returncode == 0:
+                response = result.stdout.decode("utf-8").strip()
+                print("✅ LLM 回應：", response)
+                # 假設 LLM 會返回兩個部分，分別是 SQL 查詢提示與分析提示
+                sql_query_prompt = ""
+                analysis_prompt = ""
+                
+                # 抽取 SQL 查詢提示與分析提示
+                if "SQL Query Prompt" in response and "Analysis Prompt" in response:
+                    sql_query_prompt = response.split("SQL Query Prompt")[1].split("Analysis Prompt")[0].strip()
+                    analysis_prompt = response.split("Analysis Prompt")[1].strip()
+
+                return sql_query_prompt, analysis_prompt
+            else:
+                print("❌ LLM 錯誤：", result.stderr.decode("utf-8"))
+                return None, None
+        except Exception as e:
+            print(f"❌ 呼叫 LLM 發生錯誤：{str(e)}")
+            return None, None
 
     # SQL 查詢生成與執行 
     def _build_prompt(self, user_question):
@@ -31,10 +85,15 @@ class SQLAgent:
         - roleComponent (text): affected user role or feature
         - location (text): site or region where issue occurred
         - analysisTime (text): ISO timestamp when the issue was recorded
+        - solution (text): solution text or resolution for the case
 
-        Please write an SQL query (SELECT ...) to answer the user's question.
+        Please write an SQL query (SELECT ...) that provides aggregated information based on the columns. 
+        Do not include any filtering conditions or WHERE clauses. The query should focus on summarizing data across broad categories.
         Return only the SQL query, no explanation or formatting.
         """
+
+        
+        print("📝 [SQLAgent] 構造 SQL 提示語句...")
         prompt = f"{schema_info}\n\nUser question: {user_question}\nSQL:"
         return prompt
     
@@ -43,6 +102,7 @@ class SQLAgent:
     def _generate_sql(self, prompt):
         print("🧠 [SQLAgent] 嘗試使用 LLM 產生 SQL 查詢語句...")
         print(f"📝 Prompt 輸入：{prompt}")
+        print("使用模型：", self.model)
         if not prompt.strip():
             print("⚠️ 提示語句為空，無法產生 SQL")
             return None
@@ -331,9 +391,13 @@ class SQLAgent:
 
     def handle(self, user_question, memory=None):
         print("🧠 [SQLAgent] 啟動 SQL 查詢流程...")
-
+        if not user_question:
+            return "⚠️ 使用者問題為空，無法進行 SQL 查詢。"
+        user_question_sql_prompt, user_question_analysis_prompt = self._split_user_question(user_question)
+        if not user_question_sql_prompt or not user_question_analysis_prompt:
+            return "⚠️ 無法從 LLM 拆解使用者問題，請檢查模型設定或輸入格式。"
         # 1. 构造 SQL 提示
-        sql_prompt = self._build_prompt(user_question)
+        sql_prompt = self._build_prompt(user_question_sql_prompt)
         print("📝 [SQLAgent] 構造 SQL Prompt：")
         print(sql_prompt[:300])
 

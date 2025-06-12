@@ -9,8 +9,8 @@ from sentence_transformers import SentenceTransformer, util
 import numpy as np
 
 MAX_CONCURRENCY = 10
-DEFAULT_MODEL_SOLUTION = "mistral"
-DEFAULT_MODEL_SUMMARY = "phi3:mini"
+DEFAULT_MODEL_SOLUTION = "command-r7b:latest"
+DEFAULT_MODEL_SUMMARY = "command-r7b:latest"
 semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
 
 # ✅ 快取儲存位置
@@ -186,8 +186,8 @@ async def extract_problem_with_custom_prompt(text, model=None, source_id=""):
     model = model or custom_model
 
     lines = text.strip().splitlines()
-    text_trimmed = "\n".join(lines[:3])
-    print(f"🔍 [GPT] 準備擷取問題摘要：{text_trimmed[:30]}...（{source_id}）")
+    text_trimmed = "\n".join(lines[:5])
+    print(f"🔍 [GPT] 準備擷取問題摘要：{text_trimmed[:300]}...（{source_id}）")
 
     cached = find_semantic_cache(text_trimmed, source_id=source_id)
     if cached:
@@ -195,6 +195,7 @@ async def extract_problem_with_custom_prompt(text, model=None, source_id=""):
         return cached
 
     prompt = f"{custom_prompt}\n---\n{text_trimmed}"
+    print(f"📝 [GPT] 最後輸入進的prompt：{prompt[:600]}...")
     max_retry = 5
     retry_count = 0
 
@@ -225,10 +226,11 @@ def print_cache_report():
     print(f"📊 快取命中 {cache_hit_count} / {cache_total_queries} 筆，命中率 {ratio:.1f}%")
 
 # 🔧 非同步呼叫本地 Ollama API
-async def call_ollama_model_async(prompt, model="phi3:mini", timeout=120):
+async def call_ollama_model_async(prompt, model="command-r7b:latest", timeout=120):
     async with semaphore:
         url = "http://localhost:11434/api/generate"
         headers = {"Content-Type": "application/json"}
+        print(f"📝 [GPT] 使用模型 {model}")
 
         payload = {
             "model": model,
