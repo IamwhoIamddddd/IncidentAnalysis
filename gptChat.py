@@ -12,8 +12,8 @@ import io
 import base64
 import sqlite3
 import requests
-from agents.sql_agentOpenAI import SQLAgent  # ✅ 請確保你已經建立這個檔案並放好 class
-from agents.semantic_agentOpenAI import SemanticAgent  # ✅ 請確保你已經建立這個檔案並放好 class
+from agents.sql_agent import SQLAgent  # ✅ 請確保你已經建立這個檔案並放好 class
+from agents.semantic_agent import SemanticAgent  # ✅ 請確保你已經建立這個檔案並放好 class
 from agents.query_classifier_agent import QueryClassifierAgent
 from agents.followup_agent import FollowUpAgent  # ✅ 請確保你已經建立這個檔案並放好 class
 from utils.kb_loader import load_kb  # ✅ 請確保你已經建立這個檔案並放好函式
