@@ -148,7 +148,7 @@ async def extract_resolution_suggestion(text, model=DEFAULT_MODEL_SOLUTION, sour
 
     lines = text.strip().splitlines()
     text_trimmed = "\n".join(lines[:3])
-    print(f"🔍 [GPT] 準備擷取解決建議：{text_trimmed[:30]}...（{source_id}）")
+    print(f"🔍 [GPT] 準備擷取解決建議：{text_trimmed[:500]}...（{source_id}）")
 
     cached = find_semantic_cache(text_trimmed, source_id=source_id)
     if cached:
@@ -156,6 +156,7 @@ async def extract_resolution_suggestion(text, model=DEFAULT_MODEL_SOLUTION, sour
         return cached
 
     prompt = f"{custom_prompt}\n---\n{text_trimmed}"
+    print(f"📝 [GPT] 最後輸入進的prompt：{prompt[:600]}...")
     max_retry = 5
     retry_count = 0
 
@@ -187,7 +188,7 @@ async def extract_problem_with_custom_prompt(text, model=None, source_id=""):
 
     lines = text.strip().splitlines()
     text_trimmed = "\n".join(lines[:5])
-    print(f"🔍 [GPT] 準備擷取問題摘要：{text_trimmed[:300]}...（{source_id}）")
+    print(f"🔍 [GPT] 準備擷取問題摘要：{text_trimmed[:500]}...（{source_id}）")
 
     cached = find_semantic_cache(text_trimmed, source_id=source_id)
     if cached:
@@ -226,7 +227,7 @@ def print_cache_report():
     print(f"📊 快取命中 {cache_hit_count} / {cache_total_queries} 筆，命中率 {ratio:.1f}%")
 
 # 🔧 非同步呼叫本地 Ollama API
-async def call_ollama_model_async(prompt, model="command-r7b:latest", timeout=120):
+async def call_ollama_model_async(prompt, model="command-r7b:latest", timeout=600):
     async with semaphore:
         url = "http://localhost:11434/api/generate"
         headers = {"Content-Type": "application/json"}

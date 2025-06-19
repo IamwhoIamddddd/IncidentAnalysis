@@ -2,7 +2,7 @@
 from flask import Flask, request, jsonify, render_template, session, send_file
 from gpt_utils import extract_resolution_suggestion
 from gpt_utils import extract_problem_with_custom_prompt
-from gptChat import run_offline_gpt
+from gptChatbackup import run_offline_gpt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 from collections import Counter
@@ -51,7 +51,7 @@ import threading
 import json
 import tempfile
 from jsonschema import validate, ValidationError
-
+from datetime import datetime
 
 
 
@@ -807,7 +807,6 @@ def helpdesk_ui():
 
 # ------------------------------------------------------------------------------
 
-
 @app.route("/chat", methods=["POST"])
 def chat_with_model():
     data = request.get_json()
@@ -825,10 +824,22 @@ def chat_with_model():
 
     try:
         # ✅ 呼叫 GPT 模型處理（你的核心邏輯）
-        reply = run_offline_gpt(message, model=model, history=history)
+        reply = asyncio.run(run_offline_gpt(message, model=model, history=history, chat_id=chat_id))
+        
+        print("🧾 reply 類型：", type(reply))
+        print("🧾 reply 內容預覽：", str(reply)[:1000])
+
+        # ✅ 安全處理：保證 reply 一定是 str，避免 list/dict 錯誤
+        if not isinstance(reply, str):
+            print("⚠️ reply 不是字串，自動轉換為安全格式")
+            try:
+                reply = json.dumps(reply, ensure_ascii=False)
+            except Exception as e:
+                reply = f"⚠️ 回傳格式錯誤：{e}"
 
         # ✅ 判斷是新話題還是繼續聊
         if not os.path.exists(file_path):
+            print("🆕 新的對話紀錄，建立新檔案")
             # 🆕 首次建立新檔案
             chat_record = {
                 "id": chat_id,
@@ -848,18 +859,21 @@ def chat_with_model():
 
             chat_record["history"].append({"role": "user", "content": message}) # 追加使用者的訊息
             chat_record["history"].append({"role": "assistant", "content": reply}) # 追加助手的回覆
+            print("📝 已載入既有對話紀錄，並追加新的訊息。")
 
         # ✅ 寫回檔案
         with open(file_path, "w", encoding="utf-8") as f: # 打開檔案準備寫入,如果檔案已存在，會覆蓋原內容。
             # 將對話紀錄寫入 JSON 檔案
             json.dump(chat_record, f, ensure_ascii=False, indent=2)
 
+        print(f"✅ 對話紀錄已儲存到 {file_path}")
         return jsonify({"reply": reply}) # 回傳助手的回覆用json形式
 
     except Exception as e:
+        print(f"❌ 發生錯誤test: {str(e)}")  # ✅ 加上錯誤內容
         return jsonify({"error": str(e)}), 500 # 如果發生錯誤，回傳錯誤訊息
-    
-    
+
+
 
 @app.route("/rename-chat", methods=["POST"])
 def rename_chat():

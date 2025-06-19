@@ -3,6 +3,7 @@ import sys
 import json
 import faiss
 import pickle
+import hashlib
 import sqlite3
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
@@ -23,7 +24,8 @@ DATA_DIR = "json_data"
 MODEL_NAME = "all-MiniLM-L6-v2"
 SQLITE_DB = "resultDB.db"
 
-
+def id_to_int64(uid):
+    return int(hashlib.sha256(uid.encode('utf-8')).hexdigest(), 16) % (1 << 63)
 
 
 def fix_datetime(value):
@@ -205,8 +207,20 @@ def build_kb():
     texts_for_embedding = [item["text"] for item in merged_metadata]
     embeddings = model.encode(texts_for_embedding, show_progress_bar=True)
 
-    index = faiss.IndexFlatL2(embeddings.shape[1])
-    index.add(np.array(embeddings))
+    index_flat = faiss.IndexFlatL2(embeddings.shape[1])         # 建立 base index
+    index = faiss.IndexIDMap(index_flat)                        # 包成 ID map
+    print("🔢 準備加入向量到 FAISS index...")
+    ids = []
+    for item in merged_metadata:
+        uid = item["id"]
+        fid = id_to_int64(uid)
+        print(f"🆔 原始 ID: {uid} -> FAISS ID: {fid}")
+        ids.append(fid)
+
+    ids = np.array(ids, dtype=np.int64)
+    index.add_with_ids(np.array(embeddings), ids)
+    print(f"🔢 向量庫建立完成，共 {len(embeddings)} 筆向量")
+    print(f"🔢 向量庫建立完成，共 {len(texts_for_embedding)} 筆文本")
     print("✅ 向量建立完成，準備儲存 FAISS index")
 
     faiss.write_index(index, KB_INDEX)

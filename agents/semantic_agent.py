@@ -1,4 +1,3 @@
-
 import subprocess
 import os
 import pickle
@@ -13,6 +12,9 @@ import io
 import base64
 import sqlite3
 import requests
+import hashlib
+import openai
+
 
 # 外部程式碼
 from utils.kb_loader import load_kb  # ✅ 請確保你已經建立這個檔案並放好函式
@@ -20,19 +22,23 @@ from utils.kb_loader import load_kb  # ✅ 請確保你已經建立這個檔案�
 DB_PATH = "resultDB.db"  # 你在 build_kb.py 裡設定的 DB 名稱
 kb_model, kb_index, kb_texts = load_kb() # 載入知識庫模型、索引和文本
 
-
-
+def id_to_int64(uid):
+    return int(hashlib.sha256(uid.encode("utf-8")).hexdigest(), 16) % (1 << 63)
 
 
 class SemanticAgent:
-    def __init__(self, model="orca2:13b", kb_model=None, kb_index=None, kb_texts=None):
+    def __init__(self, model="orca2:13b", kb_model=None, kb_index=None, kb_texts=None, metadata=None, faiss_id_to_text=None):
         self.model = model
         self.kb_model = kb_model
         self.kb_index = kb_index
         self.kb_texts = kb_texts
+        self.metadata = metadata or []  # 避免 metadata=None 時出錯
+        self.faiss_id_to_text = faiss_id_to_text or {}  # 避免 faiss_id_to_text=None 時出錯
 
 
-
+        self.faiss_to_real_id = {
+            id_to_int64(item["id"]): item["id"] for item in self.metadata
+        }
     # 壓縮多段摘要
     # 將多段摘要合併成一段
     def _recursive_merge(self, summaries, token_limit, prompt_reserve):
@@ -204,18 +210,98 @@ class SemanticAgent:
         if self.kb_model is None or self.kb_index is None or self.kb_texts is None:
             print("❌ 知識庫尚未載入")
             return []
+
         if top_k is None:
             top_k = self._determine_top_k(query)
             print(f"🤖 動態決定 top_k = {top_k}")
 
         query_vec = self.kb_model.encode([query])
-        D, I = self.kb_index.search(np.array(query_vec), top_k)
-        print(f"[RAG] 🔍 查詢內容：{query}")
-        print(f"[RAG] 🧠 取出知識庫資料：{[self.kb_texts[i][:50] for i in I[0]]}")
-        return [self.kb_texts[i] for i in I[0]]
+        D, I = self.kb_index.search(np.array(query_vec), top_k) # 執行檢索
+        
+
+        print("📂 開啟 SQLite 資料庫連線")
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+        except Exception as e:
+            print(f"❌ 連線 SQLite 失敗：{e}")
+            return []
+        print("🔍 正在查詢相關知識庫資料...")
+
+        results = []
+        for i, distance in zip(I[0], D[0]):
+            try:
+                real_id = self.faiss_to_real_id.get(i, "❌ 無法對應")
+                text = self.faiss_id_to_text.get(i, "❌ 找不到句子")  # ✅ 改這裡！
+                print(f"📌 FAISS ID: {i} → 原始 ID: {real_id}")
+                print(f"📜 原始句子內容：{text} ｜📏 距離（越小越相似）: {distance:.4f}")
+
+
+                # 查資料庫
+                cur.execute("SELECT * FROM metadata WHERE id = ?", (real_id,))
+                row = cur.fetchone()
+
+                if row:
+                    columns = [desc[0] for desc in cur.description]
+                    row_dict = dict(zip(columns, row))
+                    print(f"🧾 成功查回資料庫資料：{row_dict}")
+                else:
+                    row_dict = None
+                    print("⚠️ 查不到 SQLite 資料（可能是 ID 不存在）")
+
+                results.append({
+                    "text": text,
+                    "real_id": real_id,
+                    "row": row_dict
+                })
+            except Exception as e:
+                print(f"❌ 處理 FAISS ID {i} 發生錯誤：{e}")
+                
+        try:
+            conn.close()
+            print("✅ 關閉 SQLite 連線")
+        except Exception as e:
+            print(f"⚠️ 關閉連線時出錯：{e}")
+        print(f"📦 共找到 {len(results)} 筆相關知識庫資料")
+        return results
+        
+
     
     def handle(self, query, top_k=None):
         print(f"📥 [SemanticAgent] 接收到查詢：{query}")
-        retrieved = self._search_knowledge_base(query, top_k)
-        summary = self._summarize_retrieved_kb(retrieved)
+        retrieved_pairs = self._search_knowledge_base(query, top_k)
+
+        # 加入 Entry 分隔與欄位格式化
+        retrieved_texts = []
+        for idx, entry in enumerate(retrieved_pairs, 1):
+            row = entry.get("row")
+            if row:
+                description = (
+                    f"--- Incident Entry {idx} ---\n"
+                    f"ID: {row.get('id', '')}\n"
+                    f"Text: {row.get('text', '')}\n"
+                    f"Subcategory: {row.get('subcategory', '')}\n"
+                    f"ConfigurationItem: {row.get('configurationItem', '')}\n"
+                    f"RoleComponent: {row.get('roleComponent', '')}\n"
+                    f"Location: {row.get('location', '')}\n"
+                    f"Opened: {row.get('opened', '')}\n"
+                    f"AnalysisTime: {row.get('analysisTime', '')}"
+                )
+            else:
+                description = f"--- Entry {idx} ---\n{entry.get('text', '❌ 無原始文字')}"
+
+            retrieved_texts.append(description)
+
+        # 做摘要
+        summary = self._summarize_retrieved_kb(retrieved_texts)
+
+        print("📝 [SemanticAgent] 知識庫摘要完成：")
+        print(summary)
+
+        # 額外列印 ID
+        print("📋 查詢對應 ID 在 sqlite db 中：")
+        for idx, entry in enumerate(retrieved_pairs, 1):
+            print(f"🆔 Entry {idx} → ID: {entry['real_id']}")
+
         return summary
+
