@@ -2,7 +2,7 @@
 from flask import Flask, request, jsonify, render_template, session, send_file
 from gpt_utils import extract_resolution_suggestion
 from gpt_utils import extract_problem_with_custom_prompt
-from gptChatbackup import run_offline_gpt
+from gptChat import run_offline_gpt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 from collections import Counter
@@ -856,6 +856,11 @@ def chat_with_model():
             # 🔁 載入原檔案並追加
             with open(file_path, "r", encoding="utf-8") as f: # 打開既有的對話紀錄檔案（JSON 格式）
                 chat_record = json.load(f) 
+                
+            # 🛡️ 防呆：如果 history 是空的或格式錯誤，強制初始化為 list
+            if "history" not in chat_record or not isinstance(chat_record["history"], list):
+                print("⚠️ history 格式錯誤，自動初始化為空 list")
+                chat_record["history"] = []
 
             chat_record["history"].append({"role": "user", "content": message}) # 追加使用者的訊息
             chat_record["history"].append({"role": "assistant", "content": reply}) # 追加助手的回覆

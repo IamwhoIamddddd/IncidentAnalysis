@@ -1,3 +1,5 @@
+
+
 import subprocess
 import os
 import pickle
@@ -28,6 +30,8 @@ from autogen_core import ClosureAgent,ClosureContext,DefaultSubscription, Messag
 from datetime import datetime
 
 # ----------- 全域設定 -----------
+POWERAUTOMATE_URL = "https://prod-08.southeastasia.logic.azure.com:443/workflows/a9de89a708674755923e900665994521/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Eo8rgY9JHLAqYDQCYTjWYiufiHq3LYQ_kZXWmGjqLhw"  # 🔁 請換成你的實際網址
+
 DB_PATH = "resultDB.db"  # 你在 build_kb.py 裡設定的 DB 名稱
 # ✅ 載入 metadata（若不存在則為空）
 metadata_path = "kb_metadata.json"
@@ -253,17 +257,20 @@ async def run_offline_gpt(message, model="orca2:13b", history=[], chat_id=None):
     print(f"📝 使用者輸入：{message}")
     print(f"🧠 chat_id: {chat_id}")
 
-    # 處理追問邏輯
     if followup_agent.is_follow_up(message) and chat_id:
         print("🔁 偵測為追問查詢，轉交 FollowUpAgent 處理...")
         return followup_agent.handle(chat_id, message)
-    
-    # 由 AutoGen function-call 取得知識庫摘要或 SQL 結果
-    kb_context = await autogen_dispatch(message)
+
+    try:
+        kb_context = await autogen_dispatch(message)
+    except Exception as e:
+        print(f"❌ autogen_dispatch 發生錯誤：{e}")
+        kb_context = ""
+
     print("🧠 知識庫摘要處理完成")
     print(f"📚 知識庫摘要（前 1000 字）：{kb_context[:1000]}{'...' if len(kb_context) > 1000 else ''}")
 
-    # 整理多輪對話歷史
+    # 整理對話歷史
     context = ""
     if not isinstance(history, list):
         print("⚠️ 對話歷史格式錯誤，初始化為空 list")
@@ -272,12 +279,15 @@ async def run_offline_gpt(message, model="orca2:13b", history=[], chat_id=None):
         role = "User" if turn["role"] == "user" else "Assistant"
         context += f"{role}: {turn['content']}\n"
 
-    # 建立 RAG prompt
-    prompt = (
+    # 建立 PowerAutomate 專用 Prompt（分開 template + userInput）
+    template = (
         "You are a knowledgeable helpdesk assistant. "
         "You will first review some relevant case entries, then answer the user's question based on context and your reasoning.\n\n"
         "Please limit your answer to no more than 1000 English words.\n\n"
         "==== [Retrieved Knowledge Base Entries] ====\n"
+    )
+
+    user_input_section = (
         f"{kb_context.strip()}\n\n"
         "==== [Conversation History] ====\n"
         f"{context.strip()}\n"
@@ -286,15 +296,40 @@ async def run_offline_gpt(message, model="orca2:13b", history=[], chat_id=None):
         "==== [Your Response] ====\n"
         "Assistant:"
     )
-    print("\n[Prompt Preview] 🧾 發送給模型的 Prompt 前 5000 字：")
-    print(prompt[:5000] + ("..." if len(prompt) > 5000 else ""))
 
-    # 呼叫 LLM 輸出最終回覆
+    full_prompt = template + user_input_section
+
+    print("\n[Prompt Preview] 🧾 發送給模型的 Prompt 前 5000 字：")
+    print(full_prompt[:5000] + ("..." if len(full_prompt) > 5000 else ""))
+    print("testing")
+
     try:
-        print("🚀 發送 prompt 給模型中...")
+        print("📡 傳送 prompt 至 Power Automate...")
+        payload = {
+            "template": template,
+            "userInput": user_input_section
+        }
+        res = requests.post(POWERAUTOMATE_URL, json=payload, timeout=360)
+        if res.status_code == 200:
+            reply = res.json().get("response", "").strip()
+            print("📥 AI Builder 回應（前 1000 字）：")
+            print(reply[:1000] + ("..." if len(reply) > 1000 else ""))
+            if reply:
+                save_query_context(chat_id, message, "RAG-Integrated", result_summary=reply)
+                return reply
+            else:
+                print("⚠️ AI Builder 回應為空，將進行 fallback")
+        else:
+            print(f"❌ AI Builder 回應錯誤，狀態碼：{res.status_code}")
+    except Exception as e:
+        print(f"❌ AI Builder 呼叫失敗或逾時：{e}")
+
+    # ✅ fallback：本地 ollama 模型推論
+    try:
+        print("🚀 發送 prompt 給本地模型中...")
         result = subprocess.run(
             ["ollama", "run", model],
-            input=prompt.encode("utf-8"),
+            input=full_prompt.encode("utf-8"),
             capture_output=True,
             timeout=600
         )
@@ -314,3 +349,6 @@ async def run_offline_gpt(message, model="orca2:13b", history=[], chat_id=None):
     except Exception as e:
         print(f"❌ 呼叫模型失敗：{str(e)}")
         return f"⚠️ 呼叫模型時發生錯誤：{str(e)}"
+
+
+
