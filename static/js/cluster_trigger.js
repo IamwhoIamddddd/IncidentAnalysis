@@ -165,6 +165,15 @@ fetch('/clustered-files')
     }
   });
 
+
+
+
+
+
+
+
+
+  
   function showToast(msg) {
     toast.style.display = "block";
     toast.querySelector("span")?.remove();
@@ -188,6 +197,17 @@ fetch('/clustered-files')
       });
     }
   });
+
+
+
+
+
+
+
+
+
+
+
 
 
     function scrollToElement(el) {

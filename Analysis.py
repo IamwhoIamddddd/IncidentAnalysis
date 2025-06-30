@@ -2,6 +2,7 @@
 from flask import Flask, request, jsonify, render_template, session, send_file
 from gpt_utils import extract_resolution_suggestion
 from gpt_utils import extract_problem_with_custom_prompt
+from gpt_utils import analyze_with_ai_builder_then_fallback
 from gptChat import run_offline_gpt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
@@ -45,6 +46,7 @@ from datetime import datetime
 import time
 # --- 分群啟用條件（可依資料調整）---
 import asyncio
+import aiohttp
 import math
 import requests
 import threading
@@ -58,6 +60,8 @@ from datetime import datetime
 KMEANS_MIN_COUNT = 4         # 最少資料筆數
 KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
 KMEANS_MIN_STDDEV = 3.0      # 標準差下限
+
+
 
 
 start = time.time()
@@ -327,8 +331,8 @@ async def analyze_excel_async(filepath, weights=None, resolution_priority=None, 
         return combined.strip()
 
     # ✅ 產生 resolution_input / summary_input 給 GPT 用
-    df['resolution_input'] = df.apply(lambda row: combine_fields_with_priority(row, resolution_priority, 10000), axis=1)
-    df['summary_input'] = df.apply(lambda row: combine_fields_with_priority(row, summary_priority, 8000), axis=1)
+    df['resolution_input'] = df.apply(lambda row: combine_fields_with_priority(row, resolution_priority, 16000), axis=1)
+    df['summary_input'] = df.apply(lambda row: combine_fields_with_priority(row, summary_priority, 16000), axis=1)
 
 
     component_counts = df['Role/Component'].value_counts()
@@ -396,12 +400,8 @@ async def analyze_excel_async(filepath, weights=None, resolution_priority=None, 
         'data': results,
         'analysisTime': analysis_time
     }
-
-
-
-
-
-
+    
+    
 async def analyze_row_async(row, idx, df, weights, component_counts, configuration_item_counts, configuration_item_max, analysis_time,     
     high_risk_examples, high_risk_embeddings,
     escalation_examples, escalation_embeddings,
@@ -410,16 +410,23 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
     print(f"[分析 Row#{idx+1}] 本次用的高風險語句數：{len(high_risk_examples)}，倒數兩句：{high_risk_examples[-2:] if high_risk_examples else '空'}")
     print(f"[分析 Row#{idx+1}] 本次用的升級語句數：{len(escalation_examples)}，倒數兩句：{escalation_examples[-2:] if escalation_examples else '空'}")
     print(f"[分析 Row#{idx+1}] 本次用的影響多使用者語句數：{len(multi_user_examples)}，倒數兩句：{multi_user_examples[-2:] if multi_user_examples else '空'}")
+    
+    
+    
+    
     try:
+        
         # 原始欄位保留
         description_text = row.get('Description', 'not filled')
-        short_description_text = row.get('Short description', 'not filled')
+        short_description_text = row.get('Short Description', 'not filled')
         close_note_text = row.get('Close notes', 'not filled')
 
         # 字串清理（保留變數命名）
         desc = str(description_text).strip()
         short_desc = str(short_description_text).strip()
         close_notes = str(close_note_text).strip()
+        print("-------------------------------------------------------------------test----------------------------------------------------------------------------------------")
+        print(desc, short_desc, close_notes)
 
         # 若全部內容皆為空，直接跳過此筆
         if not (desc or short_desc or close_notes):
@@ -431,19 +438,8 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
         print(f"📌 Resolution 欄位原始合併內容：\n{resolution_text[:1000]}")
         print(f"🧠 [Row#{idx+1}] 使用 summary_input（長度：{len(summary_input)}）")
         print(f"📌 Summary 欄位原始合併內容：\n{summary_input[:1000]}")
-
-
-
-        # resolution_text = f"{desc}\n{short_desc}\n{close_notes}".strip()
-
-        # if len(resolution_text) > 10000:
-        #     print(f"🟡 [Row#{idx+1}] resolution_text > 3000，使用 short_desc + close_notes")
-        #     resolution_text = f"{short_desc}\n{close_notes}".strip()
-        #     if len(resolution_text) > 10000:
-        #         print(f"🔴 [Row#{idx+1}] short_desc + close_notes > 3000，只用 close_notes")
-        #         resolution_text = close_notes.strip()
-        # else:
-        #     print(f"🟢 [Row#{idx+1}] resolution_text 使用 desc + short_desc + close_notes")
+        print("-------------------------------------------------------------------test----------------------------------------------------------------------------------------")
+        print(desc, short_desc, close_notes)
 
 
         keyword_score = is_high_risk(short_desc, high_risk_examples, high_risk_embeddings)
@@ -479,34 +475,31 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
         )
         impact_score = round(math.sqrt(severity_score**2 + frequency_score**2), 2)
         risk_level = get_risk_level(impact_score)
+        
+        
+        
+        ai_suggestion, ai_summary = await analyze_with_ai_builder_then_fallback(
+        resolution_text, summary_input, source_id=f"Row#{idx+1}"
+        )
 
-        # ==== 判斷 summary 輸入長度 ====
-        # summary_input = f"{short_desc}\n{desc}".strip()
-        # if len(summary_input) > 8000:
-        #     print(f"🟡 [Row#{idx+1}] summary_input > 2000，使用 short_desc + close_notes")
-        #     summary_input = f"{short_desc}\n{close_notes}".strip()
-        #     if len(summary_input) > 8000:
-        #         print(f"🔴 [Row#{idx+1}] short_desc + close_notes > 2000，只用 short_desc")
-        #         summary_input = short_desc.strip()
-        # else:
-        #     print(f"🟢 [Row#{idx+1}] summary_input 使用 short_desc + desc")
+        
+        
+        
+        
+        
+        
+        # try:
+        #     ai_suggestion, ai_summary = await asyncio.gather(
+        #         extract_resolution_suggestion(resolution_text, source_id=f"Row#{idx+1}"),
+        #         extract_problem_with_custom_prompt(summary_input, source_id=f"Row#{idx+1}")
+        #     )
 
-
-
-        # GPT 處理允許失敗
-        try:
-            ai_suggestion, ai_summary = await asyncio.gather(
-                extract_resolution_suggestion(resolution_text, source_id=f"Row#{idx+1}"),
-                extract_problem_with_custom_prompt(summary_input, source_id=f"Row#{idx+1}")
-            )
-
-        except Exception as e:
-            print(f"⚠️ GPT 擷取失敗：{e}")
-            ai_suggestion = "（AI 擷取失敗）"
-            ai_summary = "（AI 擷取失敗）"
-
-        recommended = recommend_solution(short_desc)
-        keywords = extract_keywords(short_desc)
+        # except Exception as e:
+        #     print(f"⚠️ GPT 擷取失敗：{e}")
+        #     ai_suggestion = "（AI 擷取失敗）"
+        #     ai_summary = "（AI 擷取失敗）"
+            
+            
 
         return {
             'id': safe_value(row.get('Incident') or row.get('Number')),
@@ -972,9 +965,6 @@ def ping():
     return "pong", 200
 
 
-
-
-
 @app.route('/upload', methods=['POST'])
 def upload_file():
     print("📥 收到上傳請求")
@@ -1036,6 +1026,9 @@ def upload_file():
             summary_priority=summary_priority
         )
         results = analysis_result['data']
+        # ⬇️⬇️⬇️ 就加在這！
+        analysis_result['file'] = file.filename
+
         save_analysis_files(analysis_result, uid)
         print(f"✅ 分析完成，共 {len(results)} 筆")
 
@@ -1048,13 +1041,13 @@ def upload_file():
         script_path = os.path.join(os.path.dirname(__file__), "build_kb.py")
         print("🚀 嘗試用 sys.executable 執行：", script_path)
         subprocess.Popen([sys.executable, script_path])
-
-
-
-        
-
         session['analysis_data'] = results
-        return jsonify({'data': results, 'uid': uid, 'weights': weights}), 200
+        return jsonify({
+            'data': results[:100],   # 只回傳前 100 筆
+            'uid': uid,
+            'weights': weights
+        }), 200
+
 
     except Exception as e:
         print(f"❌ 分析時發生錯誤：{e}")
@@ -1373,6 +1366,48 @@ def get_results():
         'data': results,
         'weights': first_weights  # ✅ 確保傳出這個欄位
     })
+
+
+
+HISTORY_FOLDER = 'json_data'  # 你的 JSON 檔案存放資料夾
+
+@app.route('/history-list', methods=['GET'])
+def get_history_list():
+    records = []
+    if not os.path.exists(HISTORY_FOLDER):
+        return jsonify([])
+
+    for fname in sorted(os.listdir(HISTORY_FOLDER), reverse=True):
+        if fname.endswith('.json'):
+            file_path = os.path.join(HISTORY_FOLDER, fname)
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    record = json.load(f)
+                    records.append({
+                        "uid": record.get("uid", fname.replace('.json','')),
+                        "file": record.get("file", fname),
+                        "summary": record.get("summary", "—"),
+                        "time": record.get("analysisTime", record.get("time", "未知時間"))
+                    })
+            except Exception as e:
+                print(f"❌ 解析歷史檔錯誤：{fname}", e)
+    return jsonify(records)
+
+
+@app.route('/clear-history', methods=['POST'])
+def clear_history():
+    if not os.path.exists(HISTORY_FOLDER):
+        return jsonify({"success": True})
+
+    deleted = 0
+    for fname in os.listdir(HISTORY_FOLDER):
+        if fname.endswith('.json'):
+            try:
+                os.remove(os.path.join(HISTORY_FOLDER, fname))
+                deleted += 1
+            except Exception as e:
+                print(f"❌ 無法刪除 {fname}", e)
+    return jsonify({"success": True, "deleted": deleted})
 
 
 

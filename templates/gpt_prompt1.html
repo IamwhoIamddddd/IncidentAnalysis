@@ -12,6 +12,45 @@
 </head>
 
 <body class="dark-mode">
+
+<div id="kbStatusBar" style="
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px;
+  font-weight: bold;
+  text-align: center;
+  z-index: 9999;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+  overflow: hidden;
+">
+  正在建立知識庫，請稍候<span class="dots"></span>
+</div>
+
+
+
+<!-- 📦 Modal：建置完成提示（深色模式友善 + 無右上角） -->
+<div class="modal fade" id="kbFinishedModal" tabindex="-1" aria-labelledby="kbFinishedLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4" id="kbModalContent">
+      <div class="modal-body text-center p-5">
+        <div class="fs-1 mb-3">✅</div>
+        <h4 class="fw-bold mb-3">知識庫已建立完成</h4>
+        <p class="mb-4">剛才的分析結果已成功加入知識庫，您可以繼續使用系統 🎉</p>
+        <button type="button" class="btn btn-success px-4" data-bs-dismiss="modal">我知道了</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
     <h4>功能選單</h4>
@@ -22,6 +61,8 @@
       <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
       <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
       <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
+      <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+
     </ul>
     <div class="sidebar-bottom">
       <button type="button" id="toggleDarkMode" class="dark-mode-btn">🌙 深色模式</button>
@@ -56,17 +97,20 @@
                 <label class="col-sm-2 col-form-label text-end">GPT 模型名稱：</label>
                 <div class="col-sm-3">
                 <select id="currentSolutionModelSelect" class="form-select">
-                <option value="llama3:8b">llama3:8b（約 GPT-3.5）</option>
-                <option value="phi4">phi4（約 GPT-3.5～4）</option>
-                <option value="gemma:2b">gemma:2b（約 GPT-3 Mini）</option>
-                <option value="gemma:7b">gemma:7b（約 GPT-3.5）</option>
-                <option value="mistral">mistral（約 GPT-3.5）</option>
-                <option value="phi3:mini">phi3:mini（約 GPT-3.5 Mini）</option>
-                <option value="phi4-mini">phi4-mini（約 GPT-3.5 Mini+）</option>
-                <option value="tinyllama">tinyllama（約 GPT-3 Mini）</option>
-                <option value="custom">📝 自行輸入</option>
-
- 
+                  <option value="orca2:13b">orca2:13b（約 GPT-4 Mini）</option>
+                  <option value="orca2">orca2:latest（約 GPT-4 Mini）</option>
+                  <option value="command-r7b:latest">command-r7b:latest （約 GPT3.5~4）</option>
+                  <option value="mistral-nemo:latest">mistral-nemo:latest（約 GPT-3.5~4）</option>
+                  <option value="phi4:latest">phi4（約 GPT-3.5~4）</option>
+                  <option value="gemma:7b">gemma:7b（約 GPT-3.5）</option>
+                  <option value="llama3:8b">llama3:8b（約 GPT-3.5）</option>
+                  <option value="mistral">mistral:latest（約 GPT-3.5）</option>
+                  <option value="phi4-mini">phi4-mini:latest（約 GPT-3.5 Mini+）</option>
+                  <option value="phi3:mini">phi3:mini（約 GPT-3.5 Mini）</option>
+                  <option value="openchat:7b">openchat:7b（約 GPT-3.5）</option>
+                  <option value="gemma:2b">gemma:2b（約 GPT-3 Mini）</option>
+                  <option value="tinyllama">tinyllama:latest（約 GPT-3 Mini）</option>
+                  <option value="custom">📝 自行輸入</option>
                 </select>
                 <input type="text" class="form-control mt-2 d-none" id="currentSolutionModelCustom" placeholder="輸入自訂模型名稱">
                 </div>
@@ -81,20 +125,20 @@
                 <label class="col-sm-2 col-form-label text-end">GPT 模型名稱：</label>
                 <div class="col-sm-3">
                     <select id="currentSummaryModelSelect" class="form-select">
-                  <option value="orca2:13b">orca2:13b（約 GPT-4 Mini）</option>
-                  <option value="orca2">orca2:latest（約 GPT-4 Mini）</option>
-                  <option value="phi4:latest">phi4（約 GPT-3.5~4）</option>
-                  <option value="gemma:7b">gemma:7b（約 GPT-3.5）</option>
-                  <option value="llama3:8b">llama3:8b（約 GPT-3.5）</option>
-                  <option value="mistral">mistral:latest（約 GPT-3.5）</option>
-                  <option value="phi4-mini">phi4-mini:latest（約 GPT-3.5 Mini+）</option>
-                  <option value="phi3:mini">phi3:mini（約 GPT-3.5 Mini）</option>
-                  <option value="openchat:7b">openchat:7b（約 GPT-3.5）</option>
-                  <option value="gemma:2b">gemma:2b（約 GPT-3 Mini）</option>
-                  <option value="tinyllama">tinyllama:latest（約 GPT-3 Mini）</option>
-                  <option value="custom">📝 自行輸入</option>
-
- 
+                    <option value="orca2:13b">orca2:13b（約 GPT-4 Mini）</option>
+                    <option value="orca2">orca2:latest（約 GPT-4 Mini）</option>
+                    <option value="command-r7b:latest">command-r7b:latest （約 GPT3.5~4）</option>
+                    <option value="mistral-nemo:latest">mistral-nemo:latest（約 GPT-3.5~4）</option>
+                    <option value="phi4:latest">phi4（約 GPT-3.5~4）</option>
+                    <option value="gemma:7b">gemma:7b（約 GPT-3.5）</option>
+                    <option value="llama3:8b">llama3:8b（約 GPT-3.5）</option>
+                    <option value="mistral">mistral:latest（約 GPT-3.5）</option>
+                    <option value="phi4-mini">phi4-mini:latest（約 GPT-3.5 Mini+）</option>
+                    <option value="phi3:mini">phi3:mini（約 GPT-3.5 Mini）</option>
+                    <option value="openchat:7b">openchat:7b（約 GPT-3.5）</option>
+                    <option value="gemma:2b">gemma:2b（約 GPT-3 Mini）</option>
+                    <option value="tinyllama">tinyllama:latest（約 GPT-3 Mini）</option>
+                    <option value="custom">📝 自行輸入</option>
                     </select>
                     <input type="text" id="currentSummaryModelCustom" class="form-control mt-2 d-none" placeholder="請輸入自訂模型">
                 </div>

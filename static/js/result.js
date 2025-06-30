@@ -57,7 +57,7 @@ const weights = resultJson.weights || {};  // ✅ 這行要先定義 weights
 
         const filterRange = document.getElementById('filterRange');
         let rangeDays = localStorage.getItem('filter-days');
-        if (rangeDays === null) rangeDays = '7'; // 預設值
+        if (rangeDays === null) rangeDays = '0'; // 預設值
         if (filterRange) {
             filterRange.value = rangeDays;
             filterRange.addEventListener('change', () => {
@@ -178,13 +178,6 @@ infoCard.innerHTML = `
     ${row.analysisTime || '—'}
   </span>
 </div>
-
-
-
-
-
-
-
 
     </div>
 

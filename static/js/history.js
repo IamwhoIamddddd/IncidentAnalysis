@@ -1,22 +1,24 @@
 // 當 DOM 完全加載後執行
-
-
-
-
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     // 獲取顯示歷史紀錄的列表元素
     const historyList = document.getElementById('historyList');
-    // 從 localStorage 取得歷史紀錄資料，若無資料則設為空陣列
-    const savedHistory = JSON.parse(localStorage.getItem('historyData') || '[]');
-    
+    // 從後端 API 取得歷史紀錄資料（已經不再從 localStorage 取了）
+    let savedHistory = [];
     const noHistoryMsg = document.getElementById('no-history-msg');
+    
+    try {
+        const res = await fetch('/history-list');
+        savedHistory = await res.json();
+    } catch (err) {
+        savedHistory = [];
+        alert("❌ 無法載入歷史紀錄，請稍後再試");
+    }
     
     if (savedHistory.length === 0) {
         noHistoryMsg.style.display = 'block';
     } else {
         noHistoryMsg.style.display = 'none';
     }
-
 
     // 清空原本的內容
     historyList.innerHTML = '';
@@ -31,7 +33,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 <div class="history-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-1">${item.file}</h5>
                     <small class="text-extra-muted">${item.time}</small>
-
                 </div>
                 <p class="mb-2 text-secondary">${item.summary}</p>
                 <div class="btn-group mt-auto" role="group">
@@ -46,10 +47,6 @@ window.addEventListener('DOMContentLoaded', () => {
         `;
         historyList.appendChild(li);
     });
-
-
-
-
 
     // 初始化深色模式
     const isDark = localStorage.getItem('dark-mode') === 'true'; // 從 localStorage 取得深色模式狀態
@@ -98,75 +95,38 @@ function toggleSidebar() {
 // 定義函數：導航到指定的頁面
 function navigateTo1(page) {
     if (page === 'upload') {
-        // 導航到 Flask 的首頁路由
         window.location.href = '/';
     } else if (page === 'result') {
-        // 導航到 Flask 的 /result 路由
         window.location.href = '/result';
     } else if (page === 'history') {
-        // 導航到 Flask 的 /history 路由
         window.location.href = '/history';
     } else if (page === 'cluster') {
-        window.location.href = '/generate_cluster';  // ✅ 對應後端路由名稱
+        window.location.href = '/generate_cluster';
     } else if (page === 'manual') {
-        window.location.href = '/manual_input';  // ✅ 對應後端路由名稱
+        window.location.href = '/manual_input';
     } else if (page === 'gpt_prompt') {
-        window.location.href = '/gpt_prompt';  // ✅ 對應後端路由名稱
+        window.location.href = '/gpt_prompt';
     } else if (page === 'chat') {
-        window.location.href = '/chat_ui';  // ✅ 對應後端路由名稱
+        window.location.href = '/chat_ui';
     }
-
 }
 
-// 為清除歷史紀錄按鈕添加點擊事件
-document.getElementById('clearHistoryBtn').addEventListener('click', () => {
-    // 確認是否清除歷史紀錄
+
+document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
     if (confirm('你確定要清除所有歷史紀錄嗎？這個操作無法復原。')) {
-        // 從 localStorage 移除歷史紀錄資料
-        localStorage.removeItem('historyData');
-        localStorage.removeItem('historyHTML');
-        // 清空歷史紀錄列表的內容
-        document.getElementById('historyList').innerHTML = '';
-        noHistoryMsg.style.display = 'block';
-        if (savedHistory.length === 0) {
-        noHistoryMsg.style.display = 'block';
-        setTimeout(() => noHistoryMsg.classList.add('show'), 10);
-        } 
-        else {
-        noHistoryMsg.classList.remove('show');
-        setTimeout(() => noHistoryMsg.style.display = 'none', 300);
-}
-
-
-        // 顯示清除成功的提示訊息
-        alert('✅ 歷史紀錄已清除！');
+        try {
+            // 假設你有一個 Flask 路由 /clear-history (POST)
+            const res = await fetch('/clear-history', { method: 'POST' });
+            const result = await res.json();
+            if (result.success) {
+                document.getElementById('historyList').innerHTML = '';
+                document.getElementById('no-history-msg').style.display = 'block';
+                alert('✅ 歷史紀錄已清除！');
+            } else {
+                alert('❌ 清除失敗，請稍後再試。');
+            }
+        } catch {
+            alert('❌ 清除歷史紀錄時發生錯誤！');
+        }
     }
 });
-
-
-function addHistoryItem(uid, fileName, summaryText) {
-    const now = new Date();
-    const time = now.toLocaleTimeString();
-    const record = {
-        uid,
-        file: fileName,
-        time,
-        summary: summaryText
-    };
-
-    const stored = JSON.parse(localStorage.getItem('historyData') || '[]');
-    stored.unshift(record);
-    localStorage.setItem('historyData', JSON.stringify(stored));
-
-    const li = document.createElement('li');
-    li.innerHTML = `
-        <strong>${fileName}</strong> - ${time}<br>
-        <span>${summaryText}</span><br>
-        <a href="/get-json?file=${uid}.json" target="_blank">🧾 預覽 JSON</a> |
-        <a href="/download-excel?uid=${uid}" download>📥 分析 Excel</a> |
-        <a href="/download-original?uid=${uid}" download>📤 原始 Excel</a>
-    `;
-    historyList.prepend(li);
-    console.log("📦 加入歷史記錄，UID =", uid);
-    console.log("📦 檔案名稱 =", fileName);
-}

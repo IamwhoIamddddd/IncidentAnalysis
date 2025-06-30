@@ -1019,3 +1019,32 @@ body.dark-mode #kbLockModalContent .text-muted {
 }
 
 
+#fieldSelectorBlock {
+  max-width: 1200px;   /* 預設是卡住大概 600 左右，加寬到你想要的寬度 */
+  margin: 40px auto;   /* 上下間距 + 置中 */
+}
+
+/* ✅ GPT 欄位設定卡片：深色模式樣式 */
+body.dark-mode #fieldSelectorBlock {
+  background: linear-gradient(145deg, #1e213f, #2a2d4d);
+  border-left: 8px solid #7a6af0;
+  box-shadow: 0 4px 12px rgba(90, 100, 255, 0.2);
+  color: #f0f0f0;
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 28px 32px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+body.dark-mode #fieldSelectorBlock h5 {
+  color: #c0c8ff;
+  font-weight: 700;
+  font-size: 1.4rem;
+  margin-bottom: 20px;
+}
+
+body.dark-mode #fieldSelectorBlock .form-label {
+  color: #d6e4ff;
+  font-weight: 600;
+}

@@ -37,11 +37,11 @@ let previewModalInstance = null; // 用來保存 Bootstrap Modal 的實例
   // 個別錯誤標紅
   const severityRow = document.getElementById('severitySumRow');
   const frequencyRow = document.getElementById('frequencySumRow');
-    const totalSumRow = document.getElementById('totalSumRow'); // 👈 新增這行
+  const totalSumRow = document.getElementById('totalSumRow'); // 👈 新增這行
 
-const severityTooMuch = severitySum > 1.001;
-const frequencyTooMuch = frequencySum > 1.001;
-const totalTooMuch = total > 2.001;
+  const severityTooMuch = severitySum > 1.001;
+  const frequencyTooMuch = frequencySum > 1.001;
+  const totalTooMuch = total > 2.001;
 
 
 
@@ -177,16 +177,6 @@ toast.innerHTML = `
   setTimeout(() => toast.style.display = 'none', 3000);
 }
 
-
-
-
-
-
-
-
-
-
-
 // 表單提交事件
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault(); // 阻止表單的預設提交行為（避免整頁刷新）
@@ -244,19 +234,28 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     alert('⚠️ 權重設定不正確，請確認嚴重性與頻率加總是否為 10');
     return;
     }
-    const resolutionPriority = [
-    document.getElementById('resolutionField1').value,
-    document.getElementById('resolutionField2').value,
-    document.getElementById('resolutionField3').value
-    ].filter(Boolean);  // 去除空值
-    const summaryPriority = [
-    document.getElementById('summaryField1').value,
-    document.getElementById('summaryField2').value
-    ].filter(Boolean);
+
+
+    const resolutionPriority = [];
+    for (let i = 1; i <= 8; i++) {
+      const val = document.getElementById(`resolutionField${i}`)?.value;
+      if (val) resolutionPriority.push(val);
+    }
+
+    const summaryPriority = [];
+    for (let i = 1; i <= 8; i++) {
+      const val = document.getElementById(`summaryField${i}`)?.value;
+      if (val) summaryPriority.push(val);
+    }
+
+
+
     if (resolutionPriority.length === 0) {
     alert('⚠️ 請至少選擇一個 Resolution 欄位作為分析依據');
     return;
     }
+
+
     if (summaryPriority.length === 0) {
     alert('⚠️ 請至少選擇一個 Summary 欄位作為分析依據');
     return;
@@ -292,37 +291,6 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     };
 
 
-    // 在送出前檢查是否重複上傳
-  
-
-
-
-    // const checkDuplicateAndUpload = () => {
-    //     const xhrCheck = new XMLHttpRequest(); // 建立 XMLHttpRequest 物件
-    //     xhrCheck.open('GET', '/files', true); // 發送 GET 請求到伺服器以檢查檔案是否已存在
-    //     xhrCheck.onload = function () {
-    //         if (xhrCheck.status === 200) { // 如果伺服器回應成功
-    //             const existingFiles = JSON.parse(xhrCheck.responseText).files; // 解析伺服器回應的檔案列表
-    //             if (existingFiles.includes(filename)) { // 如果檔案已存在
-    //                 spinner.style.display = 'none'; // 隱藏加載指示器
-    //                 progressContainer.style.display = 'none'; // 隱藏進度條容器
-    //                 alert(`❌ 上傳失敗：檔案 "${filename}" 已存在，請重新命名或更換檔案`); // 顯示錯誤提示
-    //                 fileInfo.innerText = `❌ "${filename}" 已存在，請重新命名`; // 更新檔案資訊顯示
-    //                 fileInfo.style.color = 'red'; // 設定文字顏色為紅色
-    //                 return; // 結束函數執行
-    //             }
-    //             xhr.send(formData); // 發送檔案到伺服器
-    //         } 
-    //         else {
-    //             alert('⚠️ 無法檢查檔案是否重複，請稍後再試'); // 顯示錯誤提示
-    //         }
-    //     };
-    //     xhrCheck.onerror = function () {
-    //         alert('⚠️ 檢查檔案是否存在時發生錯誤'); // 顯示錯誤提示
-    //     };
-    //     xhrCheck.send(); // 發送檢查請求
-    // };
-
 
     
     // 在送出前檢查是否重複上傳
@@ -353,6 +321,9 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
       });
 
       const result = await res.json();
+
+
+
       if (result.duplicate) {
         console.log("⚠️ 偵測內容重複，彈出確認");
         spinner.style.display = 'none';
@@ -361,25 +332,31 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         modal.show();
         document.getElementById('confirmUploadBtn').onclick = () => {
           modal.hide();
+  // ⬇️ 補上這三行，讓 UI 重新顯示 loading 狀態
+  spinner.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressPercent.innerText = '0%';
+  progressContainer.style.display = 'block';
+
+
+
           window.kbLocked = true;   // ✅ 一送出就鎖定
           xhr.send(formData);  // ✅ 真正分析上傳
         };
       } else {
+          window.kbLocked = true; // 🔒 新增這行
+          console.log("✅ 無重複內容，直接上傳");
         xhr.send(formData);  // 無重複就直接送
       }
     } else {
       alert("⚠️ 無法檢查檔名是否重複");
     }
+
+
   };
   xhrCheck.onerror = () => alert("⚠️ 檢查檔名時發生錯誤");
   xhrCheck.send();
 };
-
-
-
-
-
-
 
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -408,10 +385,6 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                 console.error('伺服器回傳錯誤：', data.error); // 在控制台輸出錯誤訊息
                 return;
             }
-
-
-
-          
 
             const resultText = JSON.stringify(data.data, null, 2); // 將結果資料轉為格式化的 JSON 字串
             // 渲染表格 HTML
@@ -450,6 +423,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                 </div>
             `;
             resultDiv.innerHTML = tableHtml; // 更新結果區域的 HTML
+            
             // 初始化 DataTable 並插入按鈕
             $(document).ready(function () {
                 const table = $('#resultTable').DataTable({
@@ -468,14 +442,24 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                         const previewBtn = document.createElement('button');
                         previewBtn.className = 'btn btn-outline-primary'; // 設定按鈕樣式
                         previewBtn.id = 'previewAllBtn'; // 設定按鈕 ID
-                        previewBtn.innerText = '📋 預覽所有資料'; // 設定按鈕文字
+                        previewBtn.innerText = '📋 預覽資料'; // 設定按鈕文字
                         previewBtn.style.marginLeft = '12px'; // 設定按鈕的左邊距
+
+                        
                         const lengthControl = document.querySelector('.dataTables_length'); // 取得 DataTable 的長度控制區域
                         lengthControl.appendChild(previewBtn); // 將按鈕插入到長度控制區域
+
+// 直接建立提醒 span，不要判斷
+const infoSpan = document.createElement('span');
+infoSpan.className = "ms-3 text-warning fw-semibold";
+infoSpan.style.fontSize = "14px";
+infoSpan.textContent = "⚠️ 僅顯示前 100 筆，完整下載請至歷史紀錄";
+lengthControl.appendChild(infoSpan); // 按鈕右邊插入提醒
+
                         // 綁定按鈕的點擊事件
                         previewBtn.onclick = function () {
                             const modalContent = document.getElementById('modalContent'); // 取得 Modal 的內容區域
-                            const headers = ["Incident", "Config Item", "Severity (0–1)", "Frequency (0–1)", "Impact (0–1)", "Risk Level", "Solution", "Location"];
+                            const headers = ["Incident", "Config Item", "Severity (0–1)", "Frequency (0–1)", "Impact (0–1)", "Risk Level", "AI Summary", "Solution", "Location"];
                             let html = `<table class="table table-bordered table-sm"><thead><tr>`;
                             headers.forEach(h => html += `<th>${h}</th>`); // 生成表格標題列
                             html += `</tr></thead><tbody>`;
@@ -508,7 +492,9 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
             updateSummary(data.data); // 更新統計摘要
             // 顯示分析完成提示
             const analysisTime = data.data[0]?.analysisTime || '未知時間';
-            addHistoryItem(data.uid, file.name, summaryBox.innerText, analysisTime);
+
+            if (typeof loadHistoryFromAPI === "function") loadHistoryFromAPI();
+            
                 // ✅ 清除檔案資訊
             document.getElementById('excelFile').value = "";
             droppedFile = null;
@@ -525,12 +511,44 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         spinner.style.display = 'none'; // 隱藏加載指示器
         progressContainer.style.display = 'none'; // 隱藏進度條容器
         resultDiv.innerHTML = '<p style="color:red">發生錯誤，請稍後再試。</p>'; // 顯示錯誤訊息
+        console.error("XHR Error 狀態碼：", xhr.status, "回應：", xhr.responseText);
+
     };
     document.getElementById('previewTableArea').style.display = 'none'; // 隱藏預覽表格區域
     document.getElementById('fieldSelectorBlock').style.display = 'none'; // 隱藏欄位選擇區域
     checkDuplicateAndUpload();  // 啟動檢查並上傳流程
 }
 );
+
+
+async function loadHistoryFromAPI() {
+    // 假設 historyList 就是你 <ul id="historyList">
+    const res = await fetch('/history-list');
+    const historyArr = await res.json();
+    historyList.innerHTML = "";
+    historyArr.forEach(record => {
+        renderHistoryItem(record.uid, record.file, record.summary, record.time);
+    });
+}
+
+// 把舊的 addHistoryItem 改成 renderHistoryItem，並且**只做畫面渲染，不寫 localStorage**
+function renderHistoryItem(uid, fileName, summaryText, analysisTime) {
+    const displayTime = new Date(analysisTime).toLocaleString("zh-TW", {
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit"
+    });
+
+    const li = document.createElement('li');
+    li.innerHTML = `
+        <strong>${fileName}</strong> - ${displayTime}<br>
+        <span>${summaryText}</span><br>
+        <a href="/get-json?file=${uid}.json" target="_blank">🧾 預覽 JSON</a> |
+        <a href="/download-excel?uid=${uid}" download>📥 分析 Excel</a> |
+        <a href="/download-original?uid=${uid}" download>📤 原始 Excel</a>
+    `;
+    historyList.prepend(li);
+}
+
 
 //---------------------------------------------------------------------------------------
 function previewExcel(file) {
@@ -579,9 +597,13 @@ function renderPreviewTable(columns, rows) {
   document.getElementById('previewTableArea').style.display = 'block';
 }
 
+
+
+
 function updateFieldOptionStates() {
-  const resolutionIds = ['resolutionField1', 'resolutionField2', 'resolutionField3'];
-  const summaryIds = ['summaryField1', 'summaryField2'];
+  // ✅ 自動產生 Resolution 欄位 ID 陣列
+  const resolutionIds = Array.from({ length: 8 }, (_, i) => `resolutionField${i + 1}`);
+  const summaryIds = Array.from({ length: 8 }, (_, i) => `summaryField${i + 1}`);
 
   const updateGroup = (ids) => {
     const values = ids.map(id => document.getElementById(id).value);
@@ -610,52 +632,22 @@ function updateFieldOptionStates() {
 
 
 function populateFieldSelectors(columns) {
+  // ✅ 自動生成 resolutionField1～8 和 summaryField1～8
   const fieldIds = [
-    'resolutionField1', 'resolutionField2', 'resolutionField3',
-    'summaryField1', 'summaryField2'
+    ...Array.from({ length: 8 }, (_, i) => `resolutionField${i + 1}`),
+    ...Array.from({ length: 8 }, (_, i) => `summaryField${i + 1}`)
   ];
+
   fieldIds.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     sel.innerHTML = '<option value="">（請選擇欄位）</option>' +
       columns.map(c => `<option value="${c}">${c}</option>`).join('');
-    sel.onchange = updateFieldOptionStates; // ✅ 加這行
-
+    sel.onchange = updateFieldOptionStates; // ✅ 確保 onchange 邏輯仍有效
   });
 
+  // ✅ 顯示欄位選擇區塊
   document.getElementById('fieldSelectorBlock').style.display = 'block';
-}
-
-
-
-function addHistoryItem(uid, fileName, summaryText, analysisTime) {
-    const time = analysisTime || new Date().toISOString(); // 統一用 ISO 格式
-    const record = {
-        uid,
-        file: fileName,
-        time,
-        summary: summaryText
-    };
-
-    // 更新 localStorage
-    let historyData = JSON.parse(localStorage.getItem("historyData") || "[]");
-    historyData.unshift(record);
-    localStorage.setItem("historyData", JSON.stringify(historyData));
-    console.log("📦 儲存後的 historyData：", historyData);
-
-    // 顯示時間用可讀格式
-    const displayTime = new Date(time).toLocaleString("zh-TW", {
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit"
-    });
-
-    // 渲染 HTML
-    const li = document.createElement('li');
-    li.innerHTML = `
-        <strong>${fileName}</strong> - ${displayTime}<br>
-        <span>${summaryText}</span><br>
-    `;
-    historyList.prepend(li);
 }
 
 
@@ -681,6 +673,7 @@ function updateSummary(data) {
 // 深色模式切換 & 保存偏好
 window.addEventListener('DOMContentLoaded', () => {
 
+    loadHistoryFromAPI(); // ✅ 頁面載入時載入歷史記錄
 
     let isDark = localStorage.getItem('dark-mode'); // 從 localStorage 取得深色模式偏好
 
@@ -751,26 +744,26 @@ window.addEventListener('DOMContentLoaded', () => {
     
 
     // ✅ 讀取 localStorage 中的歷史記錄並顯示在頁面上
-    const storedHistory = JSON.parse(localStorage.getItem("historyData") || "[]");
-    const now = new Date();
+    // const storedHistory = JSON.parse(localStorage.getItem("historyData") || "[]");
+    // const now = new Date();
 
-    storedHistory.forEach(record => {
-        const parsedTime = new Date(record.time);
-        if (isNaN(parsedTime.getTime())) return;
+    // storedHistory.forEach(record => {
+    //     const parsedTime = new Date(record.time);
+    //     if (isNaN(parsedTime.getTime())) return;
 
-        const diffInMin = (now - parsedTime) / (1000 * 60);
-        if (diffInMin <= HISTORY_MINUTES_LIMIT) {
-            addHistoryItem(record.uid, record.file, record.summary, record.time);
-        }
-    });
+    //     const diffInMin = (now - parsedTime) / (1000 * 60);
+    //     if (diffInMin <= HISTORY_MINUTES_LIMIT) {
+    //         addHistoryItem(record.uid, record.file, record.summary, record.time);
+    //     }
+    // });
     
-    // 清除舊資料
-    const cleanedHistory = storedHistory.filter(record => {
-        const parsedTime = new Date(record.time);
-        const diffInMin = (now - parsedTime) / (1000 * 60);
-        return !isNaN(parsedTime.getTime()) && diffInMin <= HISTORY_MINUTES_LIMIT;
-    });
-    localStorage.setItem("historyData", JSON.stringify(cleanedHistory));
+    // // 清除舊資料
+    // const cleanedHistory = storedHistory.filter(record => {
+    //     const parsedTime = new Date(record.time);
+    //     const diffInMin = (now - parsedTime) / (1000 * 60);
+    //     return !isNaN(parsedTime.getTime()) && diffInMin <= HISTORY_MINUTES_LIMIT;
+    // });
+    // localStorage.setItem("historyData", JSON.stringify(cleanedHistory));
 
   pollKbStatus();  // 🔁 每頁載入後自動偵測
   // 初始化一次
@@ -847,11 +840,17 @@ function navigateTo(id) {
 // 導航到不同的頁面
 // 導航到不同的頁面，若知識庫建立中則中止跳轉
 function navigateTo1(page) {
+    console.log('[navigateTo1] called, page =', page, 'kbLocked =', window.kbLocked);
+  // 如果知識庫正在建立，則顯示提示並中止跳轉
   if (window.kbLocked) {
+        console.log('[navigateTo1] blocked navigation to', page);
+
 const modal = new bootstrap.Modal(document.getElementById('kbLockModal'));
 modal.show();
     return;
   }
+    console.log('[navigateTo1] allowed navigation to', page);
+
 
   const paths = {
     upload: "/",
@@ -986,3 +985,6 @@ function showPreview(item) {
     // 顯示模態框
     previewModalInstance.show();
 }
+
+
+
