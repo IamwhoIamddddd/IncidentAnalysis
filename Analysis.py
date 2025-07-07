@@ -56,8 +56,6 @@ import tempfile
 from jsonschema import validate, ValidationError
 from datetime import datetime
 
-POWERAUTOMATE_CLASSIFY_URL = "https://prod-26.southeastasia.logic.azure.com:443/workflows/651f88b4e548481ba38d129c30af1cae/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=1kjXdbN7QsORisL6sdEA1IRXRef_bstLqZjmRjp9c6E"  # 🔁 改成你自己的分類流程 URL
-POWERAUTOMATE_SUMMARY_URL = "https://prod-71.southeastasia.logic.azure.com:443/workflows/d70056c4f2c044b9a297164c9f98d1b6/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=L_qVgz5s0bLvz20lmI3RsoEmClvbTJfy7v99Ai38Xpw"  # 🔁 改成你自己的摘要流程 URL
 
 KMEANS_MIN_COUNT = 4         # 最少資料筆數
 KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
