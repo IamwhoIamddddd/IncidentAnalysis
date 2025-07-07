@@ -1,5 +1,6 @@
 # 匯入 Flask 框架及相關模組
 from flask import Flask, request, jsonify, render_template, session, send_file
+from typer import prompt
 from gpt_utils import extract_resolution_suggestion
 from gpt_utils import extract_problem_with_custom_prompt
 from gpt_utils import analyze_with_ai_builder_then_fallback
@@ -55,7 +56,8 @@ import tempfile
 from jsonschema import validate, ValidationError
 from datetime import datetime
 
-
+POWERAUTOMATE_CLASSIFY_URL = "https://prod-26.southeastasia.logic.azure.com:443/workflows/651f88b4e548481ba38d129c30af1cae/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=1kjXdbN7QsORisL6sdEA1IRXRef_bstLqZjmRjp9c6E"  # 🔁 改成你自己的分類流程 URL
+POWERAUTOMATE_SUMMARY_URL = "https://prod-71.southeastasia.logic.azure.com:443/workflows/d70056c4f2c044b9a297164c9f98d1b6/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=L_qVgz5s0bLvz20lmI3RsoEmClvbTJfy7v99Ai38Xpw"  # 🔁 改成你自己的摘要流程 URL
 
 KMEANS_MIN_COUNT = 4         # 最少資料筆數
 KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
@@ -123,14 +125,13 @@ def check_unclustered_files():
     files = [f for f in os.listdir(folder) if f.endswith('.xlsx')]
     return jsonify({'exists': len(files) > 0}), 200
 
-
 @app.route('/clustered-files', methods=['GET'])
 def list_clustered_files():
-    clustered_folder = 'excel_result_Clustered'
+    clustered_folder = 'excel_result_Clustered/Details'
     if not os.path.exists(clustered_folder):
         return jsonify({'files': []})
 
-    pattern = re.compile(r"^Cluster-\[CI\].+_\[RC\].+_\[SC\].+\.xlsx$")
+    pattern = re.compile(r"^Cluster_\[CI\].+_\[AI\].+\.xlsx$")  # 你命名是底線不是減號，記得一致！
     files_info = []
 
     for f in os.listdir(clustered_folder):
@@ -146,25 +147,22 @@ def list_clustered_files():
             row_count = 0
 
         files_info.append({
-            'name': f,
+            'name': f,    # 只放檔名
             'rows': row_count
         })
 
-    # ✅ 可選：依照 row 數降冪排序（最多的排前面）
     files_info.sort(key=lambda x: x['rows'], reverse=True)
-
     return jsonify({'files': files_info})
 
 
 @app.route('/download-clustered', methods=['GET'])
 def download_clustered_file():
     filename = request.args.get('file')
-    path = os.path.join('excel_result_Clustered', filename)
+    # 一定要加 Details 子資料夾
+    path = os.path.join('excel_result_Clustered', 'Details', filename)
     if os.path.exists(path):
         return send_file(path, as_attachment=True)
     return jsonify({'error': '找不到檔案'}), 404
-
-
 
 
 # 根據分數判斷風險等級（支援 KMeans 分群）
@@ -209,7 +207,75 @@ def set_kmeans_thresholds_from_centroids(centroids):
 # ------------------------------------------------------------------------------
 
 
-# ✅ 新增路由：處理所有 Unclustered Excel 檔案的分群與搬移
+
+def load_or_create_category_json(ci_name):
+    category_path = f"cluster_excels/{ci_name}_categories.json"
+    if os.path.exists(category_path):
+        print(f"🔄 已讀取分類記憶 JSON：{category_path}")
+        with open(category_path, "r", encoding="utf-8") as f:
+            return json.load(f), category_path
+    else:
+        print(f"🆕 尚無分類記憶，將建立新檔：{category_path}")
+        return [], category_path  # 空分類表
+    
+    
+
+def classify_summary_with_ai(summary, existing_categories, config_item):
+    # ✅ 格式化成逗號分隔字串給 prompt 用
+    formatted_categories = ', '.join([str(c.get("category", "")) for c in existing_categories])
+
+    print("-----------------------------------------------------")
+    print("📋 開始進行分類")
+    print(f"  - Summary：{summary[:80]}{'...' if len(summary) > 80 else ''}")
+    print(f"  - 現有分類清單：{formatted_categories if formatted_categories else '(無)'}")
+    
+    prompt = f"""You are an AI assistant helping to classify IT incident summaries.
+
+    The purpose of this classification is to produce more fine-grained and meaningful categories than the Configuration Item itself, so that IT incidents can be managed and analyzed more effectively.
+
+    IMPORTANT:
+    - The category **must be more specific than the Configuration Item**.
+    - Do NOT use the Configuration Item name or any similar/derived name as the category.
+    - For example, if the Configuration Item is "Email System", the category should be things like "login failure", "delivery delay", "mailbox full", "spam filtering", NOT just "Email System".
+
+    Please read the following summary and determine the most appropriate category name from the given list.
+    If none of the existing categories match well, create a new concise category that best represents the issue.
+
+    Configuration Item:
+    {config_item}
+
+    Incident Summary:
+    {summary}
+
+    Existing Categories:
+    {formatted_categories}
+
+    Output Rule:
+    - Return only the final category name.
+    - Do NOT include any explanation, formatting, or punctuation.
+    - The response must be exactly one line with the category name only.
+
+    Your answer:"""
+
+
+    try:
+        payload = {
+            "prompt": prompt
+        }
+        print("  - 已送出 API 請求，等待分類結果...")
+        response = requests.post(POWERAUTOMATE_CLASSIFY_URL, json=payload, timeout=120)
+        result = response.json()
+        print("  - API 回傳內容：", result)
+        category = result.get("category", "").strip().lower()
+        print(f"  - 分類結果：{category if category else '（uncategorized）'}")
+        print("-----------------------------------------------------")
+        return category if category else "uncategorized"
+    except Exception as e:
+        print(f"❌ 分類失敗（summary: {summary[:80]}{'...' if len(summary) > 80 else ''}）：", e)
+        print("-----------------------------------------------------")
+        return "uncategorized"
+# ------------------------------------------------------------------------------
+
 @app.route('/cluster-excel', methods=['POST'])
 def cluster_excel():
     unclustered_dir = 'excel_result_Unclustered'
@@ -217,68 +283,223 @@ def cluster_excel():
     os.makedirs(clustered_dir, exist_ok=True)  # ✅ 確保 Clustered 資料夾存在
 
     files = [f for f in os.listdir(unclustered_dir) if f.endswith('_Unclustered.xlsx')]
-    print(f"🔍 偵測到 {len(files)} 筆待分群檔案")
+    print("="*60)
+    print(f"🔍 偵測到 {len(files)} 筆待分群檔案：{files if files else '（無）'}")
+    print("="*60)
 
-    for filename in files:
+    for i, filename in enumerate(files, 1):
         uid = filename.replace('_Unclustered.xlsx', '')
         excel_path = os.path.join(unclustered_dir, filename)
-        print(f"📂 處理檔案：{excel_path}")
+        print(f"\n🟦 [{i}/{len(files)}] 開始處理檔案：{excel_path}")
 
-        # 載入 Excel 並進行分群匯出
         df = pd.read_excel(excel_path)
-        results = df.to_dict(orient='records')
-        cluster_excel_export(results)  # ✅ 呼叫已定義的函式進行分群匯出
+        print(f"  📑 共 {len(df)} 筆資料待分類")
 
-        # 搬移檔案到 Clustered 並改名
+        # ✅ 一筆一筆分類
+        for idx, row in df.iterrows():
+            config_item = row.get("configurationItem", "Unknown")
+            summary = row.get("aiSummary", "").strip()
+            print(f"    ├─ [{idx+1}/{len(df)}] 分類 configurationItem：{config_item} | Summary 前 40 字：{summary[:40]}{'...' if len(summary)>40 else ''}")
+
+            # 🔁 讀取分類記憶 JSON
+            categories, cat_path = load_or_create_category_json(config_item)
+
+            # ✨ 丟給 GPT 分類，這裡要多帶 config_item
+            category = classify_summary_with_ai(summary, categories, config_item)
+
+            # ✅ 如果分類還沒出現在記憶清單，才加入
+            if category not in [c["category"].lower() for c in categories]:  # ✅ 小寫比較避免重複
+                new_cat = {"category": category}
+                categories.append(new_cat)
+                with open(cat_path, "w", encoding="utf-8") as f:
+                    json.dump(categories, f, indent=2, ensure_ascii=False)
+                print(f"    │   🆕 新分類已加入 {cat_path}：{category}")
+            else:
+                print(f"    │   分類 {category} 已存在記憶清單")
+
+            # ✅ 寫入這筆事件的 aiCategory
+            df.at[idx, "aiCategory"] = category.lower()  # ✅ 保險轉小寫
+
+        # ✅ 覆蓋回原 Excel（Unclustered）
+        df.to_excel(excel_path, index=False)
+        print(f"  📄 已覆蓋更新 Unclustered Excel：{excel_path}")
+
+        # ✅ 繼續照原邏輯分群（此時每筆都有 aiCategory）
+        results = df.to_dict(orient='records')
+        print(f"  🔗 進行分群並匯出至 Clustered ...")
+        cluster_excel_export(results)
+
+        # ✅ 搬到 Clustered 資料夾
         clustered_path = os.path.join(clustered_dir, uid + '_Clustered.xlsx')
         shutil.move(excel_path, clustered_path)
-        print(f"📁 已移動並改名：{clustered_path}")
+        print(f"  📁 已移動檔案並改名：{clustered_path}")
+
+    print("="*60)
+    print(f"🎉 所有分群 Excel 檔案已完成搬移與分群，共處理 {len(files)} 檔！")
+    print("="*60)
 
     return jsonify({'message': f'已成功處理 {len(files)} 筆 Excel 檔案並完成分群'}), 200
 
 # ------------------------------------------------------------------------------
 
-def cluster_excel_export(results, export_dir="excel_result_Clustered"):
+def cluster_excel_export(results, export_dir="excel_result_Clustered/Details"):
     def clean(text):
         return re.sub(r'[^\w\-_.]', '_', str(text).strip())[:30] or "Unknown"
 
+    print("\n🟦 [cluster_excel_export] 開始分群與匯出 ...")
     cluster_data = defaultdict(list)
     for r in results:
-        config_item = r.get("configurationItem", "Unknown")
-        role_component = r.get("roleComponent", "Unknown")
-        subcategory = r.get("subcategory", "Unknown")
-        cluster_key = f"{config_item}_{role_component}_{subcategory}"
+        config_item = r.get("configurationItem") or "Unknown"
+        ai_category = r.get("aiCategory") or "未分類"
+        cluster_key = f"{config_item}_{ai_category}"
         r['cluster'] = cluster_key
         cluster_data[cluster_key].append(r)
 
     os.makedirs(export_dir, exist_ok=True)
+    print(f"📁 匯出資料夾路徑：{export_dir}")
+    print(f"🔢 共發現 {len(cluster_data)} 個分群")
 
-    for key, group in cluster_data.items():
+    for idx, (key, group) in enumerate(cluster_data.items(), 1):
         cluster_df = pd.DataFrame(group)
-
         try:
-            config_item, role_component, subcategory = key.split('_', 2)
+            config_item, ai_category = key.split('_', 1)
         except ValueError:
-            config_item, role_component, subcategory = key, "Unknown", "Unknown"
+            config_item, ai_category = key, "未分類"
 
-        filename = f"{export_dir}/Cluster-[CI]{clean(config_item)}_[RC]{clean(role_component)}_[SC]{clean(subcategory)}.xlsx"
+        filename = f"{export_dir}/Cluster_[CI]{clean(config_item)}_[AI]{clean(ai_category)}.xlsx"
+        print(f"\n  [{idx}/{len(cluster_data)}] 分群 Key：{key}")
+        print(f"    ├─ 匯出檔名：{filename}")
+        print(f"    ├─ 本群共 {len(group)} 筆資料")
 
         if os.path.exists(filename):
             old_df = pd.read_excel(filename)
+            print(f"    ├─ 檔案已存在，原有 {len(old_df)} 筆資料，將合併")
             cluster_df = pd.concat([old_df, cluster_df], ignore_index=True)
+        else:
+            print("    ├─ 檔案不存在，將新建檔案")
 
         cluster_df = cluster_df.sort_values(by="analysisTime", ascending=False)
         cluster_df.to_excel(filename, index=False)
-        print(f"📁 已輸出：{filename}（共 {len(cluster_df)} 筆）")
+        print(f"    ├─ 已輸出 Excel，合併後共 {len(cluster_df)} 筆")
+        
+        print(f"    ├─ 產生群組摘要 ...")
+        summarize_group_to_excel(config_item, ai_category, group)
 
         high_count = sum(1 for e in group if e.get('riskLevel') == '高風險')
         total = len(group)
         if total > 0 and (high_count / total) >= 0.5:
-            print(f"🚨 預警：Cluster {key} 有 {high_count}/{total} 筆高風險事件")
-    print("✅ 分群 Excel 檔案已儲存！")
+            print(f"    🚨 預警：Cluster {key} 有 {high_count}/{total} 筆高風險事件")
+    print("\n✅ [cluster_excel_export] 所有分群 Excel 檔案已儲存！")
+# ------------------------------------------------------------------------------
+def run_gpt_summary(text, instruction):
+    if not text.strip():
+        print("⚠️ 無內容可摘要")
+        return "（無內容）"
+
+    prompt = f"""{instruction}
+
+    Content:
+    {text}
+
+    Please summarize concisely in one paragraph:"""
+    
+    print("🟦 [run_gpt_summary] 開始呼叫 GPT 摘要")
+    print(f"  - 指令 instruction：{instruction}")
+    print(f"  - 摘要內容前 50 字：{text[:50]}{'...' if len(text)>50 else ''}")
+
+    try:
+        response = requests.post(POWERAUTOMATE_SUMMARY_URL, json={"prompt": prompt}, timeout=120)
+        result = response.json()
+        summary = result.get("summary", "").strip()
+        print(f"  - GPT 摘要結果：{summary[:80]}{'...' if len(summary)>80 else ''}")
+        print("🟦 [run_gpt_summary] 完成\n")
+        return summary
+    except Exception as e:
+        print("❌ 摘要失敗：", e)
+        return "（摘要失敗）"
+
+
+def summarize_group_to_excel(config_item, ai_category, group, output_dir="excel_result_Clustered/Summaries"):
+    def clean(text):
+        return re.sub(r'[^\w\-_.]', '_', str(text).strip())[:30] or "Unknown"
+    os.makedirs(output_dir, exist_ok=True)
+
+    print("\n🟩 [summarize_group_to_excel] 開始群組摘要 ...")
+    print(f"  - configItem：{config_item}")
+    print(f"  - aiCategory：{ai_category}")
+    print(f"  - 群組事件數量：{len(group)}")
+
+    summaries = [str(r.get("aiSummary", "")).strip() for r in group if r.get("aiSummary")]
+    solutions = [str(r.get("solution", "")).strip() for r in group if r.get("solution")]
+
+    summary_text = "\n".join(summaries)
+    solution_text = "\n".join(solutions)
+
+    print(f"  - 問題 summaries 條數：{len(summaries)}")
+    print(f"  - solution 條數：{len(solutions)}")
+    print("  - 正在呼叫 GPT 產生『summary_summary』 ...")
+    summary_summary = run_gpt_summary(summary_text, "Summarize the problem summaries in a concise form.")
+    print("  - 正在呼叫 GPT 產生『solution_summary』 ...")
+    solution_summary = run_gpt_summary(solution_text, "Summarize the solutions in a concise and helpful form.")
+
+    # ✅ 儲存成 Excel
+    df = pd.DataFrame([{
+        "category": ai_category,
+        "configItem": config_item,
+        "summary_summary": summary_summary,
+        "solution_summary": solution_summary
+    }])
+    # 確保輸出目錄存在
+    filename = f"{output_dir}/Summary_[CI]{clean(config_item)}_[AI]{clean(ai_category)}.xlsx"
+
+    df.to_excel(filename, index=False)
+    print(f"📄 已輸出摘要檔案：{filename}")
+    print("🟩 [summarize_group_to_excel] 完成\n")
 
 
 
+
+
+
+@app.route('/download-summary', methods=['GET'])
+def download_summary():
+    filename = request.args.get('file')
+    path = os.path.join('excel_result_Clustered', 'Summaries', filename)
+    if os.path.exists(path):
+        return send_file(path, as_attachment=True)
+    return jsonify({'error': '找不到檔案'}), 404
+
+
+@app.route('/summary-files', methods=['GET'])
+def list_summary_files():
+    summary_folder = 'excel_result_Clustered/Summaries'
+    if not os.path.exists(summary_folder):
+        return jsonify({'files': []})
+
+    files_info = []
+    for f in os.listdir(summary_folder):
+        if not f.endswith('.xlsx'):
+            continue
+        filepath = os.path.join(summary_folder, f)
+        try:
+            df = pd.read_excel(filepath)
+            row_count = len(df)
+        except Exception as e:
+            print(f"❌ 無法讀取 {f}：{e}")
+            row_count = 0
+        files_info.append({
+            'name': f,
+            'rows': row_count
+        })
+
+    files_info.sort(key=lambda x: x['rows'], reverse=True)
+    return jsonify({'files': files_info})
+
+
+
+
+
+# ------------------------------------------------------------------------------
 
 
 

@@ -11,6 +11,7 @@ import re
 import time
 
 
+POWERAUTOMATEANALYSIS_URL = "https://prod-68.southeastasia.logic.azure.com:443/workflows/de1c05e9860c4296873b019585edcb7f/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=TlEzbTE_tkcvnKUuiziBXthKuvW7ONK6VP4bxi_-_bY"  # 🔁 請換成你的實際網址
 
 
 MAX_CONCURRENCY = 10

@@ -3,6 +3,10 @@ import subprocess
 import re
 import sqlite3
 import pandas as pd
+import requests  # 放在最上面也可以
+
+
+POWERAUTOMATE_URL = "https://prod-08.southeastasia.logic.azure.com:443/workflows/a9de89a708674755923e900665994521/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Eo8rgY9JHLAqYDQCYTjWYiufiHq3LYQ_kZXWmGjqLhw"  # 🔁 請換成你的實際網址
 
 
 
@@ -20,55 +24,74 @@ class SQLAgent:
         
         
         # 拆解問題並分成兩部分，並使用 LLM 處理
-    def _split_user_question(self, message):
-        # LLM 用來根據使用者的問題拆解為兩個部分
-        prompt = (
-            "You are an expert assistant. Based on the user's question, split the task into two parts:\n\n"
-            "1. **SQL Query Prompt**:\n"
-            "- Generate a prompt for another LLM to create a SQL query.\n"
-            "- Use aggregation functions (e.g., COUNT, GROUP BY) to summarize data based on broad categories.\n"
-            "- Do not include any filtering conditions (e.g., WHERE clauses), unless explicitly requested by the user.\n\n"
-            "2. **Analysis Prompt**:\n"
-            "- Create a prompt for another LLM to analyze the SQL query results.\n"
-            "- Describe the user's intent (e.g., trends, insights, summarization).\n"
-            "- Provide instructions on interpreting the results and deriving insights.\n"
-            "- Suggest trends, anomalies, or patterns if applicable.\n\n"
-            "Return both prompts separately, labeled as 'SQL Query Prompt' and 'Analysis Prompt'."
-        )
 
+    def _split_user_question(self, message):
+        prompt = (
+            "You are an expert assistant. Your task is to split the user's request into exactly two clean prompts:\n\n"
+            "1. **SQL Query Prompt**:\n"
+            "- A single-sentence instruction that asks an LLM to generate a SQL query.\n"
+            "- Only describe what kind of SQL query should be created, using natural language.\n"
+            "- Do NOT include actual SQL code, examples, markdown, or any explanation.\n\n"
+            "2. **Analysis Prompt**:\n"
+            "- A single-sentence instruction that asks an LLM to analyze the results of the SQL query.\n"
+            "- Describe what insights the user wants to extract (e.g., top N, trends, anomalies).\n"
+            "- Again, do NOT include examples or long-winded descriptions.\n\n"
+            "⚠️ Output format MUST be:\n"
+            "SQL Query Prompt: <your instruction>\n"
+            "Analysis Prompt: <your instruction>\n\n"
+            "No other output. Do NOT include SQL code blocks, markdown, comments, or explanations.\n\n"
+            f"User Question: {message}\n"
+        )
 
         # 在提示語句中加入使用者問題
         print("📝 [SQLAgent] 構造拆解問題的提示語句...")
-        prompt = f"{prompt}\n\nUser Question: {message}\n\n"
+        prompt_with_user = f"{prompt}\n\nUser Question: {message}\n\n"
 
-        # 呼叫 LLM 來拆解問題並生成兩個部分
+        # ==== Step 1: 嘗試 Power Automate HTTP ====
+        try:
+            url = POWERAUTOMATE_URL   # << 請換成你的 Power Automate URL
+            payload = {
+                "template": prompt,
+                "userInput": message
+            }
+            res = requests.post(url, json=payload, timeout=120)
+            if res.status_code == 200:
+                reply = res.json().get("response", "").strip()
+                if "SQL Query Prompt" in reply and "Analysis Prompt" in reply:
+                    sql_query_prompt = reply.split("SQL Query Prompt")[1].split("Analysis Prompt")[0].strip()
+                    analysis_prompt = reply.split("Analysis Prompt")[1].strip()
+                    print("✅ Power Automate 拆分 prompt 成功")
+                    print("SQL Query Prompt:", sql_query_prompt)
+                    print("Analysis Prompt:", analysis_prompt)
+                    return sql_query_prompt, analysis_prompt
+            print("⚠️ Power Automate HTTP 回應錯誤或格式不符")
+        except Exception as e:
+            print(f"❌ Power Automate call fail: {e}")
+
+        # ==== Step 2: fallback 本地 LLM ====
         try:
             print("🚀 發送拆解問題的提示到 LLM...")
             result = subprocess.run(
                 ["ollama", "run", self.model],
-                input=prompt.encode("utf-8"),
+                input=prompt_with_user.encode("utf-8"),
                 capture_output=True,
                 timeout=600
             )
             if result.returncode == 0:
                 response = result.stdout.decode("utf-8").strip()
                 print("✅ LLM 回應：", response)
-                # 假設 LLM 會返回兩個部分，分別是 SQL 查詢提示與分析提示
                 sql_query_prompt = ""
                 analysis_prompt = ""
-                
-                # 抽取 SQL 查詢提示與分析提示
                 if "SQL Query Prompt" in response and "Analysis Prompt" in response:
                     sql_query_prompt = response.split("SQL Query Prompt")[1].split("Analysis Prompt")[0].strip()
                     analysis_prompt = response.split("Analysis Prompt")[1].strip()
-
                 return sql_query_prompt, analysis_prompt
             else:
                 print("❌ LLM 錯誤：", result.stderr.decode("utf-8"))
                 return None, None
         except Exception as e:
             print(f"❌ 呼叫 LLM 發生錯誤：{str(e)}")
-            return None, None
+            return None, None  # <<== 這一行請加回來
 
     # SQL 查詢生成與執行 
     def _build_prompt(self, user_question):
@@ -106,6 +129,26 @@ class SQLAgent:
         if not prompt.strip():
             print("⚠️ 提示語句為空，無法產生 SQL")
             return None
+        
+        # ==== Step 1: 先試 Power Automate HTTP ====
+        try:
+            url = POWERAUTOMATE_URL  # << 換成你的 Power Automate URL
+            payload = {
+                "template": prompt,  # 這裡直接把 prompt 當 template 傳（或根據 API 規格調整）
+                "userInput": ""      # 這裡 SQL prompt 不需 user input，給空字串即可
+            }
+            res = requests.post(url, json=payload, timeout=120)
+            if res.status_code == 200:
+                reply = res.json().get("response", "").strip()
+                if "SELECT" in reply:  # 你可以根據自己需求強化這個判斷（如檢查有無 FROM）
+                    print("✅ Power Automate 產生 SQL 查詢成功")
+                    return reply
+            print("⚠️ Power Automate HTTP 回應錯誤或格式不符")
+        except Exception as e:
+            print(f"❌ Power Automate call fail: {e}")
+
+        # ==== Step 2: fallback 本地 LLM ====
+        
         try:
             print("🚀 呼叫模型產生 SQL 中...")
             result = subprocess.run(
@@ -121,7 +164,7 @@ class SQLAgent:
                 return None
 
             output = result.stdout.decode("utf-8").strip()
-            print("📥 模型產出（前 200 字）：", output[:200])
+            print("📥 模型產出（前 200 字）：", output[:1000])
             return output
 
         except Exception as e:
@@ -278,7 +321,7 @@ class SQLAgent:
                     ["ollama", "run", m],
                     input=prompt.encode("utf-8"),
                     capture_output=True,
-                    timeout=300
+                    timeout=600
                 )
                 if result.returncode == 0:
                     return result.stdout.decode("utf-8").strip()
@@ -294,6 +337,27 @@ class SQLAgent:
             for idx, s in enumerate(group, 1):
                 merge_prompt += f"（摘要 {idx}）{s}\n\n"
             merge_prompt += "Please consolidate the main observations:"
+            
+            
+            # ==== Step 1: 先 HTTP Request Power Automate 合併 ====
+            try:
+                url = POWERAUTOMATE_URL  # 記得要有
+                payload = {
+                    "template": "請統整下列多段摘要，彙整出全體主要結論：\n\n" + merge_prompt,
+                    "userInput": ""
+                }
+                res = requests.post(url, json=payload, timeout=120)
+                if res.status_code == 200:
+                    reply = res.json().get("response", "").strip()
+                    if reply and len(reply) > 10:
+                        print("✅ Power Automate 合併摘要成功")
+                        merged_chunks.append(reply)
+                        continue  # 跳過本地模型 fallback
+                print("⚠️ Power Automate HTTP 合併失敗或內容太短，改用本地 LLM")
+            except Exception as e:
+                print(f"❌ Power Automate 合併 call fail: {e}")
+
+            # ==== Step 2: fallback 本地 LLM chunk 合併 ====
 
             print(f"🧠 嘗試使用主模型 {self.model} 進行合併摘要...")
             print(f"📥 Prompt Preview：{merge_prompt[:300]}{'...' if len(merge_prompt) > 300 else ''}")
@@ -352,6 +416,26 @@ class SQLAgent:
                 f"You are a data analyst. The following is data chunk {i//chunk_size+1}. "
                 f"Please summarize its characteristics and trends:\n\n{sample_csv}\n\nSummary:"
             )
+            
+            # ==== Step 1: 先 HTTP Request Power Automate 摘要 ====
+            try:
+                url = POWERAUTOMATE_URL
+                payload = {
+                    "template": "請針對下列 SQL 查詢結果的資料 chunk 摘要其特徵與趨勢，結論請明確：\n\n" + prompt,
+                    "userInput": ""
+                }
+                res = requests.post(url, json=payload, timeout=120)
+                if res.status_code == 200:
+                    reply = res.json().get("response", "").strip()
+                    if reply and len(reply) > 10:
+                        print(f"✅ Power Automate 摘要 chunk {i//chunk_size+1} 成功")
+                        chunk_summaries.append(reply)
+                        continue  # 跳過本地 LLM fallback
+                print(f"⚠️ Power Automate chunk {i//chunk_size+1} 摘要失敗或內容太短，改用本地 LLM")
+            except Exception as e:
+                print(f"❌ Power Automate chunk {i//chunk_size+1} 摘要 call fail: {e}")
+
+            # ==== Step 2: fallback 本地 LLM chunk 摘要 ====
 
             try:
                 result = subprocess.run(
@@ -385,9 +469,6 @@ class SQLAgent:
         else:
             print("⚠️ 合併摘要失敗，回傳各段摘要集合")
             return "\n\n".join(chunk_summaries)
-
-
-    
 
     def handle(self, user_question, memory=None):
         print("🧠 [SQLAgent] 啟動 SQL 查詢流程...")

@@ -29,6 +29,10 @@ from autogen_agentchat.ui import Console
 from autogen_core import ClosureAgent,ClosureContext,DefaultSubscription, MessageContext, SingleThreadedAgentRuntime
 from datetime import datetime
 
+
+
+POWERAUTOMATE_URL = "https://prod-08.southeastasia.logic.azure.com:443/workflows/a9de89a708674755923e900665994521/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Eo8rgY9JHLAqYDQCYTjWYiufiHq3LYQ_kZXWmGjqLhw"  # 🔁 請換成你的實際網址
+
 # ----------- 全域設定 -----------
 
 DB_PATH = "resultDB.db"  # 你在 build_kb.py 裡設定的 DB 名稱
@@ -282,7 +286,8 @@ async def run_offline_gpt(message, model="orca2:13b", history=[], chat_id=None):
     template = (
         "You are a knowledgeable helpdesk assistant. "
         "You will first review some relevant case entries, then answer the user's question based on context and your reasoning.\n\n"
-        "Please limit your answer to no more than 1000 English words.\n\n"
+        "Please format your response as bullet points. Each bullet should be clear, concise, and focus on a single idea. "
+        "Avoid long paragraphs or excessive explanations. Do NOT include Markdown or code blocks.\n\n"
         "==== [Retrieved Knowledge Base Entries] ====\n"
     )
 

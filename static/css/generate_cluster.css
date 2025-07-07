@@ -253,6 +253,85 @@ body.dark-mode #clusteredFileList a {
   color: #90caf9;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* 📁 summaryFileList 樣式 */
+#summaryFileList {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 20px;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+#summaryFileList li {
+  background: #f4f6fa;
+  padding: 10px 16px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  transition: background 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+#summaryFileList li:hover {
+  background: #e3f2fd;
+  transform: translateX(4px);
+}
+
+/* 連結樣式 */
+#summaryFileList a {
+  color: #1565c0;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+#summaryFileList a:hover {
+  text-decoration: underline;
+}
+
+/* 🌙 深色模式支援 */
+body.dark-mode #summaryFileList li {
+  background: #2a2d4a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-mode #summaryFileList li:hover {
+  background: #3a3f6b;
+}
+
+body.dark-mode #summaryFileList a {
+  color: #90caf9;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @keyframes dotsAnimation {
   0%   { content: ""; }
   33%  { content: "."; }
