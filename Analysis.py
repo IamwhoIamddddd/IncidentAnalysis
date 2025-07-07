@@ -382,6 +382,16 @@ def cluster_excel_export(results, export_dir="excel_result_Clustered/Details"):
         cluster_df.to_excel(filename, index=False)
         print(f"    ├─ 已輸出 Excel，合併後共 {len(cluster_df)} 筆")
         
+        # ====== 新增：再存一份到 OneDrive 目的資料夾 (這個資料夾在MSTC ITG sharepoint 網站上)======
+        custom_export_dir = r"C:\Users\tachang\Microsoft\MSTC ITG - Timmy\IncidentAnalysis_Clustered_File\Details"
+        os.makedirs(custom_export_dir, exist_ok=True)
+        custom_filename = os.path.join(custom_export_dir, os.path.basename(filename))
+        cluster_df.to_excel(custom_filename, index=False)
+        print(f"    ├─ 已額外備份到：{custom_filename}")
+        # ==============================================
+        
+        
+        
         print(f"    ├─ 產生群組摘要 ...")
         summarize_group_to_excel(config_item, ai_category, group)
 
@@ -390,6 +400,11 @@ def cluster_excel_export(results, export_dir="excel_result_Clustered/Details"):
         if total > 0 and (high_count / total) >= 0.5:
             print(f"    🚨 預警：Cluster {key} 有 {high_count}/{total} 筆高風險事件")
     print("\n✅ [cluster_excel_export] 所有分群 Excel 檔案已儲存！")
+    
+    
+    
+    
+    
 # ------------------------------------------------------------------------------
 def run_gpt_summary(text, instruction):
     if not text.strip():
@@ -454,6 +469,15 @@ def summarize_group_to_excel(config_item, ai_category, group, output_dir="excel_
 
     df.to_excel(filename, index=False)
     print(f"📄 已輸出摘要檔案：{filename}")
+    
+    # ====== 新增：再存一份到 OneDrive 目的資料夾 (這個資料夾在MSTC ITG sharepoint 網站上)======
+    custom_export_dir = r"C:\Users\tachang\Microsoft\MSTC ITG - Timmy\IncidentAnalysis_Clustered_File\Summaries"
+    os.makedirs(custom_export_dir, exist_ok=True)
+    custom_filename = os.path.join(custom_export_dir, os.path.basename(filename))
+    df.to_excel(custom_filename, index=False)
+    print(f"📄 已額外備份摘要到：{custom_filename}")
+    # ==================================================    
+
     print("🟩 [summarize_group_to_excel] 完成\n")
 
 
