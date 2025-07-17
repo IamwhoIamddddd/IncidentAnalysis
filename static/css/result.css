@@ -1081,3 +1081,83 @@ body.dark-mode #kbStatusBar .dots::after {
   color: #ffe082;
 }
 
+.fancy-load-btn {
+    background: linear-gradient(90deg, #e0e7ff 0%, #90e0ff 60%, #f6d365 100%);
+    color: #1a1a40;
+    font-weight: bold;
+    border: 2px solid #56ffe6;
+    padding: 12px 36px;
+    border-radius: 2em;
+    font-size: 1.2rem;
+    box-shadow: 
+        0 2px 24px 0 #92f7e2aa,   /* 外發光藍綠暈 */
+        0 1.5px 0.5px 0 #fff inset,  /* 內發光 */
+        0 0.5px 0 #f7fd04 inset;
+    transition: 
+        background 0.34s, 
+        color 0.22s, 
+        box-shadow 0.25s, 
+        border-color 0.18s, 
+        transform 0.18s;
+    margin: 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    position: relative;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 10px #b2fefa44, 0 0.5px 1.5px #fff;
+}
+
+.fancy-load-btn:hover:not(:disabled) {
+    background: linear-gradient(100deg, #ffecd2 10%, #b7ffeb 55%, #3ebffe 100%);
+    color: #1a1a40;  /* 用深藍主色 */
+    border-color: #ffe644;
+    box-shadow: 
+        0 0 30px #c2fcd6,
+        0 2px 18px #62fff1, 
+        0 1.5px 0.5px 0 #fff inset;
+    transform: translateY(-2.5px) scale(1.05) skewX(-2deg);
+    text-shadow: 0 0 8px #65ffe1, 0 0 2px #fff, 0 0 2px #0ff;
+}
+
+.fancy-load-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    border-color: #aacccc;
+    color: #aab;
+    box-shadow: none;
+}
+
+
+.dark-mode .fancy-load-btn {
+    background: linear-gradient(90deg, #232526, #2b5876 100%);
+    color: #0ff0fc;
+    box-shadow: 0 0 18px 0 #20e3b2, 0 2px 20px 0 #0e1726;
+    border: 1.5px solid #14ffe9;
+    letter-spacing: 1.1px;
+    text-shadow: 0 0 8px #31f7fa, 0 0 3px #213a58;
+    transition: 
+        background 0.3s, 
+        color 0.2s, 
+        box-shadow 0.3s, 
+        border-color 0.25s,
+        transform 0.18s;
+}
+
+.dark-mode .fancy-load-btn:hover:not(:disabled) {
+    background: linear-gradient(90deg, #090a0f 40%, #00c3ff 100%);
+    color: #f2ff81;
+    border-color: #1cfcff;
+    box-shadow: 0 0 32px 0 #1cfcff, 0 4px 32px 0 #224779;
+    transform: translateY(-3px) scale(1.06);
+}
+
+.dark-mode .fancy-load-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    border-color: #2b3340;
+    color: #91b1c5;
+    box-shadow: none;
+}
+

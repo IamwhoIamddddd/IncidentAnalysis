@@ -88,10 +88,10 @@
   <label for="filterRange">📅 顯示哪段時間的資料：</label>
   <select id="filterRange" class="select-clean">
     <option value="all">全部</option>
-    <option value="0">只顯示今天</option>
+    <option value="0" selected>只顯示今天</option>
     <option value="1">最近 1 天</option>
     <option value="3">最近 3 天</option>
-    <option value="7" selected>最近 7 天</option>
+    <option value="7">最近 7 天</option>
     <option value="30">最近 30 天</option>
   </select>
   <button id="clearFilterBtn" class="btn-clear">🧹 清除篩選</button>
@@ -99,6 +99,10 @@
 
 
 <div id="resultCards"></div>
+
+<div id="loadMoreContainer" style="text-align: center; margin-top: 24px;">
+    <button id="loadMoreBtn" class="fancy-load-btn">載入更多</button>
+</div>
 
 
 

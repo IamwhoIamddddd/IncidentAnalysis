@@ -1,71 +1,85 @@
-// 當 DOM 完全加載後執行
-window.addEventListener('DOMContentLoaded', async () => {
-    // 獲取顯示歷史紀錄的列表元素
-    const historyList = document.getElementById('historyList');
-    // 從後端 API 取得歷史紀錄資料（已經不再從 localStorage 取了）
-    let savedHistory = [];
-    const noHistoryMsg = document.getElementById('no-history-msg');
-    
+let currentPage = 1;         // 現在在第幾頁
+let pageSize = 3;            // 每頁幾筆（和 Bootstrap 卡片排法對齊）
+let totalPages = 1;          // 全部有幾頁
+
+const historyList = document.getElementById('historyList');
+const noHistoryMsg = document.getElementById('no-history-msg');
+
+
+async function loadHistoryPage(page) {
     try {
-        const res = await fetch('/history-list');
-        savedHistory = await res.json();
+        // 加上 page/pageSize 查詢參數
+        const res = await fetch(`/history-list?page=${page}&pageSize=${pageSize}`);
+        const data = await res.json();
+        const savedHistory = data.records || [];
+        const total = data.total || 0;
+
+        // 算出總頁數
+        totalPages = Math.ceil(total / pageSize);
+        currentPage = page;
+
+        // 顯示/隱藏「沒有紀錄」訊息
+        noHistoryMsg.style.display = (savedHistory.length === 0) ? 'block' : 'none';
+
+        // 清空原內容
+        historyList.innerHTML = '';
+
+        // 渲染這一頁所有紀錄
+        savedHistory.forEach(item => {
+            const li = document.createElement('div');
+            li.className = "col-12 col-sm-6 col-md-4";
+            li.innerHTML = `
+                <div class="history-item card p-3 h-100 shadow-sm">
+                    <div class="history-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-1">${item.file}</h5>
+                        <small class="text-extra-muted">${item.time}</small>
+                    </div>
+                    <p class="mb-2 text-secondary">${item.summary}</p>
+                    <div class="btn-group mt-auto" role="group">
+                        <a href="/get-json?file=${item.uid}.json" target="_blank"
+                        class="btn btn-sm btn-outline-info">🧾 預覽 JSON</a>
+                        <a href="/download-excel?uid=${item.uid}" download
+                        class="btn btn-sm btn-outline-success">📥 分析 Excel</a>
+                        <a href="/download-original?uid=${item.uid}" download
+                        class="btn btn-sm btn-outline-secondary">📤 原始 Excel</a>
+                    </div>
+                </div>
+            `;
+            historyList.appendChild(li);
+        });
+
+        // 分頁資訊顯示
+        document.getElementById('pageInfo').textContent = `第 ${currentPage} 頁 / 共 ${totalPages} 頁`;
+        document.getElementById('prevPageBtn').disabled = (currentPage === 1);
+        document.getElementById('nextPageBtn').disabled = (currentPage === totalPages || totalPages === 0);
+
     } catch (err) {
-        savedHistory = [];
         alert("❌ 無法載入歷史紀錄，請稍後再試");
     }
-    
-    if (savedHistory.length === 0) {
-        noHistoryMsg.style.display = 'block';
-    } else {
-        noHistoryMsg.style.display = 'none';
-    }
+}
 
-    // 清空原本的內容
-    historyList.innerHTML = '';
 
-    // 遍歷歷史紀錄資料，將每一項添加到列表中
-    savedHistory.forEach(item => {
-        const li = document.createElement('div');
-        li.className = "col-12 col-sm-6 col-md-4"; // ⭐⭐ 加上這個很關鍵！
+document.getElementById('prevPageBtn').addEventListener('click', () => {
+    if (currentPage > 1) loadHistoryPage(currentPage - 1);
+});
+document.getElementById('nextPageBtn').addEventListener('click', () => {
+    if (currentPage < totalPages) loadHistoryPage(currentPage + 1);
+});
 
-        li.innerHTML = `
-            <div class="history-item card p-3 h-100 shadow-sm">
-                <div class="history-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-1">${item.file}</h5>
-                    <small class="text-extra-muted">${item.time}</small>
-                </div>
-                <p class="mb-2 text-secondary">${item.summary}</p>
-                <div class="btn-group mt-auto" role="group">
-                    <a href="/get-json?file=${item.uid}.json" target="_blank"
-                    class="btn btn-sm btn-outline-info">🧾 預覽 JSON</a>
-                    <a href="/download-excel?uid=${item.uid}" download
-                    class="btn btn-sm btn-outline-success">📥 分析 Excel</a>
-                    <a href="/download-original?uid=${item.uid}" download
-                    class="btn btn-sm btn-outline-secondary">📤 原始 Excel</a>
-                </div>
-            </div>
-        `;
-        historyList.appendChild(li);
-    });
+window.addEventListener('DOMContentLoaded', () => {
+    loadHistoryPage(1);
 
-    // 初始化深色模式
-    const isDark = localStorage.getItem('dark-mode') === 'true'; // 從 localStorage 取得深色模式狀態
+    // 深色模式初始化
+    const isDark = localStorage.getItem('dark-mode') === 'true';
     if (isDark) {
-        // 如果是深色模式，添加深色模式的樣式
         document.body.classList.add('dark-mode');
-        // 更新深色模式按鈕的文字
         document.getElementById('toggleDarkMode').innerHTML = '🌞 淺色模式';
     } else {
-        // 如果不是深色模式，移除深色模式的樣式
         document.body.classList.remove('dark-mode');
-        // 更新深色模式按鈕的文字
         document.getElementById('toggleDarkMode').innerHTML = '🌙 深色模式';
     }
-
-    // 獲取側邊欄切換按鈕
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) {
-        // 根據側邊欄的狀態更新按鈕文字
         toggleBtn.textContent = document.body.classList.contains('sidebar-collapsed') ? '→' : '←';
     }
 });

@@ -8,7 +8,7 @@ let previewModalInstance = null; // 用來保存 Bootstrap Modal 的實例
 
 
 
- function updateWeightSum() {
+function updateWeightSum() {
   const severityFields = ['weightKeyword', 'weightMultiUser', 'weightEscalation'];
   const frequencyFields = ['weightConfigItem', 'weightRoleComponent', 'weightTimeCluster'];
 
@@ -325,18 +325,25 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
 
 
       if (result.duplicate) {
-        console.log("⚠️ 偵測內容重複，彈出確認");
-        spinner.style.display = 'none';
-        progressContainer.style.display = 'none';
-        const modal = new bootstrap.Modal(document.getElementById('duplicateConfirmModal'));
-        modal.show();
-        document.getElementById('confirmUploadBtn').onclick = () => {
+          console.log("⚠️ 偵測內容重複，彈出確認");
+          spinner.style.display = 'none';
+          progressContainer.style.display = 'none';
+          const modal = new bootstrap.Modal(document.getElementById('duplicateConfirmModal'));
+          modal.show();
+          document.getElementById('confirmUploadBtn').onclick = () => {
           modal.hide();
-  // ⬇️ 補上這三行，讓 UI 重新顯示 loading 狀態
-  spinner.style.display = 'block';
-  progressFill.style.width = '0%';
-  progressPercent.innerText = '0%';
-  progressContainer.style.display = 'block';
+          // ⬇️ 補上這三行，讓 UI 重新顯示 loading 狀態
+          spinner.style.display = 'block';
+          progressFill.style.width = '0%';
+          progressPercent.innerText = '0%';
+          progressContainer.style.display = 'block';
+
+          // 👇 這裡加四行
+          window.kbBuilding = true;
+          window.kbToastShown = false;
+          kbAnalysisTriggered = true;
+          showKbStatusBar();
+          pollKbStatus();
 
 
 
@@ -344,9 +351,15 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
           xhr.send(formData);  // ✅ 真正分析上傳
         };
       } else {
+            // 👇 這裡也一樣加
+          window.kbBuilding = true;
+          window.kbToastShown = false;
+          kbAnalysisTriggered = true;
+          showKbStatusBar();
+          pollKbStatus();
           window.kbLocked = true; // 🔒 新增這行
           console.log("✅ 無重複內容，直接上傳");
-        xhr.send(formData);  // 無重複就直接送
+          xhr.send(formData);  // 無重複就直接送
       }
     } else {
       alert("⚠️ 無法檢查檔名是否重複");
@@ -449,12 +462,12 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
                         const lengthControl = document.querySelector('.dataTables_length'); // 取得 DataTable 的長度控制區域
                         lengthControl.appendChild(previewBtn); // 將按鈕插入到長度控制區域
 
-// 直接建立提醒 span，不要判斷
-const infoSpan = document.createElement('span');
-infoSpan.className = "ms-3 text-warning fw-semibold";
-infoSpan.style.fontSize = "14px";
-infoSpan.textContent = "⚠️ 僅顯示前 100 筆，完整下載請至歷史紀錄";
-lengthControl.appendChild(infoSpan); // 按鈕右邊插入提醒
+                        // 直接建立提醒 span，不要判斷
+                        const infoSpan = document.createElement('span');
+                        infoSpan.className = "ms-3 text-warning fw-semibold";
+                        infoSpan.style.fontSize = "14px";
+                        infoSpan.textContent = "⚠️ 僅顯示前 100 筆，完整下載請至歷史紀錄";
+                        lengthControl.appendChild(infoSpan); // 按鈕右邊插入提醒
 
                         // 綁定按鈕的點擊事件
                         previewBtn.onclick = function () {
@@ -489,7 +502,7 @@ lengthControl.appendChild(infoSpan); // 按鈕右邊插入提醒
                     }
                 });
             });
-            updateSummary(data.data); // 更新統計摘要
+            updateSummary(data.jsonFilename); // 更新統計摘要
             // 顯示分析完成提示
             const analysisTime = data.data[0]?.analysisTime || '未知時間';
 
@@ -652,7 +665,25 @@ function populateFieldSelectors(columns) {
 
 
 // 更新統計摘要的函數，根據後端傳回的資料進行統計
-function updateSummary(data) {
+async function updateSummary(data) {
+    // 若傳進來是字串（json 檔名），就自動 fetch 資料再呼叫自己
+    if (typeof data === "string") {
+        try {
+            const res = await fetch(`/get-json?file=${data}`);
+            if (!res.ok) {
+                summaryBox.innerHTML = `❌ 讀取分析失敗：${data}`;
+                return;
+            }
+            const json = await res.json();
+            // 再呼叫自己，塞進真正的 data 陣列
+            return updateSummary(json.data || []);
+        } catch (err) {
+            summaryBox.innerHTML = `❌ 讀取分析失敗：${data}`;
+            return;
+        }
+    }
+
+    // ======= 原本的統計邏輯完全不變 =======
     const total = data.length; // 總記錄數
     const high = data.filter(d => d.riskLevel === '高風險').length; // 高風險數量
     const medium = data.filter(d => d.riskLevel === '中風險').length; // 中風險數量

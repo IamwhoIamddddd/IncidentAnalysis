@@ -55,6 +55,8 @@ import json
 import tempfile
 from jsonschema import validate, ValidationError
 from datetime import datetime
+from collections import Counter
+
 
 
 KMEANS_MIN_COUNT = 4         # 最少資料筆數
@@ -123,19 +125,32 @@ def check_unclustered_files():
     files = [f for f in os.listdir(folder) if f.endswith('.xlsx')]
     return jsonify({'exists': len(files) > 0}), 200
 
+
 @app.route('/clustered-files', methods=['GET'])
 def list_clustered_files():
-    clustered_folder = 'excel_result_Clustered/Details'
+    clustered_folder = os.path.join('excel_result_Clustered', 'Details')
+
     if not os.path.exists(clustered_folder):
-        return jsonify({'files': []})
+        return jsonify({'files': [], 'total': 0})
 
-    pattern = re.compile(r"^Cluster_\[CI\].+_\[AI\].+\.xlsx$")  # 你命名是底線不是減號，記得一致！
+    # 支援分批參數
+    offset = int(request.args.get('offset', 0))
+    limit = int(request.args.get('limit', 100))
+
+    pattern = re.compile(r"^Cluster_\[CI\].+_\[AI\].+\.xlsx$")  # 符合命名規則
+    all_files = [
+        f for f in os.listdir(clustered_folder)
+        if f.endswith('.xlsx') and pattern.match(f)
+    ]
+    all_files.sort()  # 你也可以按日期或筆數排序
+
+    total = len(all_files)  # 全部檔案總數
+
+    # 分批取出本次要回傳的檔案
+    page_files = all_files[offset:offset + limit]
+
     files_info = []
-
-    for f in os.listdir(clustered_folder):
-        if not (f.endswith('.xlsx') and pattern.match(f)):
-            continue
-
+    for f in page_files:
         filepath = os.path.join(clustered_folder, f)
         try:
             df = pd.read_excel(filepath)
@@ -145,12 +160,11 @@ def list_clustered_files():
             row_count = 0
 
         files_info.append({
-            'name': f,    # 只放檔名
+            'name': f,
             'rows': row_count
         })
 
-    files_info.sort(key=lambda x: x['rows'], reverse=True)
-    return jsonify({'files': files_info})
+    return jsonify({'files': files_info, 'total': total})
 
 
 @app.route('/download-clustered', methods=['GET'])
@@ -206,8 +220,15 @@ def set_kmeans_thresholds_from_centroids(centroids):
 
 
 
+def clean_filename(name):
+    # 移除 Windows 禁用字元 < > : " / \ | ? *
+    return re.sub(r'[<>:"/\\|?*]', '_', str(name)).strip()
+
+
+
 def load_or_create_category_json(ci_name):
-    category_path = f"cluster_excels/{ci_name}_categories.json"
+    safe_ci_name = clean_filename(ci_name)
+    category_path = f"cluster_excels/{safe_ci_name}_categories.json"
     if os.path.exists(category_path):
         print(f"🔄 已讀取分類記憶 JSON：{category_path}")
         with open(category_path, "r", encoding="utf-8") as f:
@@ -215,6 +236,7 @@ def load_or_create_category_json(ci_name):
     else:
         print(f"🆕 尚無分類記憶，將建立新檔：{category_path}")
         return [], category_path  # 空分類表
+
     
     
 
@@ -494,14 +516,27 @@ def download_summary():
 
 @app.route('/summary-files', methods=['GET'])
 def list_summary_files():
-    summary_folder = 'excel_result_Clustered/Summaries'
+    # 確保 summary 資料夾存在
+    summary_folder = os.path.join('excel_result_Clustered', 'Summaries')
     if not os.path.exists(summary_folder):
-        return jsonify({'files': []})
+        return jsonify({'files': [], 'total': 0})
+
+    # 取得分批參數，預設第一次 offset=0, limit=100
+    offset = int(request.args.get('offset', 0))
+    limit = int(request.args.get('limit', 100))
+
+    # 取得全部符合條件的 .xlsx 檔案（建議按檔名排序，方便用戶找）
+    all_files = [
+        f for f in os.listdir(summary_folder)
+        if f.endswith('.xlsx')
+    ]
+    all_files.sort()  # 你也可以改成用日期、大小排序
+
+    total = len(all_files)  # 全部的 summary 檔案數
+    page_files = all_files[offset:offset + limit]  # 這次要回傳的這一批
 
     files_info = []
-    for f in os.listdir(summary_folder):
-        if not f.endswith('.xlsx'):
-            continue
+    for f in page_files:
         filepath = os.path.join(summary_folder, f)
         try:
             df = pd.read_excel(filepath)
@@ -514,9 +549,7 @@ def list_summary_files():
             'rows': row_count
         })
 
-    files_info.sort(key=lambda x: x['rows'], reverse=True)
-    return jsonify({'files': files_info})
-
+    return jsonify({'files': files_info, 'total': total})
 
 
 
@@ -560,8 +593,8 @@ async def analyze_excel_async(filepath, weights=None, resolution_priority=None, 
         parts = []
         for f in field_order:
             if f in row and pd.notna(row[f]):
-                parts.append(str(row[f]).strip())
-
+                value = str(row[f]).strip()
+                parts.append(f"{f}: {value}")
         combined = "\n".join(parts)
         while len(combined) > limit and len(parts) > 1:
             removed = parts.pop()
@@ -571,6 +604,7 @@ async def analyze_excel_async(filepath, weights=None, resolution_priority=None, 
         # 額外：印出實際使用的欄位名稱
         used_fields = field_order[:len(parts)]
         print(f"✅ 實際使用欄位：{used_fields}，合併長度：{len(combined)}")
+        print("🔎 合併結果內容：\n", combined)   # 🟢 新增這行！
         return combined.strip()
 
     # ✅ 產生 resolution_input / summary_input 給 GPT 用
@@ -1014,8 +1048,7 @@ def index():
 # 定義結果頁面路由
 @app.route('/result')
 def result_page():
-    data = session.get('analysis_data', [])  # 從 session 取得分析結果
-    return render_template('result.html', data=data)  # 渲染結果頁面
+    return render_template('result.html')  # 渲染結果頁面
 
 # 定義歷史紀錄頁面路由
 @app.route('/history')
@@ -1284,14 +1317,23 @@ def upload_file():
         script_path = os.path.join(os.path.dirname(__file__), "build_kb.py")
         print("🚀 嘗試用 sys.executable 執行：", script_path)
         subprocess.Popen([sys.executable, script_path])
-        session['analysis_data'] = results
+
+        # 這裡直接讀最新的分析檔
+        json_path = os.path.join('json_data', f"{uid}.json")
+        if os.path.exists(json_path):
+            with open(json_path, 'r', encoding='utf-8') as f:
+                loaded = json.load(f)
+                results = loaded.get('data', [])
+        else:
+            results = []
+        print(f"📁 最新分析檔已讀取：{json_path}")
+        
         return jsonify({
             'data': results[:100],   # 只回傳前 100 筆
             'uid': uid,
-            'weights': weights
+            'weights': weights,
+            'jsonFilename': f"{uid}.json"  # 新增這一行
         }), 200
-
-
     except Exception as e:
         print(f"❌ 分析時發生錯誤：{e}")
         traceback.print_exc()
@@ -1574,6 +1616,7 @@ def kb_status():
     return jsonify({"building": lock_exists})
 
 
+from datetime import datetime, timedelta
 
 
 @app.route('/get-results')
@@ -1581,6 +1624,10 @@ def get_results():
     folder = 'json_data'
     results = []
     first_weights = {}
+        # ✅ 新增：取得前端傳來的參數（預設 start=0, limit=20）
+    start = int(request.args.get('start', 0))
+    limit = int(request.args.get('limit', 20))
+    filter_days = request.args.get('days', 'all')
 
     if not os.path.exists(folder):
         return jsonify({'error': f'資料夾不存在：{folder}'}), 404
@@ -1604,9 +1651,35 @@ def get_results():
                     results.extend(content)
         except Exception as e:
             print(f"❌ 錯誤讀取 {filename}：{e}")
+            
+            
+            
+    # ✅ 新增：依據篩選天數過濾資料
+    if filter_days != 'all':
+        try:
+            days = int(filter_days)
+            now = datetime.now()
+            if days == 0:
+                # 只顯示今天，threshold 是今天的日期
+                threshold_date = now.date()
+            else:
+                threshold_date = (now - timedelta(days=days)).date()
+            results = [
+                r for r in results
+                if 'analysisTime' in r
+                and isinstance(r['analysisTime'], str)
+                and datetime.fromisoformat(r['analysisTime']).date() >= threshold_date
+            ]
+        except:
+            pass
+
+
+    # ✅ 新增：分批截取要傳回的資料（從第 start 筆取 limit 筆）
+    sliced = results[start:start + limit]
 
     return jsonify({
-        'data': results,
+        'data': sliced,  # ✅ 傳回當前批次的資料
+        'total': len(results),     # ✅ 傳回總筆數給前端判斷是否載完
         'weights': first_weights  # ✅ 確保傳出這個欄位
     })
 
@@ -1614,27 +1687,64 @@ def get_results():
 
 HISTORY_FOLDER = 'json_data'  # 你的 JSON 檔案存放資料夾
 
+
 @app.route('/history-list', methods=['GET'])
 def get_history_list():
+    # 取得分頁參數，預設 page=1, pageSize=10
+    page = int(request.args.get('page', 1))
+    pageSize = int(request.args.get('pageSize', 10))
     records = []
-    if not os.path.exists(HISTORY_FOLDER):
-        return jsonify([])
 
-    for fname in sorted(os.listdir(HISTORY_FOLDER), reverse=True):
-        if fname.endswith('.json'):
-            file_path = os.path.join(HISTORY_FOLDER, fname)
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    record = json.load(f)
-                    records.append({
-                        "uid": record.get("uid", fname.replace('.json','')),
-                        "file": record.get("file", fname),
-                        "summary": record.get("summary", "—"),
-                        "time": record.get("analysisTime", record.get("time", "未知時間"))
-                    })
-            except Exception as e:
-                print(f"❌ 解析歷史檔錯誤：{fname}", e)
-    return jsonify(records)
+    if not os.path.exists(HISTORY_FOLDER):
+        # 多回傳 total 讓前端知道是 0 筆
+        return jsonify({"records": [], "total": 0})
+
+    # 先把所有檔案依時間排序（新到舊）
+    all_files = sorted(
+        [f for f in os.listdir(HISTORY_FOLDER) if f.endswith('.json')],
+        reverse=True
+    )
+    total = len(all_files)  # 總共幾筆檔案
+
+    # 算出要拿第幾筆到第幾筆
+    start_idx = (page - 1) * pageSize
+    end_idx = start_idx + pageSize
+    page_files = all_files[start_idx:end_idx]
+
+    for fname in page_files:
+        file_path = os.path.join(HISTORY_FOLDER, fname)
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                record = json.load(f)
+                if "data" in record and isinstance(record["data"], list):
+                    risk_levels = [row.get("riskLevel", "未知") for row in record["data"]]
+                    level_count = Counter(risk_levels)
+                    risk_str = "｜".join([
+                        f"{label}:{level_count[label]}"
+                        for label in ["高風險", "中風險", "低風險", "忽略"]
+                        if level_count.get(label, 0) > 0
+                    ])
+                else:
+                    risk_str = "—"
+                base_summary = record.get("summary", "")
+                final_summary = risk_str if not base_summary else risk_str + "｜" + base_summary
+
+                records.append({
+                    "uid": record.get("uid", fname.replace('.json','')),
+                    "file": record.get("file", fname),
+                    "summary": final_summary,
+                    "time": record.get("analysisTime", record.get("time", "未知時間"))
+                })
+        except Exception as e:
+            print(f"❌ 解析歷史檔錯誤：{fname}", e)
+
+    # 回傳本頁資料和總數
+    return jsonify({
+        "records": records,    # 當前這一頁的資料（list）
+        "total": total         # 所有檔案總數
+    })
+    
+    
 
 
 @app.route('/clear-history', methods=['POST'])

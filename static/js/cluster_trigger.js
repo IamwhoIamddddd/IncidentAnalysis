@@ -1,8 +1,179 @@
+let summaryOffset = 0;
+const summaryLimit = 20;
+let totalSummaryFiles = 0;
+let isLoadingSummary = false;
+
+let clusteredOffset = 0;
+const clusteredLimit = 20;
+let totalClusteredFiles = 0;
+let isLoadingClustered = false;
+
+
+// ----- 2. 分批載入 summaries，累積 append -----
+async function loadSummaryFilesBatch() {
+  if (isLoadingSummary) return;
+  isLoadingSummary = true;
+
+  const summaryList = document.getElementById('summaryFileList');
+  const summaryListLoading = document.getElementById('summaryListLoading');
+  const loadMoreBtn = document.getElementById('loadMoreSummaryBtn');
+  if (!summaryList || !summaryListLoading || !loadMoreBtn) return;
+
+  summaryListLoading.style.display = '';
+  loadMoreBtn.style.display = 'none';
+
+try {
+    const res = await fetch(`/summary-files?offset=${summaryOffset}&limit=${summaryLimit}`);
+    const data = await res.json();
+    const files = data.files || [];
+    totalSummaryFiles = data.total || 0;
+
+    summaryListLoading.style.display = 'none';
+
+    if (files.length === 0 && summaryOffset === 0) {
+      summaryList.innerHTML = '<li>📭 尚無摘要檔案</li>';
+      return;
+    }
+
+    // 「累積 append」新資料
+    files.forEach(f => {
+      const li = document.createElement('li');
+      const url = `/download-summary?file=${encodeURIComponent(f.name)}`;
+      const icon = '📝';
+
+      li.innerHTML = `
+        <a href="${url}" download>${icon} ${f.name}</a>
+        <span style="color:gray;">（${f.rows} 筆）</span>
+      `;
+      summaryList.appendChild(li);
+      
+
+      li.querySelector("a").addEventListener("click", () => {
+        showDownloadToast(`🚀 開始下載：${f.name}`);
+      });
+    });
+
+    summaryOffset += files.length;
+
+    // 有剩就顯示「載入更多」
+    if (summaryOffset < totalSummaryFiles) {
+      loadMoreBtn.style.display = '';
+    } else {
+      loadMoreBtn.style.display = 'none';
+    }
+
+  } catch (err) {
+    summaryListLoading.style.display = 'none';
+    summaryList.innerHTML = '<li>❌ 載入失敗，請稍後再試。</li>';
+    console.error('載入錯誤：', err);
+  }
+  isLoadingSummary = false;
+}
+
+
+
+
+
+async function loadClusteredFilesBatch() {
+  if (isLoadingClustered) return;
+  isLoadingClustered = true;
+
+  const fileList = document.getElementById('clusteredFileList');
+  const fileListLoading = document.getElementById('fileListLoading');
+  const loadMoreBtn = document.getElementById('loadMoreClusteredBtn');
+  const loadMoreSpinner = document.getElementById('loadMoreClusteredSpinner');
+  const loadMoreBtnText = loadMoreBtn.querySelector('.btn-text');
+  if (!fileList || !fileListLoading || !loadMoreBtn || !loadMoreSpinner || !loadMoreBtnText) return;
+
+  fileListLoading.style.display = '';
+  loadMoreBtn.disabled = true;
+  loadMoreSpinner.style.display = '';
+  loadMoreBtnText.textContent = '載入中...';
+
+  try {
+    const res = await fetch(`/clustered-files?offset=${clusteredOffset}&limit=${clusteredLimit}`);
+    const data = await res.json();
+    const files = data.files || [];
+    totalClusteredFiles = data.total || 0;
+
+    fileListLoading.style.display = 'none';
+
+    if (files.length === 0 && clusteredOffset === 0) {
+      fileList.innerHTML = '<li>📭 尚無分群檔案</li>';
+      loadMoreBtn.style.display = 'none';
+      return;
+    }
+
+    files.forEach(f => {
+      const li = document.createElement('li');
+      const detailsUrl = `/download-clustered?file=${encodeURIComponent(f.name)}`;
+      const icon = '📎';
+
+      const summaryName = f.name.replace(/^Cluster_/, "Summary_");
+      const summaryUrl = `/download-summary?file=${encodeURIComponent(summaryName)}`;
+      const summaryIcon = '📝';
+
+      li.innerHTML = `
+        <a href="${detailsUrl}" download>${icon} ${f.name}</a>
+        <span style="color:gray;">（${f.rows} 筆）</span>
+        <a href="${summaryUrl}" class="btn btn-sm btn-outline-success ms-1" style="margin-left:10px;" target="_blank">${summaryIcon} Summary</a>
+      `;
+      fileList.appendChild(li);
+
+      li.querySelector("a").addEventListener("click", () => {
+        showDownloadToast(`🚀 開始下載：${f.name}`);
+      });
+    });
+
+    clusteredOffset += files.length;
+
+    if (clusteredOffset >= totalClusteredFiles) {
+      loadMoreBtn.disabled = true;
+      loadMoreBtn.style.display = '';
+      loadMoreSpinner.style.display = 'none';
+      loadMoreBtnText.textContent = '已全部載完';
+    } else {
+      loadMoreBtn.disabled = false;
+      loadMoreBtn.style.display = '';
+      loadMoreSpinner.style.display = 'none';
+      loadMoreBtnText.textContent = '載入更多';
+    }
+
+  } catch (err) {
+    fileListLoading.style.display = 'none';
+    fileList.innerHTML = '<li>❌ 載入失敗，請稍後再試。</li>';
+    loadMoreBtn.disabled = false;
+    loadMoreBtnText.textContent = '載入更多';
+    loadMoreSpinner.style.display = 'none';
+    console.error('載入錯誤：', err);
+  }
+  isLoadingClustered = false;
+}
+
+
+
+// ----- 1. 初始化頁面時載入第一批 summaries -----
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Button:", document.getElementById("run-cluster-btn"));
+console.log("Button:", document.getElementById("run-cluster-btn"));
 console.log("Status:", document.getElementById("cluster-status"));
 console.log("Toast:", document.getElementById("toast"));
 console.log("CopyBtn:", document.getElementById("copyResult"));
+
+
+summaryOffset = 0;
+document.getElementById('summaryFileList').innerHTML = '';
+loadSummaryFilesBatch();
+document.getElementById('loadMoreSummaryBtn').addEventListener('click', loadSummaryFilesBatch);
+
+
+
+  clusteredOffset = 0;
+  document.getElementById('clusteredFileList').innerHTML = '';
+  loadClusteredFilesBatch();
+  document.getElementById('loadMoreClusteredBtn').addEventListener('click', loadClusteredFilesBatch);
+
+
+
 
   // ✅ 初始化深色模式
   const isDark = localStorage.getItem("dark-mode") === "true";
@@ -38,93 +209,6 @@ console.log("CopyBtn:", document.getElementById("copyResult"));
         sidebarToggle.textContent = collapsed ? "→" : "←";
       });
     }
-
-
-    const fileList = document.getElementById('clusteredFileList');
-  if (!fileList) return;
-
-
-// ====== 新增：自動載入 Summaries 檔案清單 ======
-const summaryList = document.getElementById('summaryFileList');
-if (summaryList) {
-  fetch('/summary-files')
-    .then(res => res.json())
-    .then(data => {
-      const files = data.files || [];
-      if (files.length === 0) {
-        summaryList.innerHTML = '<li>📭 尚無摘要檔案</li>';
-      } else {
-        files.forEach(f => {
-          const li = document.createElement('li');
-          const url = `/download-summary?file=${encodeURIComponent(f.name)}`;    // ✅正確
-          const icon = '📝';
-
-          li.innerHTML = `
-            <a href="${url}" download>${icon} ${f.name}</a>
-            <span style="color:gray;">（${f.rows} 筆）</span>
-          `;
-          summaryList.appendChild(li);
-
-          // 加下載提示（共用你原本的 toast 方法）
-          li.querySelector("a").addEventListener("click", () => {
-            showDownloadToast(`🚀 開始下載：${f.name}`);
-          });
-        });
-
-        summaryList.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    })
-    .catch(err => {
-      summaryList.innerHTML = '<li>❌ 載入失敗，請稍後再試。</li>';
-      console.error('載入錯誤：', err);
-    });
-}
-
-
-      fetch('/clustered-files')
-        .then(res => res.json())
-        .then(data => {
-          const files = data.files || [];
-          if (files.length === 0) {
-            fileList.innerHTML = '<li>📭 尚無分群檔案</li>';
-          } else {
-            // 找出最多筆的數量（用來高亮）
-            const maxRows = Math.max(...files.map(f => f.rows));
-
-      files.forEach(f => {
-        const li = document.createElement('li');
-        const detailsUrl = `/download-clustered?file=${encodeURIComponent(f.name)}`;
-        const icon = '📎';
-
-        // 這裡自動產生 summary 檔名
-        const summaryName = f.name.replace(/^Cluster_/, "Summary_");
-        const summaryUrl = `/download-summary?file=${encodeURIComponent(summaryName)}`;
-        const summaryIcon = '📝';
-
-        // 產生明細＋summary 按鈕
-        li.innerHTML = `
-          <a href="${detailsUrl}" download>${icon} ${f.name}</a>
-          <span style="color:gray;">（${f.rows} 筆）</span>
-          <a href="${summaryUrl}" class="btn btn-sm btn-outline-success ms-1" style="margin-left:10px;" target="_blank">${summaryIcon} Summary</a>
-        `;
-
-        fileList.appendChild(li);
-
-        // 明細下載提示
-        li.querySelector("a").addEventListener("click", () => {
-          showDownloadToast(`🚀 開始下載：${f.name}`);
-        });
-      });
-
-
-      fileList.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  })
-  .catch(err => {
-    fileList.innerHTML = '<li>❌ 載入失敗，請稍後再試。</li>';
-    console.error('載入錯誤：', err);
-  });
-
 
 
 
@@ -170,7 +254,7 @@ if (summaryList) {
       toast.style.display = "none";
     }
   });
-console.log("check:", button, status, toast, copyBtn);
+  console.log("check:", button, status, toast, copyBtn);
 
   if (!button || !status || !toast || !copyBtn) return;
 
@@ -261,7 +345,7 @@ console.log("check:", button, status, toast, copyBtn);
 
 
 
-    function scrollToElement(el) {
+  function scrollToElement(el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
@@ -288,7 +372,7 @@ console.log("check:", button, status, toast, copyBtn);
         toast.style.opacity = "1";
         }, 300);
     }, 2000);
-    }
+  }
 
 });
 
