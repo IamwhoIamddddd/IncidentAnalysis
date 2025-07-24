@@ -413,6 +413,7 @@ body.dark-mode .summary-box {
 .drop-area {
     border: 2px dashed #aaa;
     padding: 30px;
+    margin-top: 80px;
     margin-bottom: 20px;
     border-radius: 10px;
     background-color: #f8f8f8;
@@ -1047,4 +1048,105 @@ body.dark-mode #fieldSelectorBlock h5 {
 body.dark-mode #fieldSelectorBlock .form-label {
   color: #d6e4ff;
   font-weight: 600;
+}
+
+
+.btn-primary {
+  background: linear-gradient(90deg, #1976d2 60%, #42a5f5 100%) !important;
+  border: none !important;
+  transition: box-shadow 0.15s, background 0.18s;
+}
+.btn-primary:hover, .btn-primary:focus {
+  background: linear-gradient(90deg, #1565c0 60%, #1976d2 100%) !important;
+  box-shadow: 0 6px 24px -8px #1976d2a8 !important;
+}
+
+
+/* ===== logModal 一般模式 ===== */
+#logModal .modal-dialog {
+  max-width: 900px;
+  width: 95vw;
+}
+#logModal .modal-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  background: #fff;
+  color: #222;
+}
+#logModal .modal-header,
+#logModal .modal-footer {
+  background: #f6f7fa;
+  border: none;
+}
+#logModal .modal-body {
+  flex-grow: 1;
+  overflow-y: auto;
+  font-size: 14px;
+  white-space: pre-wrap;
+  padding: 16px;
+  line-height: 1.6;
+  background: #fff;
+}
+
+/* ===== logModal 暗色模式 ===== */
+body.dark-mode #logModal .modal-content {
+  background: #222b31;
+  color: #e6f0f9;
+}
+body.dark-mode #logModal .modal-header,
+body.dark-mode #logModal .modal-footer {
+  background: #27313a;
+}
+body.dark-mode #logModal .modal-body {
+  background: #232b33;
+  color: #e6f0f9;
+}
+body.dark-mode #logModal .modal-title {
+  color: #e7f7ff;
+}
+body.dark-mode #logModal .btn-close {
+  filter: invert(1);
+}
+
+
+
+.log-message.slide-in {
+  opacity: 0;
+  transform: translateX(-80px) scale(0.96) skewX(-8deg);
+  filter: blur(3px);
+  animation: slideInLog 0.6s cubic-bezier(0.4,1.4,0.5,1.01) forwards;
+  /* 增加 duration，調整彈跳感 */
+}
+@keyframes slideInLog {
+  60% {
+    opacity: 1;
+    transform: translateX(8px) scale(1.03) skewX(2deg);
+    filter: blur(0.8px);
+  }
+  80% {
+    transform: translateX(-4px) scale(1.01) skewX(-1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1) skewX(0);
+    filter: blur(0);
+  }
+}
+
+
+a.btn-success.custom-hover {
+  transition: background 0.22s, color 0.22s, box-shadow 0.19s;
+  box-shadow: 0 4px 18px 0 rgba(80,200,160,0.13);
+}
+a.btn-success.custom-hover:hover,
+a.btn-success.custom-hover:focus {
+  background: linear-gradient(90deg, #12b07e 70%, #b2f5d6 100%);
+  color: #fff;
+  box-shadow: 0 8px 26px 0 rgba(80,200,160,0.22);
+  text-decoration: none;
+  transform: translateY(-1px) scale(1.03);
+  filter: brightness(1.08) saturate(1.18);
 }

@@ -11,17 +11,7 @@ import requests
 import torch  # ✅ 新增 torch 匯入以支援相似度比對
 import time
 import json
-# # ---------- 載入模型 ----------
-# # 檢查模型是否已存在，否則自動下載並儲存
-# model_path = './models/paraphrase-MiniLM-L6-v2'
-# if not os.path.exists(model_path):
-#     print("📥 正在下載模型並儲存到本地...")
-#     model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
-#     model.save(model_path)
-# else:
-#     print("✅ 已找到本地模型，直接載入")
-# 初始化模型
-# ========== 🔍 啟動時間計時器 ==========
+
 t_start = time.time()
 print("🔥 啟動時間診斷中...")
 
@@ -107,69 +97,7 @@ def load_embeddings(tag):
 # 高風險語句樣本
 high_risk_examples = load_examples_from_json(os.path.join(DATA_DIR, "high_risk.json"))
 print(f"✅ 載入高風險語句：{len(high_risk_examples)} 筆，前 3 筆：{high_risk_examples[:3]}，倒數 3 筆：{high_risk_examples[-3:]}")
-
-# high_risk_examples = [
-#     'cannot sign in', 'login failed', 'unable to login', 'access denied',
-#     'offline', 'not pingable', 'disconnect', 'network error',
-#     'disabled by admin', 'environment creation blocked',
-#     'blocked by conditional access',
-#     'error', 'failed', 'crash', 'freeze', 'hang', 'exception',
-#     '登入失敗', '封鎖', '權限不足', '連線失敗', '無法連線', '故障', '卡住', 'locked out',     
-#     "device must comply with your organization's compliance requirements",
-#     "your device does not meet your organization's compliance requirements",
-#     "unable to authenticate sign-in",
-#     "certificate validation failed",
-#     "access has been blocked by Conditional Access policies",
-#     "user is not able to access MS resources",
-#     "device disabled unable to access resources",
-#     "you can't get there from here",
-#     "login need to change password",
-#     "windows login prompt error message",
-#     "alias changed, computer cannot log in",
-#     "bitlocker is locked",
-#     "PIN code cannot be turned on",
-#     "can't login to Teams and Outlook",
-#     "device is lost",
-#     "device deleted",
-#     "new device enroll successful but cannot login",
-#     "unable to access company resources",
-#     "surface laptop cannot be turned on",
-#     "laptop freeze after opening excel",
-#     "cannot boot",
-#     "windows installation encountered an unexpected error",
-#     "black screen and unable to power on",
-#     "sync with Microsoft Defender for Endpoint",
-#     "certificate verification failure",
-#     "unable to verify account",
-#     "unable to receive 2-digit push MFA",
-#     "access to your account has been temporarily restricted",
-#     "authorization login issue",
-#     "Microsoft Defender not syncing",
-#     "Onenote data is lost after alias is changed",
-#     "error loading control",
-#     "Teams cannot be used properly",
-#     "output file error",
-#     "error code: 0x80070057",
-#     "financial posting failed",
-#     "submitted report not reflecting",
-#     "unable to access SharePoint",
-#     "404 file not found",
-#     "mailbox won't open",
-#     "projector won't turn on",
-#     "no display from HDMI",
-#     "The user is completely blocked from accessing Microsoft resources.",
-#     "Device does not comply with organization security requirements.",
-#     "BitLocker is locked, user is locked out.",
-#     "Unable to authenticate with MFA, access denied.",
-#     "System login failure after password reset.",
-#     "Laptop can't boot, black screen shows on startup.",
-#     "Important file or data is missing after account change.",
-#     "Microsoft Defender failed to sync, device marked non-compliant.",
-#     "Critical application crash leads to data loss.",
-#     "Account disabled, unable to sign in.",
-# ]
 print("high_risk_examples:", len(high_risk_examples))
-
 high_risk_embeddings = bert_model.encode(high_risk_examples, convert_to_tensor=True)
 print(f"✅ 高風險 embedding shape：{high_risk_embeddings.shape}")
 
@@ -180,52 +108,6 @@ print("escalation_examples:", len(escalation_examples))
 
 print(f"✅ 載入升級處理語句：{len(escalation_examples)} 筆，前 3 筆：{escalation_examples[:3]}，倒數 3 筆：{escalation_examples[-3:]}")
 
-# escalation_examples = [
-#     'escalation approved', 'escalated', 'escalate to', 
-#     'SME', 'senior engineer', 'escalation path',
-#     'Rashdan Ismail', "Issue has been escalated to the engineering team.",
-#     "This case was re-elevated for further analysis.",
-#     "Escalated to T3 support for resolution.",
-#     "Transferred the ticket to the compliance team.",
-#     "Bug was resolved after escalation.",
-#     "Multiple teams have been engaged for investigation.",
-#     "Dispatched ICM for escalation.",
-#     "The issue has been linked to a master incident.",
-#     "Escalation path has been triggered.",
-#     "SME provided final confirmation after escalation.",
-#         "elevated to engineering team",
-#     "escalated to T3 support",
-#     "elevated to Multi Year Pricing Portal",
-#     "re-elevated with the caller's latest response",
-#     "escalated to Service Operations Team via IcM",
-#     "connected with user over MS Teams",
-#     "escalated to Broker Partner Authorization Team",
-#     "mitigated by turning off the flight",
-#     "engaged multiple teams",
-#     "compliance team undeployed a few compliance services",
-#     "engineering team fixed",
-#     "engineering team resolved the bug",
-#     "SME mentioned that",
-#     "dispatched ICM for further assistance",
-#     "added to exception list with help of admin",
-#     "called profiling team",
-#     "reimaged MTR using ZTN image",
-#     "rejoined MS domain",
-#     "bug has been fixed",
-#     "ticket elevated",
-#     "bug in database system",
-#     "ICM dispatched",
-#     "transferred to specialized team",
-#     "user request forwarded",
-#     "final mitigation",
-#     "compliance issue escalated",
-#     "multiple teams were engaged",
-#     "DRI team provided updates",
-#     "master incident",
-#     "linked to the parent incident",
-#     "confirmed by engineering",
-#     "added to global allowlist",
-# ]
 escalation_embeddings = bert_model.encode(escalation_examples, convert_to_tensor=True)
 print(f"✅ 升級處理 embedding shape：{escalation_embeddings.shape}")
 
@@ -236,29 +118,6 @@ print("multi_user_examples:", len(multi_user_examples))
 
 print(f"✅ 載入多人受影響語句：{len(multi_user_examples)} 筆，前 3 筆：{multi_user_examples[:3]}，倒數 3 筆：{multi_user_examples[-3:]}")
 
-# multi_user_examples = [
-#     'two meeting rooms', 'multiple rooms', 'both', 'colleague and I',
-#     'staff', 'users', 'employees', 'team', 'group', '全體', '多人',
-#     "multiple users",
-#     "entire team",
-#     "all users",
-#     "everyone",
-#     "colleagues",
-#     "group",
-#     "department",
-#     "students",
-#     "our site",
-#     "whole office",
-#     "entire org",
-#     "more than one user",
-#     "several users",
-#     "entire class",
-#     "users in Taipei office",
-#     "multiple devices affected",
-#     "widespread",
-#     "massive impact",
-#     "not limited to one user",
-#     ]
 
 multi_user_embeddings = bert_model.encode(multi_user_examples, convert_to_tensor=True)
 print(f"✅ 多人受影響 embedding shape：{multi_user_embeddings.shape}")
@@ -275,7 +134,12 @@ def is_high_risk(text, examples, embeddings):
     max_score = sims[max_idx].item()
     print(f"  [高風險比對] 檢查：'{text[:30]}'")
     print(f"    - 最高分語句: '{examples[max_idx]}' 相似度: {max_score:.3f}")
-    return 1 if max_score > 0.5 else 0
+    if max_score > 0.7:
+        return 1
+    elif max_score > 0.5:
+        return 0.5
+    else:
+        return 0
 
 def is_escalated(text, examples, embeddings):
     if not examples or embeddings is None or len(examples) == 0:
@@ -287,7 +151,12 @@ def is_escalated(text, examples, embeddings):
     max_score = sims[max_idx].item()
     print(f"  [升級比對] 檢查：'{text[:30]}'")
     print(f"    - 最高分語句: '{examples[max_idx]}' 相似度: {max_score:.3f}")
-    return 1 if max_score > 0.5 else 0
+    if max_score > 0.7:
+        return 1
+    elif max_score > 0.5:
+        return 0.5
+    else:
+        return 0
 
 def is_multi_user(text, examples, embeddings):
     if not examples or embeddings is None or len(examples) == 0:
@@ -299,7 +168,13 @@ def is_multi_user(text, examples, embeddings):
     max_score = sims[max_idx].item()
     print(f"  [多人比對] 檢查：'{text[:30]}'")
     print(f"    - 最高分語句: '{examples[max_idx]}' 相似度: {max_score:.3f}")
-    return 1 if max_score > 0.5 else 0
+    if max_score > 0.7:
+        return 1
+    elif max_score > 0.5:
+        return 0.5
+    else:
+        return 0
+
 
 
 # ---------- 自動關鍵字抽取 ----------

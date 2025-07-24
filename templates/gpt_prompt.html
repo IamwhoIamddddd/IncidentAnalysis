@@ -61,7 +61,10 @@
       <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
       <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
       <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
-      <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+<li onclick="navigateTo1('chat')">
+  <i class="fas fa-comments"></i> Helpdesk
+  <span style="font-size:0.83em; color:#888; margin-left:3px;">(Coming Soon)</span>
+</li>
 
     </ul>
     <div class="sidebar-bottom">
@@ -76,6 +79,55 @@
 
       <!-- 目前系統設定 -->
       <h2 class="main-title">🤖 GPT Prompt 管理</h2>
+
+<div class="alert alert-info custom-alert mb-4 mt-3" style="text-align:left;">
+  <div style="font-size:1.10em; color:#176097; line-height:1.8;">
+    <i class="fas fa-info-circle me-2" style="color:#409eff;"></i>
+    <strong>什麼是「分析 Prompt」？這裡的 Prompt 會如何影響 AI？</strong>
+    <ul class="mt-2" style="padding-left:1.6em;">
+      <li>
+        <b>AI Summary（AI 問題摘要）</b>：<br>
+        這個 Prompt 會套用在你選的 <span style="color:#007b5e;">Summary</span> 相關欄位，
+        <b>每一列資料都會用這段指令請 AI 自動產生「問題重點摘要」</b>。
+        <br>
+        <span style="color:#909;">（例：你有 100 筆事件，每一筆都會用這個 Prompt 逐一生成問題摘要）</span>
+      </li>
+      <li class="mt-2">
+        <b>Solution（AI 解決建議）</b>：<br>
+        這個 Prompt 會套用在你選的 <span style="color:#20c997;">Resolution</span> 相關欄位，
+        <b>AI 會根據這個指令，為每一列資料自動提煉出「最佳解決建議」</b>。
+        <br>
+        <span style="color:#909;">（例：每一筆解決方案都會套用這組 Prompt 萃取重點，確保建議最實用）</span>
+      </li>
+    </ul>
+    <div style="color:#888; font-size:0.97em;" class="mt-2">
+      <i class="fas fa-lightbulb me-1" style="color:#ffe066;"></i>
+      <b>重點：</b>這裡設定的每個 Prompt，會在你選擇的對應欄位分析時，<u>逐筆資料一一套用</u>，AI 產生的結果會完全根據你這裡的指令內容！<br>
+      只要修改這裡的內容，下次分析就會馬上看到效果，<b style="color:#1976d2;">不需重啟系統</b>。
+    </div>
+    <div style="color:#888; font-size:0.97em;" class="mt-2">
+      <i class="fas fa-robot me-1" style="color:#1ec58a;"></i>
+    <b>模型選擇：</b>
+    系統預設會優先使用 <span style="color:#007b5e; font-weight:600;">Power Automate AI Builder（GPT-4o）</span> 進行分析。<br>
+    <u>只有在 AI Builder 無法連線，或沒有網路時，才會自動切換到你設定的本地離線模型（如 Mistral、Orca2 等）</u>，
+    <small style="color:#666;">（保證資料也能離線處理，不受網路限制）</small>
+    </div>
+    <div style="color:#888; font-size:0.97em;" class="mt-2">
+      <i class="fas fa-check-circle me-1" style="color:#20c997;"></i>
+      <b>常見情境：</b><br>
+      ‣ 希望 AI 產出的摘要內容有特定格式、語氣？<br>
+      ‣ 想讓解決建議更聚焦、簡單明瞭？<br>
+      <span style="color:#176097;">→ 只要調整這裡的 Prompt，全部分析結果都會依你的新規則執行！</span>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
       <h4>目前系統設定</h4>
       <div class="card mb-5 shadow gpt-wide-card w-100">
         <div class="card-body" id="currentSetting">

@@ -139,7 +139,7 @@ body.dark-mode form {
 
 .card {
   width: 100%;
-  margin-top: 100px; /* ✅ 新增這行讓它靠近 main-title */
+  margin-top: 50px; /* ✅ 新增這行讓它靠近 main-title */
   background: linear-gradient(120deg, #f0f2f8 80%, #e6f9f2 100%);
   padding: 28px 28px 22px 28px;
   border-radius: 18px;
@@ -422,4 +422,167 @@ body.dark-mode .accordion-button {
 
 body.dark-mode #kbStatusBar .dots::after {
   color: #ffe082;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- 自訂語句說明美化 --- */
+.custom-alert {
+  font-family: 'Inter', 'Segoe UI', 'Microsoft JhengHei', Arial, sans-serif;
+  letter-spacing: 0.01em;
+  transition: box-shadow 0.23s;
+  border-radius: 1.1em !important;
+  background: linear-gradient(135deg, #f4fafe 85%, #dbefff 100%);
+  box-shadow: 0 4px 24px 0 rgba(80,200,250,0.13);
+  padding-bottom: 4px;
+  overflow: hidden;
+}
+body.dark-mode .custom-alert {
+  background: linear-gradient(135deg, #212b39 85%, #16212c 100%) !important;
+  color: #e6f1fa !important;
+  box-shadow: 0 8px 32px 0 rgba(40,90,140,0.22);
+}
+.custom-alert > div {
+  transition: background 0.23s;
+}
+.custom-alert-title { 
+  font-size: 1.14em; 
+  font-weight:700; 
+  color:#2070b5; 
+  text-shadow: 0 1.5px 8px rgba(40, 180, 250, 0.12);
+}
+body.dark-mode .custom-alert-title { color: #6dc2f6 !important; }
+
+.custom-alert-desc {
+  background: linear-gradient(90deg, #e5f7fd 55%, #f9fafc 100%);
+  padding: 12px 18px 12px 18px;
+  border-radius: 8px;
+  margin-bottom: 13px;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(140,190,255,0.09);
+  color: #20455d;
+}
+body.dark-mode .custom-alert-desc {
+  background: linear-gradient(90deg, #273c52 65%, #1b2738 100%) !important;
+  color: #d9f6ff !important;
+}
+
+/* 卡片細節 */
+.custom-alert-cards .alert-item {
+  box-shadow: 0 2px 9px rgba(80,180,240,0.07);
+  transition: background 0.19s, box-shadow 0.18s, transform 0.13s;
+  font-size: 1.04em;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: default;
+  position: relative;
+  color: #214768;
+  background: rgba(255,255,255,0.84);
+}
+.custom-alert-cards .alert-item:hover {
+  background: linear-gradient(92deg, #f5fbff 65%, #e9f9fd 100%);
+  box-shadow: 0 4px 16px rgba(0,175,240,0.13);
+  transform: translateY(-1.5px) scale(1.012);
+}
+body.dark-mode .custom-alert-cards .alert-item {
+  background: rgba(30, 44, 76, 0.97) !important;
+  color: #daf5ff !important;
+  border-left-width: 5px !important;
+  box-shadow: 0 4px 16px rgba(32,156,255,0.09);
+}
+body.dark-mode .custom-alert-cards .alert-item:hover {
+  background: linear-gradient(90deg,#2c425d 75%,#223144 100%) !important;
+  color: #fff !important;
+}
+.custom-alert-cards .alert-item b { font-weight: 700; }
+.custom-alert-cards .alert-item i { opacity:0.95; }
+
+/* 針對高風險/升級/多人的 icon 與主色強化 */
+body.dark-mode .custom-alert-cards .fa-exclamation-triangle { color: #ff7976 !important; text-shadow: 0 0 2px #ffbeb6; }
+body.dark-mode .custom-alert-cards .fa-level-up-alt { color: #ffd966 !important; text-shadow: 0 0 2px #ffeebb; }
+body.dark-mode .custom-alert-cards .fa-users { color: #7dc4fa !important; text-shadow: 0 0 2px #e3f5fd; }
+
+/* 主要區塊icon重點色亮度提升 */
+body.dark-mode .custom-alert .fa-info-circle { color: #61d4fd !important; }
+body.dark-mode .custom-alert .fa-lightbulb { color: #ffe066 !important; }
+body.dark-mode .custom-alert .fa-bolt { color: #ffa79a !important; }
+body.dark-mode .custom-alert .fa-sync-alt { color: #76c8fd !important; }
+body.dark-mode .custom-alert .fa-chart-line { color: #5df7cf !important; }
+body.dark-mode .custom-alert .fa-hands-helping { color: #8dd8ff !important; }
+
+/* 進階強調核心卡片與footer */
+.custom-alert-core strong {
+  margin-bottom: 7px;
+  display: inline-block;
+  font-size: 1.07em;
+  color: #179e7a;
+  font-weight: 600;
+}
+body.dark-mode .custom-alert-core strong { color: #38edc3 !important; }
+.custom-alert-core .alert-item {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding-left: 2px !important;
+  font-size: 1.03em;
+  color: #256272;
+  letter-spacing: 0.02em;
+}
+body.dark-mode .custom-alert-core .alert-item {
+  color: #c2f8fd !important;
+}
+.custom-alert-core .alert-item i {
+  width: 1.4em;
+  text-align: center;
+  opacity: 0.93;
+}
+
+/* icon hover 放大 */
+.custom-alert-cards .alert-item i,
+.custom-alert-core .alert-item i {
+  transition: transform 0.18s;
+  filter: drop-shadow(0 2px 2px rgba(50, 180, 250, 0.07));
+}
+.custom-alert-cards .alert-item:hover i,
+.custom-alert-core .alert-item:hover i {
+  transform: scale(1.15) rotate(-7deg) translateX(-1.5px);
+}
+
+/* 底部提示 */
+.custom-alert-footer {
+  background: linear-gradient(90deg, #f4fbff 70%, #eaf7fa 100%);
+  font-size: 0.98em;
+  border-radius: 0 0 13px 13px;
+  margin-top: 12px;
+  padding: 7px 10px 5px 8px;
+  box-shadow: 0 2px 8px rgba(100,180,230,0.08);
+  font-weight: 500;
+  border-top: 1px dashed #a5d8f8;
+}
+body.dark-mode .custom-alert-footer {
+  background: linear-gradient(90deg, #223144 70%, #182230 100%) !important;
+  color: #d0ecff !important;
+  border-top: 1px dashed #307fc2 !important;
+}
+
+/* 行動裝置 */
+@media (max-width: 600px) {
+  .custom-alert,
+  .custom-alert > div {
+    font-size: 0.97em !important;
+    padding: 7px !important;
+    border-radius: 10px !important;
+  }
+  .custom-alert-title { font-size: 1.05em !important; }
+  .custom-alert-desc { font-size: 0.97em !important; }
+  .custom-alert-footer { padding: 8px 7px 4px 8px !important; }
 }

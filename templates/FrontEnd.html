@@ -16,10 +16,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
+      
+  <!-- 加入這一行！ -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
 </head>
 <body class="dark-mode">
 <div id="kbStatusBar" style="
-  display: none;
+  display: none; 
   position: fixed;
   top: 0;
   left: 0;
@@ -36,6 +40,11 @@
   overflow: hidden;
 ">
   正在建立知識庫，請稍候<span class="dots"></span>
+    <!-- 這裡加按鈕 -->
+  <button id="showLogModalBtn" class="btn btn-outline-primary btn-sm"
+    style="margin-left: 16px; font-weight: 600; padding: 2px 16px; border-radius: 16px; font-size: 1em;">
+    🔎 查看分析進度
+  </button>
 </div>
 
 <!-- 📦 Modal：建置完成提示（深色模式友善 + 無右上角） -->
@@ -99,7 +108,10 @@
             <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
             <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
             <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
-            <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+            <li onclick="navigateTo1('chat')">
+              <i class="fas fa-comments"></i> Helpdesk
+              <span style="font-size:0.83em; color:#888; margin-left:3px;">(Coming Soon)</span>
+            </li>
 
   
         </ul>
@@ -113,6 +125,97 @@
       </div>
       <div class="container">
         <h2 class="main-title">📊 Excel 分析系統</h2>
+
+
+
+
+
+
+
+<div class="card shadow-lg border-0 mt-4 mb-4 w-100 mx-auto"
+     style="border-radius: 1.2rem; background: linear-gradient(135deg, #e8f6ef 75%, #a9f5c3 100%); max-width:1250px;">
+
+<div class="card shadow-lg border-0 mt-4 mb-4"
+     style="border-radius: 1.2rem; background: rgba(255,255,255,0.84); backdrop-filter: blur(2px); width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto;">
+<div class="card-body" style="padding: 2.2rem 2.2rem 1.4rem 2.2rem;">
+  <div class="d-flex align-items-center mb-2">
+    <i class="fas fa-info-circle me-2" style="font-size: 1.7em; color:#1976d2;"></i>
+    <span class="fs-4 fw-bold" style="color: #1976d2;">系統簡介</span>
+  </div>
+  <div style="font-size: 1.12em; color: #334; letter-spacing: 0.02em;">
+    本系統是一個<strong> Microsoft Digital Global Support Ticket 資料自動分析與彙總平台</strong>。<br>
+    主要功能如下：
+    <ul class="mb-2" style="margin-top:6px;">
+    <li>
+      自動接收與分析上傳的 Excel 檔案
+      <span style="color:#1976d2; font-weight:500;">（請先將檔案 Sensitivity 設定為 General 再上傳）</span>
+    </li>      
+      <li>將所有分析結果彙整保存，並同步到 SharePoint 雲端</li>
+      <li>即時生成統計報表，方便團隊查詢與追蹤事件處理進度</li>
+      <li>支援權重自訂、歷史記錄查詢與分群分析</li>
+    </ul>
+    您可以透過側邊欄的各項功能，快速進行資料上傳、檢視結果、歷史追蹤與知識庫管理，<br>
+  </div>
+
+  <hr class="my-4">
+  <div class="mt-3" style="font-size:1.08em; color: #195485;">
+    <i class="fas fa-lightbulb me-2" style="color:#ffb300;"></i>
+    <strong>新手快速上手：</strong>
+    <ol style="margin-top: 10px; margin-bottom: 0.7em; padding-left: 1.2em;">
+      <li>
+        <strong>準備你的 Excel 檔</strong>（副檔名需為 .xlsx，建議每列一個事件，有描述/類型/解決方法等欄位，將檔案 Sensitivity 設定為 General 再上傳）。
+      </li>
+      <li>
+        <strong>拖曳或選擇檔案</strong>上傳，系統會自動檢查格式與內容，並提示權重設定（如需可自訂）。
+      </li>
+      <li>
+        <strong>點選「上傳」</strong>後稍候，分析完成會自動顯示結果卡片與圖表，重點摘要與解決方案一目了然。
+      </li>
+      <li>
+        <strong>可進入「分析結果」或「歷史紀錄」</strong>，查詢所有分析過的資料，支援快速篩選與下載。
+      </li>
+      <li>
+        <strong>進階功能</strong>：可分群產生報表、管理自訂語句、調整 AI 分析偏好，並用 Helpdesk 聊天快速問答。
+      </li>
+    </ol>
+    <div style="color:#388e3c; margin-top:10px;">
+      <i class="fas fa-check-circle me-2"></i>
+      <span>建議先從「上傳分析」開始，體驗全自動化分析流程！</span>
+    </div>
+  </div>
+</div>
+
+        </div>
+
+
+<div class="card shadow-lg border-0 mt-4 mb-4"
+     style="border-radius: 1.2rem; background: rgba(255,255,255,0.88); backdrop-filter: blur(3px); width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto;">
+  <div class="card-body d-flex align-items-center justify-content-center" style="padding: 2.3rem 2.2rem 1.5rem 2.2rem;">
+    <div style="min-width: 320px; text-align:center;">
+      <div class="d-flex align-items-center justify-content-center mb-3">
+        <i class="fas fa-external-link-alt me-2" style="font-size: 1.7em; color:#1ec58a;"></i>
+        <span class="fs-4 fw-bold" style="color: #198754; letter-spacing:0.01em;">線上 Excel 報表</span>
+      </div>
+      <div class="mb-4" style="font-size: 1.13em; color: #2e5747; letter-spacing: 0.02em;">
+        系統會自動彙整所有分析結果至 <strong style="color:#1ec58a;">SharePoint</strong> 雲端，<br>
+        點擊下方按鈕可立即瀏覽 <span style="color:#198754;"><strong>最新線上分析總表</strong></span>。
+      </div>
+      <a href="https://microsoft.sharepoint.com/:x:/t/MSTCITG/EUmpVrerujlGlzvCwYBP8-YBNsK6jYWk2pQ_HvDjI5U6ow?e=IeV00R"
+        class="btn btn-success px-5 py-2 fw-semibold shadow-lg custom-hover"
+        style="font-size: 1.17em; border-radius: 2.2rem; letter-spacing: 0.01em; box-shadow:0 4px 18px 0 rgba(80,200,160,0.13); background: linear-gradient(90deg,#1ec58a 70%,#84e0b8 100%); border: none;"
+        target="_blank">
+        <i class="fas fa-table me-2"></i> 前往線上報表
+      </a>
+
+    </div>
+  </div>
+</div>
+
+
+    </div>
+
+
+
 
         <!-- 📂 拖曳上傳區塊 -->
         <div id="dropArea" class="drop-area">
@@ -278,6 +381,8 @@
             <div class="progress-bar">
                 <div id="progressFill" class="progress-fill"></div>
             </div>
+              <!-- 這裡放取消分析按鈕，預設隱藏 -->
+            <button id="cancelAnalysisBtn" class="btn btn-danger" style="margin-top:12px;display:none;">❌ 取消分析</button>
         </div>
 
         <!-- ⏳ 處理中 Spinner -->
@@ -291,6 +396,11 @@
 
         <div id="summary" class="summary-box"></div>
 
+
+
+
+
+
         <!-- 📜 歷史上傳記錄 -->
         <div id="history" class="history-box">
             <h3 id="historytitle">📜 歷史紀錄</h3>
@@ -303,6 +413,22 @@
           <button id="copyResult" style="margin-top: 10px;">📋 複製結果</button>
       </div>
 
+
+<div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header justify-content-center">
+        <h5 class="modal-title text-center w-100" id="logModalLabel">分析進度</h5>
+      </div>
+      <div class="modal-body" style="max-height:480px; overflow:auto;" id="logContainer">
+        <!-- 分析訊息會即時加入這裡 -->
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">關閉</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 
@@ -322,6 +448,9 @@
           </div>
         </div>
 <!-- -------------------------------------------------------------------------------------------------------------------------------------------->
+
+
+
 
 
 <!-- ✅ 正確順序！jQuery 要放在 DataTables 前面 -->

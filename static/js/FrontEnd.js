@@ -6,6 +6,79 @@ const HISTORY_MINUTES_LIMIT = 60 * 24 * 30; // ✅ 這代表 30 天（60 分鐘 
 let droppedFile = null; // 用來暫存拖曳上傳的檔案
 let previewModalInstance = null; // 用來保存 Bootstrap Modal 的實例
 
+// ✅ 建立與後端的 WebSocket 連線
+
+
+function appendLogMessage(msg) {
+  const logContainer = document.getElementById('logContainer');
+  const entry = document.createElement('div');
+  entry.className = 'log-message fade-in'; // 這裡可以改 'slide-in'
+  entry.innerHTML = msg.replace(/\n/g, "<br>");
+  logContainer.appendChild(entry);
+  logContainer.scrollTop = logContainer.scrollHeight; // 滾到底
+}
+
+
+let progressPolling = null;
+
+let lastLogCount = 0;
+
+function startProgressPolling() {
+  if (progressPolling) clearInterval(progressPolling);
+  progressPolling = setInterval(() => {
+    fetch('/get-progress')
+      .then(res => res.json())
+      .then(data => {
+        // 拆分 log，每行一個
+        const logs = (data.progress || '').split('\n').filter(x => x);
+        // 只 append 新的
+        for (let i = lastLogCount; i < logs.length; i++) {
+          appendLogMessage(logs[i]);
+        }
+        lastLogCount = logs.length;
+      });
+  }, 700); // 這邊你自己調，700ms 很 OK
+}
+function stopProgressPolling() {
+  if (progressPolling) clearInterval(progressPolling);
+  progressPolling = null;
+  lastLogCount = 0;
+}
+
+
+// 分析進度 Modal 設定
+const logModal = new bootstrap.Modal(document.getElementById('logModal'), {
+  backdrop: 'static',
+  keyboard: false
+});
+
+
+const logContainer = document.getElementById('logContainer');
+
+// -- 最佳實踐：Modal 顯示/隱藏封裝 --
+function showAnalysisModal() {
+  logContainer.innerHTML = '<div>⏳ 開始分析...</div>';
+  logModal.show();
+  lastLogCount = 0;
+  startProgressPolling();
+}
+
+function closeAnalysisModal() {
+  logModal.hide();
+  stopProgressPolling();
+  lastLogCount = 0;
+}
+
+
+// 【可選】如果你有「查看進度」按鈕（StatusBar 上）可這樣寫：
+const showLogModalBtn = document.getElementById('showLogModalBtn');
+if (showLogModalBtn) {
+  showLogModalBtn.onclick = () => {
+    logModal.show();
+    startProgressPolling();
+  };
+}
+
 
 
 function updateWeightSum() {
@@ -130,6 +203,9 @@ document.getElementById('resetWeightsBtn').addEventListener('click', () => {
   updateWeightSum(); // ✅ 加這行來即時刷新畫面加總與 submit 狀態
 
 });
+
+
+
 
 
 // ✅ 彈出提示（你已有 toast 元件）
@@ -277,7 +353,6 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     formData.append('summary_priority', JSON.stringify(summaryPriority));
 
 
-
     const xhr = new XMLHttpRequest(); // 建立 XMLHttpRequest 物件
     xhr.open('POST', '/upload', true); // 設定請求方法和目標 URL
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); // 設定請求標頭，表明這是 AJAX 請求
@@ -332,6 +407,9 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
           modal.show();
           document.getElementById('confirmUploadBtn').onclick = () => {
           modal.hide();
+          
+          
+
           // ⬇️ 補上這三行，讓 UI 重新顯示 loading 狀態
           spinner.style.display = 'block';
           progressFill.style.width = '0%';
@@ -346,11 +424,18 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
           pollKbStatus();
 
 
+          showAnalysisModal(); // <-- 這裡也要呼叫
+
+
+
+
 
           window.kbLocked = true;   // ✅ 一送出就鎖定
           xhr.send(formData);  // ✅ 真正分析上傳
         };
       } else {
+
+
             // 👇 這裡也一樣加
           window.kbBuilding = true;
           window.kbToastShown = false;
@@ -358,6 +443,10 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
           showKbStatusBar();
           pollKbStatus();
           window.kbLocked = true; // 🔒 新增這行
+          showAnalysisModal(); // <-- 加這行
+
+
+          
           console.log("✅ 無重複內容，直接上傳");
           xhr.send(formData);  // 無重複就直接送
       }
@@ -396,6 +485,11 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
             if (data.error) {
                 resultDiv.innerHTML = `<p style="color:red">錯誤：${data.error}</p>`; // 顯示錯誤訊息
                 console.error('伺服器回傳錯誤：', data.error); // 在控制台輸出錯誤訊息
+
+
+
+                closeAnalysisModal(); // ← 取代
+
                 return;
             }
 
@@ -512,6 +606,14 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
             document.getElementById('excelFile').value = "";
             droppedFile = null;
             document.getElementById('fileInfo').innerText = ""; // 清空檔案資訊顯示
+
+
+              // 分析結束
+              closeAnalysisModal(); // ← 取代
+
+
+
+
         } 
         else 
         {
@@ -525,6 +627,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         progressContainer.style.display = 'none'; // 隱藏進度條容器
         resultDiv.innerHTML = '<p style="color:red">發生錯誤，請稍後再試。</p>'; // 顯示錯誤訊息
         console.error("XHR Error 狀態碼：", xhr.status, "回應：", xhr.responseText);
+        closeAnalysisModal(); // ← 取代
 
     };
     document.getElementById('previewTableArea').style.display = 'none'; // 隱藏預覽表格區域
@@ -535,14 +638,15 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
 
 
 async function loadHistoryFromAPI() {
-    // 假設 historyList 就是你 <ul id="historyList">
     const res = await fetch('/history-list');
-    const historyArr = await res.json();
+    const data = await res.json();
+    const records = data.records || [];
     historyList.innerHTML = "";
-    historyArr.forEach(record => {
+    records.forEach(record => {
         renderHistoryItem(record.uid, record.file, record.summary, record.time);
     });
 }
+
 
 // 把舊的 addHistoryItem 改成 renderHistoryItem，並且**只做畫面渲染，不寫 localStorage**
 function renderHistoryItem(uid, fileName, summaryText, analysisTime) {
@@ -769,32 +873,6 @@ window.addEventListener('DOMContentLoaded', () => {
         });
         }
     });
-
-
- 
-    
-
-    // ✅ 讀取 localStorage 中的歷史記錄並顯示在頁面上
-    // const storedHistory = JSON.parse(localStorage.getItem("historyData") || "[]");
-    // const now = new Date();
-
-    // storedHistory.forEach(record => {
-    //     const parsedTime = new Date(record.time);
-    //     if (isNaN(parsedTime.getTime())) return;
-
-    //     const diffInMin = (now - parsedTime) / (1000 * 60);
-    //     if (diffInMin <= HISTORY_MINUTES_LIMIT) {
-    //         addHistoryItem(record.uid, record.file, record.summary, record.time);
-    //     }
-    // });
-    
-    // // 清除舊資料
-    // const cleanedHistory = storedHistory.filter(record => {
-    //     const parsedTime = new Date(record.time);
-    //     const diffInMin = (now - parsedTime) / (1000 * 60);
-    //     return !isNaN(parsedTime.getTime()) && diffInMin <= HISTORY_MINUTES_LIMIT;
-    // });
-    // localStorage.setItem("historyData", JSON.stringify(cleanedHistory));
 
   pollKbStatus();  // 🔁 每頁載入後自動偵測
   // 初始化一次

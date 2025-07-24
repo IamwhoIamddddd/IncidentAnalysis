@@ -8,6 +8,36 @@ const clusteredLimit = 20;
 let totalClusteredFiles = 0;
 let isLoadingClustered = false;
 
+function showCustomBackdrop() {
+  document.getElementById("customBackdrop").classList.add("active");
+}
+function hideCustomBackdrop() {
+  document.getElementById("customBackdrop").classList.remove("active");
+}
+
+
+// 打開 Modal 時呼叫
+function openProgressModal() {
+  showCustomBackdrop();
+  const modal = new bootstrap.Modal(document.getElementById('clusterProgressModal'), {backdrop: false});
+  modal.show();
+}
+
+
+async function reloadSummaryAndClusteredLists() {
+  // 1. 重新載入 Summary 區塊
+  summaryOffset = 0;
+  const summaryList = document.getElementById('summaryFileList');
+  if (summaryList) summaryList.innerHTML = '';
+  await loadSummaryFilesBatch();
+
+  // 2. 重新載入 Clustered 區塊
+  clusteredOffset = 0;
+  const clusteredList = document.getElementById('clusteredFileList');
+  if (clusteredList) clusteredList.innerHTML = '';
+  await loadClusteredFilesBatch();
+}
+
 
 // ----- 2. 分批載入 summaries，累積 append -----
 async function loadSummaryFilesBatch() {
@@ -154,24 +184,99 @@ async function loadClusteredFilesBatch() {
 
 // ----- 1. 初始化頁面時載入第一批 summaries -----
 document.addEventListener("DOMContentLoaded", () => {
-console.log("Button:", document.getElementById("run-cluster-btn"));
-console.log("Status:", document.getElementById("cluster-status"));
-console.log("Toast:", document.getElementById("toast"));
-console.log("CopyBtn:", document.getElementById("copyResult"));
 
 
-summaryOffset = 0;
-document.getElementById('summaryFileList').innerHTML = '';
-loadSummaryFilesBatch();
-document.getElementById('loadMoreSummaryBtn').addEventListener('click', loadSummaryFilesBatch);
+  // 這一行就直接加在這裡
+  document.getElementById('clusterProgressModal').addEventListener('hidden.bs.modal', () => {
+    hideCustomBackdrop();
+  });
+
+  console.log("Button:", document.getElementById("run-cluster-btn"));
+  console.log("Status:", document.getElementById("cluster-status"));
+  console.log("Toast:", document.getElementById("toast"));
+  console.log("CopyBtn:", document.getElementById("copyResult"));
+
+
+  summaryOffset = 0;
+  document.getElementById('summaryFileList').innerHTML = '';
+  loadSummaryFilesBatch();
+  document.getElementById('loadMoreSummaryBtn').addEventListener('click', loadSummaryFilesBatch);
+
+
+const openModalBtn = document.getElementById("openProgressModalBtn");
+if (openModalBtn) {
+  openModalBtn.addEventListener("click", () => {
+    // ✅ 可選：重置進度條內容
+    updateClusterModal(0, 1, "這是手動開啟的分群進度視窗！");
+    openProgressModal(); // 這一行自帶 showCustomBackdrop()
+    // ✅ 改成這樣就不會有灰色背景
+    const modal = new bootstrap.Modal(document.getElementById("clusterProgressModal"), {
+      backdrop: false
+    });
+    modal.show();
+  });
+}
+
+    clusteredOffset = 0;
+    document.getElementById('clusteredFileList').innerHTML = '';
+    loadClusteredFilesBatch();
+    document.getElementById('loadMoreClusteredBtn').addEventListener('click', loadClusteredFilesBatch);
 
 
 
-  clusteredOffset = 0;
-  document.getElementById('clusteredFileList').innerHTML = '';
-  loadClusteredFilesBatch();
-  document.getElementById('loadMoreClusteredBtn').addEventListener('click', loadClusteredFilesBatch);
+    let clusterProgressInterval = null;
 
+    function updateClusterModal(progress, total, status) {
+      const percent = Math.round((progress / total) * 100);
+      const progressBar = document.getElementById('clusterProgressBar');
+      const progressText = document.getElementById('clusterProgressText');
+      if (!progressBar || !progressText) return;
+      progressBar.style.width = percent + '%';
+      progressBar.textContent = percent + '%';
+      progressText.textContent = status || `已完成 ${progress}/${total}`;
+    }
+
+  function startClusterProgressPolling(onFinish) {
+    // 👉 一開始重置進度條
+    updateClusterModal(0, 1, "初始化中...");
+
+const modal = new bootstrap.Modal(document.getElementById('clusterProgressModal'), {
+  backdrop: false
+});
+if (!document.getElementById('clusterProgressModal').classList.contains("show")) {
+  modal.show();
+}
+    // 👉 clearInterval 保險
+    if (clusterProgressInterval) clearInterval(clusterProgressInterval);
+
+    // 👉 設定輪詢
+    clusterProgressInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/cluster-progress');
+        const data = await res.json();
+
+    // 這一行可以看到後端丟來的 progress、total、status
+    console.log("進度資料", data);
+
+        updateClusterModal(data.progress, data.total, data.status);
+
+        if (data.progress >= data.total) {
+          clearInterval(clusterProgressInterval);
+
+          setTimeout(() => {
+            modal.hide();
+            showToast("🎉 分群完成！請查看結果");
+            if (onFinish) onFinish();
+          }, 1000);
+        }
+
+      } catch (err) {
+        console.error("❌ 輪詢失敗：", err);
+        clearInterval(clusterProgressInterval);
+        updateClusterModal(0, 1, "❌ 無法取得進度，已中止。");
+      }
+    }, 1200);
+}
 
 
 
@@ -261,42 +366,70 @@ document.getElementById('loadMoreSummaryBtn').addEventListener('click', loadSumm
   let lastMessage = "";
 
   button.addEventListener("click", async () => {
+      showCustomBackdrop();  // <-- 這一行
+
     button.disabled = true;
     status.textContent = "⏳ 分群中，請稍候...";
     status.style.color = "#aaa";
     copyBtn.disabled = true;    // 👈 按下分群時就讓複製結果再度不能按
+      // 1️⃣ 分群前先重置進度條
+    updateClusterModal(0, 1, "準備開始分群...");
 
-    try {
-      const response = await fetch("/cluster-excel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
+
+
+
+
+          // 3️⃣ 開始輪詢進度
+      let clusterFinished = false;
+      let excelPosted = false;
+
+      startClusterProgressPolling(async () => {
+        clusterFinished = true;
+        if (excelPosted) {
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('clusterProgressModal')).hide();
+          await reloadSummaryAndClusteredLists();  // ⬅️ 你可以包裝起來
+        }
       });
 
-      const result = await response.json();
+      try {
+        const response = await fetch("/cluster-excel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
 
-      if (result.message) {
-        lastMessage = result.message;
-        status.textContent = "✅ " + result.message;
-        status.style.color = "#4CAF50";
+        const result = await response.json();
+        excelPosted = true;
 
-        showToast(result.message);
-        scrollToElement(status);
-        copyBtn.disabled = false;
-        button.disabled = true;  // 🟢 這裡直接 disable，永遠不能再按
+        if (result.message) {
+          lastMessage = result.message;
+          status.textContent = "✅ " + result.message;
+          status.style.color = "#4CAF50";
 
-      } else {
-        status.textContent = "❌ 分群失敗或無回傳訊息。";
+          showToast(result.message);
+          scrollToElement(status);
+          copyBtn.disabled = false;
+          button.disabled = true;
+
+          if (clusterFinished) {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('clusterProgressModal')).hide();
+            await reloadSummaryAndClusteredLists();  // ⬅️ 共用 reload
+          }
+
+        } else {
+          status.textContent = "❌ 分群失敗或無回傳訊息。";
+          status.style.color = "red";
+          copyBtn.disabled = true;
+          button.disabled = false;
+        }
+      } catch (err) {
+        console.error(err);
+        status.textContent = "❌ 無法與伺服器連線。";
         status.style.color = "red";
-        copyBtn.disabled = true;   // 👈 失敗時還是不能按
-        button.disabled = false; // 失敗還能再按
+        copyBtn.disabled = true;
+        button.disabled = false;
       }
-    } catch (err) {
-      console.error(err);
-      status.textContent = "❌ 無法與伺服器連線。";
-      status.style.color = "red";
-      copyBtn.disabled = true;     // 👈 失敗時還是不能按
-      button.disabled = false; // 失敗還能再按
-    } finally {
+
+    finally {
     }
   });
 

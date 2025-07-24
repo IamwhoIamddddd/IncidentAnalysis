@@ -51,6 +51,8 @@
   </div>
 </div>
 
+
+
   <div class="sidebar" id="sidebar">
     <h4>功能選單</h4>
     <ul>
@@ -60,7 +62,10 @@
       <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
       <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
       <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
-      <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+<li onclick="navigateTo1('chat')">
+  <i class="fas fa-comments"></i> Helpdesk
+  <span style="font-size:0.83em; color:#888; margin-left:3px;">(Coming Soon)</span>
+</li>
 
     </ul>
     <div class="sidebar-bottom">
@@ -69,28 +74,125 @@
     <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle">←</button>
   </div>
 
+
+
+
   <div class="container">
     <h2 class="main-title">🧩 分群 Excel 產生</h2>
     <p>點擊下方按鈕將執行分群分析並產生各類 Excel 檔案。</p>
+
+
+
+    
+
+
+
+<div class="cluster-hyperlink-area mb-3">
+  <a
+    class="cluster-hyperlink"
+    href="https://microsoft.sharepoint.com/:f:/t/MSTCITG/Eg7WDuk12ZhBn9-EZ6IcEAkB3V-jWZ8D691_n9wBl3_C2g?e=gqRfOe"
+    target="_blank"
+    rel="noopener"
+  >
+    <i class="fas fa-external-link-alt"></i>
+    點擊查看分群完成後的線上報表
+  </a>
+</div>
+
+
+
+
+<div class="alert alert-info shadow custom-alert mb-4 mt-3" style="text-align:center; border: none; background: linear-gradient(135deg, #eaf7fa 85%, #c7e9f7 100%); box-shadow: 0 4px 24px 0 rgba(80,200,250,0.11); border-radius: 1.1em;">
+  <!-- 新手說明區塊 -->
+  <div style="text-align:left; background:rgba(255,255,255,0.21); padding: 18px 20px 18px 20px; border-radius: 13px; margin-bottom:22px; border-left: 6px solid #0bb1f4; box-shadow: 0 2px 10px rgba(50,180,240,0.05);">
+    <div style="font-size:1.13em; font-weight:700; margin-bottom: 7px; color:#1083bc;">
+      <i class="fas fa-robot me-1" style="color:#0bb1f4;"></i> 全自動 AI 分群・新手快速說明
+    </div>
+    <ul style="margin:11px 0 0 22px; padding-left:10px; font-size:1.04em; line-height:1.85;">
+      <li><b style="color:#0d6efd;">分群依據：</b>每筆事件都會自動分析 <b>「發生系統」</b> 和 <b style="color:#f9a825;">「AI判斷的細分類」</b>，保證分類超精確。</li>
+      <li>同一群的事件自動整合成 <span style="color:#1ec58a;font-weight:600;">明細 Excel 報表</span>與<span style="color:#ffd600;font-weight:600;">重點摘要</span>，直接一鍵下載。</li>
+      <li><span style="color:#e53935;font-weight:600;">AI 會自我學習</span>，新類型自動記錄、越用越懂你。</li>
+    </ul>
+    <div style="color:#888; font-size:0.99em; margin-top:10px; padding-left:4px;">
+      <i class="fas fa-lightbulb" style="color: #ffe066;"></i>
+      上傳事件即可分群，不必手動分類，省時又聰明！
+    </div>
+  </div>
+
+  <div class="custom-alert-title mb-2" style="font-size:1.17em; font-weight:700; color:#186fb2;">
+    <i class="fas fa-question-circle me-1" style="color:#20bfb8;"></i>
+    什麼是 AI 分群？有什麼用？
+  </div>
+  <div class="custom-alert-desc mb-3" style="font-size:1.07em;">
+    系統根據事件內容用 AI 自動判斷類型，<b style="color:#1ec58a;">同類型事件會分到同一群</b>，
+    每群都有專屬明細 Excel 與<span style="color:#ffc107;">AI 總結重點摘要</span>，一鍵檢閱高效又清楚。
+  </div>
+
+  <div class="custom-alert-cards mb-3" style="text-align:left;">
+    <div class="alert-item" style="margin-bottom:10px; background:rgba(235, 251, 255, 0.8); border-left:4px solid #0bb1f4; border-radius:7px; padding:7px 13px;">
+      <i class="fas fa-project-diagram me-1" style="color:#0bb1f4;"></i>
+      <b style="color:#0bb1f4;">分群明細：</b>
+      每一群事件都會生成獨立 Excel 報表，下載、篩查超快速。
+    </div>
+    <div class="alert-item" style="margin-bottom:10px; background:rgba(255, 251, 220, 0.83); border-left:4px solid #ffc107; border-radius:7px; padding:7px 13px;">
+      <i class="fas fa-lightbulb me-1" style="color:#ffc107;"></i>
+      <b style="color:#ffc107;">自動摘要：</b>
+      AI 會統整每群事件的「主要問題」與「解決重點」，重點一目了然。
+    </div>
+    <div class="alert-item" style="background:rgba(254,245,244,0.84); border-left:4px solid #e53935; border-radius:7px; padding:7px 13px;">
+      <i class="fas fa-exclamation-triangle me-1" style="color:#e53935;"></i>
+      <b style="color:#e53935;">高風險預警：</b>
+      若某群高風險事件比例過半，系統會自動提醒你注意。
+    </div>
+  </div>
+
+  <div class="custom-alert-core mb-2" style="text-align:left;">
+    <strong style="font-size:1.09em; color:#1083bc;">AI 分群分析能幫你：</strong>
+    <div class="custom-alert-cards mt-2">
+      <div class="alert-item" style="margin-bottom:8px;"><i class="fas fa-search me-1" style="color:#1ec58a;"></i>快速找出同類型事件，免手動整理。</div>
+      <div class="alert-item" style="margin-bottom:8px;"><i class="fas fa-file-excel me-1" style="color:#1976d2;"></i>一鍵匯出完整群組資料，方便協作與彙報。</div>
+      <div class="alert-item"><i class="fas fa-magic me-1" style="color:#f9a825;"></i>AI 自動記錄所有新分類，永遠不會漏判。</div>
+    </div>
+  </div>
+  <div class="custom-alert-footer" style="color: #555; text-align:left; border-top:1px dashed #a5d8f8; margin-top:14px; padding-top:8px;">
+    <i class="fas fa-hands-helping me-1" style="color:#409eff;"></i>
+    只需上傳事件檔案，AI 幫你全部分類、摘要、產生分群報表，讓數據分析從此零壓力！
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
     <button id="run-cluster-btn" class="btn btn-outline-success">產生分群 Excel</button>
     <p id="cluster-status" class="mt-3"></p>
 
 
-      <!-- ✅ 這裡是自動載入的分群檔案清單 -->
-<div class="accordion mb-4" id="excelAccordion">
+<button id="openProgressModalBtn" class="btn btn-outline-info ms-2">查看進度</button>
 
 
-<!-- 明細 Accordion Item -->
-<div class="accordion-item">
-  <h2 class="accordion-header" id="headingDetails">
-    <button class="accordion-button collapsed" type="button"
-      data-bs-toggle="collapse"
-      data-bs-target="#collapseDetails"
-      aria-expanded="false"
-      aria-controls="collapseDetails">
-      📁 已分群檔案清單
-    </button>
-  </h2>
+
+
+
+
+          <!-- ✅ 這裡是自動載入的分群檔案清單 -->
+    <div class="accordion mb-4" id="excelAccordion">
+    <!-- 明細 Accordion Item -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingDetails">
+        <button class="accordion-button collapsed" type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#collapseDetails"
+          aria-expanded="false"
+          aria-controls="collapseDetails">
+          📁 已分群檔案清單
+        </button>
+      </h2>
 
   <div id="collapseDetails" class="accordion-collapse collapse show" aria-labelledby="headingDetails" data-bs-parent="#excelAccordion">
     <div class="accordion-body p-0" style="position: relative;">
@@ -150,8 +252,52 @@
     <div id="download-toast" class="toast" style="display: none;"></div>
 
 
+<!-- 🟢 分群進度 Modal -->
+<div class="modal fade" id="clusterProgressModal" tabindex="-1" aria-hidden="true">
+    <!-- 自訂灰色陰影（Backrop） -->
+<div id="customBackdrop" class="custom-backdrop"></div>
+
+  <div class="modal-dialog modal-dialog-centered"> <!-- 雖然保留，但不影響效果 -->
+    <div class="modal-content border-0 rounded-4"
+         style="background: linear-gradient(145deg, #1f1f1f, #2a2a2a);
+                color: #fff;
+                box-shadow: none !important;
+                margin: auto;">
+      <div class="modal-body text-center p-5">
+        <div class="fs-1 mb-3">⏳</div>
+        <h4 class="fw-bold mb-3" style="letter-spacing: 0.5px;">分群進度</h4>
+
+        <div id="clusterProgressText" class="mb-3" style="font-size:1.15em; font-weight: 500;">
+          正在準備分群...
+        </div>
+
+        <div class="progress mb-4" style="height: 24px; background-color: rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden;">
+          <div id="clusterProgressBar"
+               class="progress-bar progress-bar-striped progress-bar-animated"
+               role="progressbar"
+               style="width:0%; background: linear-gradient(90deg, #50d5ff, #1fa2ff); font-weight:600;">
+            0%
+          </div>
+        </div>
+
+<button type="button"
+  class="btn rounded-pill fw-semibold px-4 py-2 btn-animate"
+  data-bs-dismiss="modal"
+  style="background: linear-gradient(135deg, #444, #222);
+        border: 1px solid #888;
+        color: #fff;
+        transition: all 0.3s;">
+  關閉
+</button>
+
+      </div>
+    </div>
+  </div>
+</div>
 
   <!-- 套件引入 -->
+
+  
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>

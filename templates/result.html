@@ -60,7 +60,10 @@
       <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
       <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
       <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
-      <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+<li onclick="navigateTo1('chat')">
+  <i class="fas fa-comments"></i> Helpdesk
+  <span style="font-size:0.83em; color:#888; margin-left:3px;">(Coming Soon)</span>
+</li>
 
 
     </ul>
@@ -76,6 +79,22 @@
 
   <div class="container">
   <h2 class="main-title">📊 分析結果報告</h2>
+
+<div class="sharepoint-summary-block">
+  <div class="sharepoint-summary-text">
+    所有分析結果都會自動彙整到 <span class="sharepoint-cloud">SharePoint 雲端</span>，
+    <br>請點擊下方按鈕瀏覽<strong>最新線上分析總表</strong>。
+  </div>
+  <a href="https://microsoft.sharepoint.com/:x:/t/MSTCITG/EUmpVrerujlGlzvCwYBP8-YBNsK6jYWk2pQ_HvDjI5U6ow?e=IeV00R"
+     target="_blank"
+     class="sharepoint-summary-btn">
+    <i class="fas fa-table me-1"></i> 前往線上報表
+  </a>
+</div>
+
+
+
+  
 
   <div id="filterLoading" class="filter-loading" style="display: none;">
   <div class="spinner-border"></div>

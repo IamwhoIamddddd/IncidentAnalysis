@@ -349,3 +349,322 @@ body.dark-mode #kbStatusBar .dots::after {
 }
 
 
+
+
+.cluster-hyperlink-area {
+  /* 你可以加 padding 或留空，僅控制間距 */
+  margin-bottom: 18px;
+}
+
+.cluster-hyperlink {
+  color: #1869c6;
+  font-weight: 600;
+  font-size: 1.09rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  letter-spacing: 0.2px;
+  transition: color 0.14s;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0;
+  border-radius: 4px;
+  background: none;
+}
+
+.cluster-hyperlink i {
+  font-size: 1em;
+  margin-right: 3px;
+  opacity: 0.88;
+}
+
+.cluster-hyperlink:hover,
+.cluster-hyperlink:focus {
+  color: #0a389d;
+  background: #eaf2fd;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  outline: none;
+}
+
+.dark-mode .cluster-hyperlink {
+  color: #68aaff;
+  background: none;
+}
+
+.dark-mode .cluster-hyperlink:hover,
+.dark-mode .cluster-hyperlink:focus {
+  color: #fbc02d;
+  background: #1a2637;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- 分群說明美化 --- */
+.custom-alert {
+  font-family: 'Inter', 'Segoe UI', 'Microsoft JhengHei', Arial, sans-serif;
+  letter-spacing: 0.01em;
+  transition: box-shadow 0.23s;
+  border-radius: 1.1em !important;
+  background: linear-gradient(135deg, #eaf7fa 85%, #c7e9f7 100%);
+  box-shadow: 0 4px 24px 0 rgba(80,200,250,0.13);
+  padding-bottom: 4px;
+  overflow: hidden;
+}
+body.dark-mode .custom-alert {
+  background: linear-gradient(135deg, #223042 85%, #161c26 100%) !important;
+  color: #e7f3fd !important;
+  box-shadow: 0 8px 32px 0 rgba(30,70,150,0.22);
+}
+.custom-alert > div {
+  transition: background 0.23s;
+}
+
+/* 標題/副標題 */
+.custom-alert-title { font-size: 1.17em; font-weight:700; color:#186fb2; }
+body.dark-mode .custom-alert-title { color: #59b9f9 !important; }
+.custom-alert-title, .custom-alert-core strong {
+  text-shadow: 0 2px 9px rgba(30, 130, 255, 0.10);
+}
+
+.custom-alert-desc {
+  background: linear-gradient(90deg, #e3f5fd 55%, #fafbfd 100%);
+  padding: 12px 19px 12px 19px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-weight: 500;
+  box-shadow: 0 1px 5px rgba(140,190,255,0.07);
+  color: #194050;
+}
+body.dark-mode .custom-alert-desc {
+  background: linear-gradient(90deg, #273c52 70%, #1b2738 100%) !important;
+  color: #eaf6ff !important;
+  box-shadow: 0 1px 8px rgba(10,80,150,0.09);
+}
+
+/* 卡片區域 */
+.custom-alert-cards .alert-item {
+  box-shadow: 0 2px 10px rgba(80,180,240,0.09);
+  transition: background 0.18s, box-shadow 0.18s, transform 0.13s;
+  font-size: 1.04em;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  cursor: default;
+  position: relative;
+  color: #15506a;
+}
+.custom-alert-cards .alert-item:hover {
+  background: linear-gradient(92deg, #f4fcff 65%, #eaf7fa 100%);
+  box-shadow: 0 4px 16px rgba(0,175,240,0.13);
+  transform: translateY(-2px) scale(1.015);
+}
+body.dark-mode .custom-alert-cards .alert-item {
+  background: rgba(28,42,68,0.92) !important;
+  color: #e6f3fa !important;
+  border-left-width: 5px !important;
+  box-shadow: 0 4px 16px rgba(32,156,255,0.11);
+}
+body.dark-mode .custom-alert-cards .alert-item:hover {
+  background: linear-gradient(93deg,#293b54 75%,#192737 100%) !important;
+  color: #fff !important;
+}
+.custom-alert-cards .alert-item b { font-weight: 700; }
+
+/* 讓不同主題下，icon/主色重點色維持亮度和飽和度 */
+body.dark-mode .custom-alert-cards .alert-item[style*="#0bb1f4"] b,
+body.dark-mode .custom-alert-cards .alert-item[style*="#0bb1f4"] i,
+body.dark-mode .custom-alert-cards .alert-item .fa-project-diagram { color: #5fd1ff !important; text-shadow: 0 0 1.5px #6aeaff; }
+body.dark-mode .custom-alert-cards .alert-item[style*="#ffc107"] b,
+body.dark-mode .custom-alert-cards .alert-item[style*="#ffc107"] i,
+body.dark-mode .custom-alert-cards .alert-item .fa-lightbulb { color: #ffe066 !important; text-shadow: 0 0 2px #fff7d6; }
+body.dark-mode .custom-alert-cards .alert-item[style*="#e53935"] b,
+body.dark-mode .custom-alert-cards .alert-item[style*="#e53935"] i,
+body.dark-mode .custom-alert-cards .alert-item .fa-exclamation-triangle { color: #ff7675 !important; text-shadow: 0 0 2px #ffbeb6; }
+body.dark-mode .custom-alert-cards .alert-item[style*="#1ec58a"] b,
+body.dark-mode .custom-alert-cards .alert-item[style*="#1ec58a"] i { color: #5affbb !important; }
+body.dark-mode .custom-alert-cards .alert-item[style*="#ffd600"] b,
+body.dark-mode .custom-alert-cards .alert-item[style*="#ffd600"] i { color: #ffe066 !important; }
+body.dark-mode .custom-alert-cards .alert-item[style*="#f9a825"] b,
+body.dark-mode .custom-alert-cards .alert-item[style*="#f9a825"] i { color: #ffe082 !important; }
+
+body.dark-mode .custom-alert-core .alert-item { color: #e6f8fd !important; }
+body.dark-mode .custom-alert-core strong { color: #73ceff !important; }
+
+.custom-alert-core strong {
+  margin-bottom: 7px;
+  display: inline-block;
+  font-size: 1.11em;
+  color: #0b8ed9;
+  font-weight: 600;
+}
+
+.custom-alert-core .alert-item {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding-left: 2px !important;
+  font-size: 1.04em;
+  color: #114b5f;
+  letter-spacing: 0.03em;
+}
+body.dark-mode .custom-alert-core .alert-item {
+  color: #d6efff !important;
+}
+.custom-alert-core .alert-item i {
+  width: 1.5em;
+  text-align: center;
+}
+
+/* icon hover 放大、左偏 */
+.custom-alert-cards .alert-item i,
+.custom-alert-core .alert-item i {
+  transition: transform 0.18s;
+  filter: drop-shadow(0 2px 2px rgba(50, 180, 250, 0.06));
+}
+.custom-alert-cards .alert-item:hover i,
+.custom-alert-core .alert-item:hover i {
+  transform: scale(1.15) rotate(-7deg) translateX(-2px);
+}
+
+/* 圓角細節與底部 footer */
+.custom-alert-footer {
+  background: linear-gradient(90deg, #f4fbff 65%, #eaf7fa 100%);
+  font-size: 1em;
+  border-radius: 0 0 13px 13px;
+  margin-top: 13px;
+  padding: 9px 12px 6px 10px;
+  box-shadow: 0 2px 8px rgba(100,180,230,0.08);
+  font-weight: 500;
+  border-top: 1px dashed #a5d8f8;
+}
+body.dark-mode .custom-alert-footer {
+  background: linear-gradient(90deg, #233144 70%, #192a3c 100%) !important;
+  color: #d0ecff !important;
+  border-top: 1px dashed #327ed3;
+}
+
+/* 提示icon特例 (你可根據 class 再自訂) */
+body.dark-mode .custom-alert .fa-question-circle { color: #5cd3ff !important; }
+body.dark-mode .custom-alert .fa-hands-helping { color: #76e5ff !important; }
+body.dark-mode .custom-alert .fa-robot { color: #3de5fd !important; }
+body.dark-mode .custom-alert .fa-magic { color: #ffe082 !important; }
+body.dark-mode .custom-alert .fa-search { color: #70e0ff !important; }
+body.dark-mode .custom-alert .fa-file-excel { color: #5affbb !important; }
+
+/* 行動裝置支援 */
+@media (max-width: 600px) {
+  .custom-alert,
+  .custom-alert > div {
+    font-size: 0.98em !important;
+    padding: 7px !important;
+    border-radius: 10px !important;
+  }
+  .custom-alert-title { font-size: 1.09em !important; }
+  .custom-alert-desc { font-size: 1em !important; }
+  .custom-alert-footer { padding: 8px 7px 4px 8px !important; }
+}
+
+
+body.dark-mode #clusterProgressModal .modal-content {
+  background: linear-gradient(145deg, #1e1e1e, #2d2d2d);
+  color: #eee;
+}
+
+
+#clusterProgressModal {
+  z-index: 1060 !important;
+}
+.modal-backdrop.show {
+  z-index: 1050 !important;
+}
+#toast {
+  z-index: 1045; /* 比 backdrop 還低，避免蓋住 modal */
+}
+
+
+.btn.btn-outline-info.ms-2 {
+  margin-bottom: 30px;
+  background: linear-gradient(135deg, #e3f2fd, #d0e7fc);
+  color: #0d47a1;
+  border: 1px solid #0d47a1;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1.05rem;
+  box-shadow: 0 4px 10px rgba(13, 71, 161, 0.15);
+  transition: all 0.3s ease;
+}
+
+.btn.btn-outline-info.ms-2:hover {
+  background: linear-gradient(135deg, #bbdefb, #90caf9);
+  color: #ffffff;
+  border-color: #0d47a1;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 16px rgba(13, 71, 161, 0.25);
+}
+
+/* 🌙 深色模式支援（可根據你自己的 dark-mode class 調整） */
+body.dark-mode .btn.btn-outline-info.ms-2 {
+  background: linear-gradient(135deg, #2a3b5f, #1c2d4b);
+  color: #bbdefb;
+  border: 1px solid #bbdefb;
+  box-shadow: 0 4px 10px rgba(33, 150, 243, 0.12);
+}
+
+body.dark-mode .btn.btn-outline-info.ms-2:hover {
+  background: linear-gradient(135deg, #3c4f75, #2e4468);
+  color: #ffffff;
+  border-color: #90caf9;
+  box-shadow: 0 6px 16px rgba(144, 202, 249, 0.3);
+}
+
+#clusterProgressModal .modal-dialog {
+  position: fixed !important;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0 !important;
+  z-index: 1055;
+  width: 600px;         /* ✅ 你可以改成 700px、80% 或其他數值 */
+  max-width: 90vw;      /* ✅ 保留彈性避免超過畫面 */
+}
+
+
+
+
+#customBackdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 40, 0.48);  /* 顏色可改 */
+  z-index: 1040; /* 要比 .modal-backdrop 高，比 modal 低 */
+  transition: opacity 0.3s;
+}
+#customBackdrop.active {
+  display: block;
+  opacity: 1;
+}
+
+.btn-animate {
+  transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+.btn-animate:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 2px 20px #0002;
+}
+.btn-animate:active {
+  filter: brightness(0.87);
+  transform: scale(0.93);
+}
+

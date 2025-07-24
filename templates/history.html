@@ -64,7 +64,10 @@
             <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
             <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
             <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
-            <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+<li onclick="navigateTo1('chat')">
+  <i class="fas fa-comments"></i> Helpdesk
+  <span style="font-size:0.83em; color:#888; margin-left:3px;">(Coming Soon)</span>
+</li>
 
         </ul>
       
@@ -82,6 +85,24 @@
       
         <div class="container">
             <h2 class="main-title">歷史頁面</h2>
+
+<div class="sp-info-alert">
+  <div class="sp-info-inner">
+    <div class="sp-info-text">
+      所有分析結果都會自動彙整到 <span class="sp-cloud">SharePoint 雲端</span>，
+      <br>
+      請點選下方按鈕查看<strong>最新線上分析總表</strong>。
+    </div>
+    <a href="https://microsoft.sharepoint.com/:x:/t/MSTCITG/EUmpVrerujlGlzvCwYBP8-YBNsK6jYWk2pQ_HvDjI5U6ow?e=IeV00R"
+       target="_blank"
+       class="sp-info-btn">
+      🌐 立即前往線上報表
+    </a>
+  </div>
+</div>
+
+
+        
 
             <!-- 📜 歷史上傳記錄 -->
             <div id="history" class="history-box">

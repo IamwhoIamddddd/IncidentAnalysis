@@ -60,7 +60,10 @@
       <li onclick="navigateTo1('cluster')"><i class="fas fa-project-diagram"></i> 分群產生</li>
       <li onclick="navigateTo1('manual')"><i class="fas fa-edit"></i> 語句資料庫</li>
       <li onclick="navigateTo1('gpt_prompt')"><i class="fas fa-robot"></i> GPT Prompt 管理</li>
-      <li onclick="navigateTo1('chat')"><i class="fas fa-comments"></i> Helpdesk</li>
+<li onclick="navigateTo1('chat')">
+  <i class="fas fa-comments"></i> Helpdesk
+  <span style="font-size:0.83em; color:#888; margin-left:3px;">(Coming Soon)</span>
+</li>
 
     </ul>
     <div class="sidebar-bottom">
@@ -74,12 +77,141 @@
     <div class="container">
       <h2 class="main-title">📚 語意比對語句管理</h2>
 
+
+
+
+<div class="alert alert-info custom-alert mb-4 mt-3 px-0 px-md-2" style="border: none;">
+  <!-- 主說明區塊 -->
+  <section class="custom-alert-section" style="background:rgba(255,255,255,0.17); border-radius: 1em 1em 0 0; border-left: 6px solid #409eff; padding: 22px 28px 14px 28px;">
+    <div class="d-flex align-items-center mb-2">
+      <i class="fas fa-info-circle fa-lg me-2" style="color:#409eff;"></i>
+      <span class="fs-5 fw-bold" style="color:#0d6efd;">新手說明</span>
+    </div>
+
+
+
+    <div style="font-size:1.08em; line-height:1.85; color:#215063;  text-align:left;">
+      本頁可 <b style="color:#007b5e;">手動新增情境語句</b>，協助 AI 更精確辨識重要案例：
+      <ul class="mb-1 mt-1" style="padding-left: 1.5em;">
+        <li><span class="fw-bold">描述務必明確</span>，例：<span style="color:#0d6efd;">全公司無法登入 Teams，所有員工都受影響</span></li>
+        <li>多提供不同說法、情境、部門/角色專用語 <b style="color:#e53935;">（越多樣準確率越高）</b></li>
+        <li>自訂語句將用於 <b>AI 事件分級/分類</b>，幫助系統主動判斷高風險、多用戶影響等情境</li>
+      </ul>
+      <div style="color:#888; font-size:0.99em;" class="mt-1">
+        <i class="fas fa-lightbulb me-1" style="color: #ffe066;"></i>
+        新增語句越豐富，AI 分析就越精準、越懂你的現場！
+      </div>
+
+
+      
+    </div>
+  </section>
+  <!-- 自訂語句的功能說明卡 -->
+  <section class="custom-alert-section bg-white bg-opacity-75 px-4 py-3" style="border-radius: 0 0 0 0;">
+    <div class="custom-alert-title fw-semibold fs-6 mb-1" style="color:#2070b5;">
+      <i class="fas fa-question-circle me-2" style="color:#1ec58a;"></i>
+      什麼是自訂語句？有什麼用？
+    </div>
+    <div class="custom-alert-desc mb-3 ps-2 pe-2" style="font-size:1.06em;">
+      你新增的
+      <span class="fw-bold" style="color:#e53935;">高風險</span>、
+      <span class="fw-bold" style="color:#f9a825;">升級</span>、
+      <span class="fw-bold" style="color:#1976d2;">影響多人</span>
+      語句，會讓系統判斷時
+      <b class="fw-semibold" style="color:#20c997;">更精準辨識重要情境</b>。
+    </div>
+    <div class="row g-2 custom-alert-cards mb-2">
+      <div class="col-12 col-md-4">
+        <div class="alert-item p-3 h-100" style="background:rgba(255,242,242,0.95); border-left:4px solid #e53935; border-radius:7px;">
+          <div class="d-flex align-items-center mb-1">
+            <i class="fas fa-exclamation-triangle me-2" style="color:#e53935; font-size:1.18em;"></i>
+            <span class="fw-bold" style="color:#e53935;">高風險語句</span>
+          </div>
+          <div style="color:#b94343; font-size:1em;">事件描述相似時自動判定高風險，
+            <span class="text-danger fw-bold">提升嚴重性分數</span>並優先標示。</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="alert-item p-3 h-100" style="background:rgba(255,251,220,0.97); border-left:4px solid #f9a825; border-radius:7px;">
+          <div class="d-flex align-items-center mb-1">
+            <i class="fas fa-level-up-alt me-2" style="color:#f9a825; font-size:1.18em;"></i>
+            <span class="fw-bold" style="color:#f9a825;">升級語句</span>
+          </div>
+          <div style="color:#a38200; font-size:1em;">處理過程匹配時
+            <span class="text-danger fw-bold">升級分數加分</span>，提升風險評分。
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="alert-item p-3 h-100" style="background:rgba(232,246,255,0.97); border-left:4px solid #1976d2; border-radius:7px;">
+          <div class="d-flex align-items-center mb-1">
+            <i class="fas fa-users me-2" style="color:#1976d2; font-size:1.18em;"></i>
+            <span class="fw-bold" style="color:#1976d2;">影響多人語句</span>
+          </div>
+          <div style="color:#2364a1; font-size:1em;">語句類似時自動視為大規模，
+            <span class="text-danger fw-bold">多人影響分數提升</span>。
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 核心分數說明 -->
+  <section class="custom-alert-section bg-white bg-opacity-50 px-4 py-3" style="border-radius:0 0 1em 1em;">
+    <div class="custom-alert-core mb-1 fw-semibold" style="color:#128870; font-size:1.08em;">
+      <i class="fas fa-sliders-h me-2" style="color:#20c997;"></i>
+      這些分數會直接影響下列三大指標：
+    </div>
+    <div class="row g-2 custom-alert-cards mb-2">
+      <div class="col-12 col-md-4">
+        <div class="alert-item p-3 h-100" style="background:rgba(255,242,242,0.90); border-left:4px solid #e53935; border-radius:7px;">
+          <div class="d-flex align-items-center mb-1">
+            <i class="fas fa-bolt me-2" style="color:#e53935; font-size:1.1em;"></i>
+            <span class="fw-bold">Severity（嚴重性）分數</span>
+          </div>
+          <div>「高風險」與「升級」語句命中時提升。</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="alert-item p-3 h-100" style="background:rgba(225,239,255,0.90); border-left:4px solid #1976d2; border-radius:7px;">
+          <div class="d-flex align-items-center mb-1">
+            <i class="fas fa-sync-alt me-2" style="color:#1976d2; font-size:1.1em;"></i>
+            <span class="fw-bold">Frequency（頻率）分數</span>
+          </div>
+          <div>除了「影響多人」，還考慮 24小時內同一角色/模組事件的集中度。</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="alert-item p-3 h-100" style="background:rgba(224,255,249,0.92); border-left:4px solid #20c997; border-radius:7px;">
+          <div class="d-flex align-items-center mb-1">
+            <i class="fas fa-chart-line me-2" style="color:#20c997; font-size:1.1em;"></i>
+            <span class="fw-bold">Impact 分數</span>
+          </div>
+          <div>整合上述分數，數值越高事件越需優先處理。</div>
+        </div>
+      </div>
+    </div>
+    <div class="custom-alert-footer mt-2 ps-2" style="color:#409eff;font-size:0.99em;">
+      <i class="fas fa-hands-helping me-2"></i>
+      每次新增語句，都是在讓 AI 更懂你的現場知識，風險判斷就會更貼近真實！
+    </div>
+  </section>
+</div>
+
+
+
+
+
+
+
+
+
       <!-- Input Form -->
       <div class="card mb-5 shadow">
         <div class="card-body">
           <form id="sentenceForm">
             <div class="mb-3">
-              <label for="sentenceText" class="form-label">輸入語句：</label>
+              <label for="sentenceText" class="form-label">輸入語句 ( 請使用英文 )：</label>
               <input type="text" id="sentenceText" class="form-control" required>
               <small class="form-text text-muted">※ 輸入時自動去除多餘空白、引號，逗號分隔多句會自動分開儲存</small>
 

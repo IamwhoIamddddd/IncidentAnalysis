@@ -33,10 +33,10 @@ import traceback
 # 匯入 Werkzeug 的工具函數確保檔案名稱安全
 from werkzeug.utils import secure_filename
 # ✅ 匯入語意分析模組
-from SmartScoring1 import is_high_risk, is_escalated, is_multi_user, extract_keywords, recommend_solution, is_actionable_resolution, load_embeddings, load_examples_from_json
+from SmartScoring import is_high_risk, is_escalated, is_multi_user, extract_keywords, recommend_solution, is_actionable_resolution, load_embeddings, load_examples_from_json
 # ✅ 預先 encode 一筆資料以加速首次請求
-from SmartScoring1 import bert_model  # 確保你有從 SmartScoring 載入模型
-from SmartScoring1 import extract_cluster_name  # 匯入自定的 cluster 命名函式
+from SmartScoring import bert_model  # 確保你有從 SmartScoring 載入模型
+from SmartScoring import extract_cluster_name  # 匯入自定的 cluster 命名函式
 from tqdm import tqdm
 from sentence_transformers import util
 # ✅ 匯入關鍵字抽取模組
@@ -56,12 +56,21 @@ import tempfile
 from jsonschema import validate, ValidationError
 from datetime import datetime
 from collections import Counter
+import openpyxl
+from openpyxl.worksheet.table import Table, TableStyleInfo
+import traceback
+from flask_socketio import SocketIO, emit
 
 
+
+POWERAUTOMATE_CLASSIFY_URL = "https://prod-26.southeastasia.logic.azure.com:443/workflows/651f88b4e548481ba38d129c30af1cae/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=1kjXdbN7QsORisL6sdEA1IRXRef_bstLqZjmRjp9c6E"  # 🔁 改成你自己的分類流程 URL
+POWERAUTOMATE_SUMMARY_URL = "https://prod-71.southeastasia.logic.azure.com:443/workflows/d70056c4f2c044b9a297164c9f98d1b6/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=L_qVgz5s0bLvz20lmI3RsoEmClvbTJfy7v99Ai38Xpw"  # 🔁 改成你自己的摘要流程 URL
 
 KMEANS_MIN_COUNT = 4         # 最少資料筆數
 KMEANS_MIN_RANGE = 5.0       # 分數最大最小值差
 KMEANS_MIN_STDDEV = 3.0      # 標準差下限
+
+progress_log = ""  # 全域變數，專門用來存進度訊息
 
 
 
@@ -112,6 +121,13 @@ def safe_value(val):
     else:
         return val
 
+# ------------------------------------------------------------------------------
+
+def append_progress(msg):
+    global progress_log
+    progress_log += msg + "\n"
+    print(msg)  # 同時在控制台輸出
+    
 # ------------------------------------------------------------------------------
 
 
@@ -218,6 +234,13 @@ def set_kmeans_thresholds_from_centroids(centroids):
 
 # ------------------------------------------------------------------------------
 
+def append_cluster_progress(msg, progress, total):
+    with open("cluster_progress.json", "w", encoding="utf-8") as f:
+        json.dump({
+            "progress": progress,
+            "total": total,
+            "status": msg
+        }, f, ensure_ascii=False)
 
 
 def clean_filename(name):
@@ -303,11 +326,26 @@ def cluster_excel():
     os.makedirs(clustered_dir, exist_ok=True)  # ✅ 確保 Clustered 資料夾存在
 
     files = [f for f in os.listdir(unclustered_dir) if f.endswith('_Unclustered.xlsx')]
+    
+    total_files = len(files)
+
+    append_cluster_progress("⏳ 開始分群...", 0, total_files)
+    
+    
+    
     print("="*60)
     print(f"🔍 偵測到 {len(files)} 筆待分群檔案：{files if files else '（無）'}")
     print("="*60)
 
     for i, filename in enumerate(files, 1):
+        
+        # 🟡 一開始就寫「正在處理...」
+        append_cluster_progress(
+            f"正在處理第 {i}/{total_files} 個檔案：{filename}",
+            i - 1,
+            total_files
+        )
+        
         uid = filename.replace('_Unclustered.xlsx', '')
         excel_path = os.path.join(unclustered_dir, filename)
         print(f"\n🟦 [{i}/{len(files)}] 開始處理檔案：{excel_path}")
@@ -353,6 +391,18 @@ def cluster_excel():
         clustered_path = os.path.join(clustered_dir, uid + '_Clustered.xlsx')
         shutil.move(excel_path, clustered_path)
         print(f"  📁 已移動檔案並改名：{clustered_path}")
+                # ...分類、分群、summary...
+        # ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+        append_cluster_progress(
+            f"已完成第 {i}/{total_files} 個檔案：{filename}",
+            i,
+            total_files
+        )
+        
+        
+        
+    # 所有檔案處理完成，最後寫一次進度
+    append_cluster_progress(f"🎉 所有分群 Excel 檔案已完成搬移與分群，共處理 {total_files} 檔！", total_files, total_files)
 
     print("="*60)
     print(f"🎉 所有分群 Excel 檔案已完成搬移與分群，共處理 {len(files)} 檔！")
@@ -378,8 +428,17 @@ def cluster_excel_export(results, export_dir="excel_result_Clustered/Details"):
     os.makedirs(export_dir, exist_ok=True)
     print(f"📁 匯出資料夾路徑：{export_dir}")
     print(f"🔢 共發現 {len(cluster_data)} 個分群")
+    
+    # ====== 加這段取得目前總檔案數，讓進度合理 ======
+    total_clusters = len(cluster_data)
+    # ==========================================
+    
 
     for idx, (key, group) in enumerate(cluster_data.items(), 1):
+        
+        
+
+        
         cluster_df = pd.DataFrame(group)
         try:
             config_item, ai_category = key.split('_', 1)
@@ -567,6 +626,7 @@ def analyze_excel(filepath, weights=None, resolution_priority=None, summary_prio
 # 用於同步 Flask 路由呼叫 async 分析邏輯
 async def analyze_excel_async(filepath, weights=None, resolution_priority=None, summary_priority=None):
     start_time = time.time()
+    append_progress("🟩 開始分析 Excel 檔案...")
     default_weights = {
         'keyword': 5.0,
         'multi_user': 3.0,
@@ -581,8 +641,12 @@ async def analyze_excel_async(filepath, weights=None, resolution_priority=None, 
     high_risk_examples, high_risk_embeddings = load_embeddings("high_risk")
     escalation_examples, escalation_embeddings = load_embeddings("escalate")
     multi_user_examples, multi_user_embeddings = load_embeddings("multi_user")
+    append_progress("✅ 語句庫與嵌入向量載入完成")
+
 
     df = pd.read_excel(filepath)
+    append_progress(f"✅ 成功載入檔案，共 {len(df)} 筆資料，開始欄位前處理")
+    
 
 
     # ✅ 欄位順位 fallback 預設
@@ -610,6 +674,8 @@ async def analyze_excel_async(filepath, weights=None, resolution_priority=None, 
     # ✅ 產生 resolution_input / summary_input 給 GPT 用
     df['resolution_input'] = df.apply(lambda row: combine_fields_with_priority(row, resolution_priority, 16000), axis=1)
     df['summary_input'] = df.apply(lambda row: combine_fields_with_priority(row, summary_priority, 16000), axis=1)
+    append_progress("✅ Resolution / Summary 欄位內容合併完畢，準備進行逐列分析")
+
 
 
     component_counts = df['Role/Component'].value_counts()
@@ -617,7 +683,8 @@ async def analyze_excel_async(filepath, weights=None, resolution_priority=None, 
     configuration_item_max = configuration_item_counts.max()
     df['Opened'] = pd.to_datetime(df['Opened'], errors='coerce')
     analysis_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
+    append_progress("⏳ 正在分析所有資料，請稍候…")
+    print(f"📊 角色/組件數量：{len(component_counts)}，最大值：{configuration_item_max}")
     # 非同步處理
     tasks = [
         analyze_row_async(
@@ -629,8 +696,18 @@ async def analyze_excel_async(filepath, weights=None, resolution_priority=None, 
         )
         for idx, row in df.iterrows()
     ]
-    results_raw = await asyncio.gather(*tasks, return_exceptions=True)
-    results = [r for r in results_raw if r and not isinstance(r, Exception)]
+    # results_raw = await asyncio.gather(*tasks, return_exceptions=True)
+    # results = [r for r in results_raw if r and not isinstance(r, Exception)]
+    
+    results = []
+    total = len(tasks)
+    finished = 0
+    for coro in asyncio.as_completed(tasks):
+        res = await coro
+        finished += 1
+        append_progress(f"🔄 分析進度：第 {finished} / {total} 筆")
+        if res:
+            results.append(res)
 
     # ✅ 防呆：沒有任何成功的結果就直接回傳避免崩潰
     if not results:
@@ -662,14 +739,19 @@ async def analyze_excel_async(filepath, weights=None, resolution_priority=None, 
         for i, r in enumerate(results):
             r['riskLevel'] = label_map[labels[i]]
         print(f"📌 KMeans 分群中心：{sorted(centroids, reverse=True)}")
+        
+        append_progress(f"📈 KMeans 分群完成，中心值: {sorted(centroids, reverse=True)}")
+
     else:
         print("⚠️ 不啟用 KMeans，改用固定門檻分級")
+        append_progress("⚠️ KMeans 未啟用，使用固定門檻進行分級")
+
         for r in results:
             r['riskLevel'] = get_risk_level(r['impactScore'])
 
     total_time = time.time() - start_time
     avg_time = total_time / len(results)
-
+    append_progress(f"✅ 分析完成！總耗時 {total_time:.2f} 秒，平均每筆 {avg_time:.2f} 秒")
     print(f"\n🎯 所有分析總耗時：{total_time:.2f} 秒")
     print(f"📊 單筆平均耗時：{avg_time:.2f} 秒")
     print("\n✅ 所有資料分析完成！")
@@ -692,7 +774,6 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
     
     
     try:
-        
         # 原始欄位保留
         description_text = row.get('Description', 'not filled')
         short_description_text = row.get('Short Description', 'not filled')
@@ -719,9 +800,9 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
         print(desc, short_desc, close_notes)
 
 
-        keyword_score = is_high_risk(short_desc, high_risk_examples, high_risk_embeddings)
-        user_impact_score = is_multi_user(desc, multi_user_examples, multi_user_embeddings)
-        escalation_score = is_escalated(close_notes, escalation_examples, escalation_embeddings)
+        keyword_score = is_high_risk(summary_input, high_risk_examples, high_risk_embeddings)
+        user_impact_score = is_multi_user(summary_input, multi_user_examples, multi_user_embeddings)
+        escalation_score = is_escalated(resolution_text, escalation_examples, escalation_embeddings)
 
         config_raw = configuration_item_counts.get(row.get('Configuration item'), 0)
         configuration_item_freq = config_raw / configuration_item_max if configuration_item_max > 0 else 0
@@ -759,25 +840,6 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
         resolution_text, summary_input, source_id=f"Row#{idx+1}"
         )
 
-        
-        
-        
-        
-        
-        
-        # try:
-        #     ai_suggestion, ai_summary = await asyncio.gather(
-        #         extract_resolution_suggestion(resolution_text, source_id=f"Row#{idx+1}"),
-        #         extract_problem_with_custom_prompt(summary_input, source_id=f"Row#{idx+1}")
-        #     )
-
-        # except Exception as e:
-        #     print(f"⚠️ GPT 擷取失敗：{e}")
-        #     ai_suggestion = "（AI 擷取失敗）"
-        #     ai_summary = "（AI 擷取失敗）"
-            
-            
-
         return {
             'id': safe_value(row.get('Incident') or row.get('Number')),
             'configurationItem': safe_value(row.get('Configuration item')),
@@ -804,6 +866,7 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
         }
 
     except Exception as e:
+        append_progress(f"❌ 分析第 {idx+1} 筆失敗：{str(e)[:60]}")
         print(f"❌ 分析第 {idx + 1} 筆失敗：", e)
         return None
 
@@ -811,7 +874,13 @@ async def analyze_row_async(row, idx, df, weights, component_counts, configurati
 
 
 
-
+@app.route('/cluster-progress')
+def cluster_progress():
+    try:
+        with open("cluster_progress.json", encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    except Exception:
+        return jsonify({"progress": 0, "total": 1, "status": "尚未開始"})
 
 
 
@@ -1231,6 +1300,13 @@ def preview_excel():
         return jsonify({'columns': columns, 'rows': rows})
     except Exception as e:
         return jsonify({'error': str(e)})
+    
+    
+@app.route('/get-progress')
+def get_progress():
+    global progress_log
+    return jsonify({"progress": progress_log})
+
 
 
 
@@ -1243,6 +1319,9 @@ def ping():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    global progress_log
+    progress_log = ""     # 每次新上傳都先清空進度
+    append_progress("✅ 開始分析 ...")
     print("📥 收到上傳請求")
 
     if 'file' not in request.files:
@@ -1351,8 +1430,173 @@ def make_json_serializable(obj):
     return obj
 
 
-    
-    
+
+
+import os
+import pandas as pd
+import openpyxl
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.utils import get_column_letter
+from openpyxl import load_workbook
+
+
+
+def append_df_to_excel(df, excel_path, sheet_name="Sheet1"):
+    if not os.path.exists(excel_path):
+        print(f"📁 檔案不存在，將建立新檔案：{excel_path}")
+        # 建立新檔 + 表格格式
+        with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+        wb = load_workbook(excel_path)
+        ws = wb[sheet_name]
+        table = Table(displayName="IncidentTable",
+                      ref=f"A1:{get_column_letter(ws.max_column)}{ws.max_row}")
+        table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
+        ws.add_table(table)
+        wb.save(excel_path)
+        print("✅ 新檔案已建立並表格化")
+        return
+
+    # 檔案存在：先讀現有資料列數與 workbook
+    reader = pd.read_excel(excel_path, sheet_name=sheet_name, engine="openpyxl")
+    book = load_workbook(excel_path)
+
+    # 若 sheet 不存在，手動建立表頭+
+    if sheet_name not in book.sheetnames:
+        ws = book.create_sheet(title=sheet_name)
+        for idx, col in enumerate(df.columns, start=1):
+            ws.cell(row=1, column=idx, value=col)
+        table = Table(displayName="IncidentTable",
+                      ref=f"A1:{get_column_letter(len(df.columns))}1")
+        table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
+        ws.add_table(table)
+        book.save(excel_path)
+        print("✅ 已建立表頭與表格樣式")
+
+    startrow = len(reader)
+    print(f"📌 目標檔案已有 {startrow} 列，從第 {startrow + 1} 列開始追加")
+
+    with pd.ExcelWriter(excel_path, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
+
+        # ✅ 使用 update() 而非重新賦值
+        writer.sheets.update({ws.title: ws for ws in book.worksheets})
+        df.to_excel(writer, sheet_name=sheet_name, startrow=startrow, index=False, header=False)
+    print("✅ 成功 append 分析結果到目標 Excel！")
+
+    # 📏 自動延展表格範圍（加強穩定性）
+    try:
+        wb2 = load_workbook(excel_path)
+        ws2 = wb2[sheet_name]
+
+        if ws2.tables:
+            table = list(ws2.tables.values())[0]
+            new_ref = f"A1:{get_column_letter(ws2.max_column)}{ws2.max_row}"
+            print(f"📐 延展表格範圍：{table.ref} ➜ {new_ref}")
+            table.ref = new_ref
+            wb2.save(excel_path)
+            print("📏 表格範圍已更新")
+            
+        else:
+            print("⚠️ 找不到任何表格，將補建表格")
+            new_ref = f"A1:{get_column_letter(ws2.max_column)}{ws2.max_row}"
+            new_table = Table(displayName="IncidentTable", ref=new_ref)
+            style = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
+            new_table.tableStyleInfo = style
+            ws2.add_table(new_table)
+            wb2.save(excel_path)
+            print(f"🆕 已補建表格並設定範圍：{new_ref}")
+            
+            
+        # ✅ 🔁 再次讀取檔案，這次真正設定欄寬（確保先 append、再調整）
+        wb3 = load_workbook(excel_path)
+        ws3 = wb3[sheet_name]
+
+        # 🧩 自動調整每一欄欄寬
+        print("📐 正在自動調整欄寬...")
+        for i in range(1, ws3.max_column + 1):
+            max_width = 1
+            for j in range(1, ws3.max_row + 1):
+                cell_value = ws3.cell(row=j, column=i).value
+                if isinstance(cell_value, (int, float)):
+                    width = len(str(format(cell_value, ',')))
+                elif cell_value is None:
+                    width = 0
+                else:
+                    width = len(str(cell_value).encode('gbk'))  # 中文 1 字 = 2 bytes（gbk 編碼）
+                max_width = max(max_width, width)
+            col_letter = get_column_letter(i)
+            ws3.column_dimensions[col_letter].width = min(max_width, 20) + 2  # 最多 20，加 2 顯得寬鬆
+
+        wb3.save(excel_path)
+        print("📐 表格與欄位寬度已更新")
+        
+
+    except Exception as e:
+        print(f"⚠️ 延展表格範圍失敗：{e}")
+
+
+
+def deduplicate_by_id_and_time(df: pd.DataFrame) -> pd.DataFrame:
+    if "id" not in df.columns or "analysisTime" not in df.columns:
+        print("⚠️ 缺少 id 或 analysisTime 欄位，無法去重")
+        return df
+
+    df["id"] = df["id"].astype(str).str.strip()
+    df["analysisTime_parsed"] = pd.to_datetime(df["analysisTime"], errors="coerce", utc=True)
+
+    before = len(df)
+    df = df.dropna(subset=["id", "analysisTime_parsed"])
+    df = df.sort_values("analysisTime_parsed").drop_duplicates(subset="id", keep="last")
+    after = len(df)
+
+    print(f"🧹 去重完成：原始 {before} 筆 ➜ 去重後 {after} 筆")
+    return df.drop(columns=["analysisTime_parsed"])
+
+# ✅ 欄位名稱對照：名稱 → 要送出的名稱
+FIELD_MAPPING = {
+    "id": "id",
+    "configurationItem": "configurationItem",
+    "roleComponent": "roleComponent",
+    "subcategory": "subcategory",
+    "aiSummary": "problem",  # ← 改這行
+    "solution": "solution",
+    "severityScoreNorm": "severityScoreNorm",   # ✅ 保留原名
+    "frequencyScoreNorm": "frequencyScoreNorm",
+    "impactScoreNorm": "impactScoreNorm",
+    "riskLevel": "riskLevel",
+    "location": "location",
+    "opened": "opened",
+    "analysisTime": "analysisTime"  # ✅ 別忘了加上時間    
+}
+
+def apply_excel_formatting(path, sheet_name="Sheet1"):
+    wb = load_workbook(path)
+    ws = wb[sheet_name]
+    new_ref = f"A1:{get_column_letter(ws.max_column)}{ws.max_row}"
+
+    # 📊 建立表格樣式
+    table = Table(displayName="IncidentTable", ref=new_ref)
+    style = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
+    table.tableStyleInfo = style
+    ws.add_table(table)
+
+    # 📐 自動調整欄寬
+    for i in range(1, ws.max_column + 1):
+        max_width = 1
+        for j in range(1, ws.max_row + 1):
+            val = ws.cell(row=j, column=i).value
+            if isinstance(val, (int, float)):
+                width = len(str(format(val, ',')))
+            else:
+                width = len(str(val or "").encode('gbk'))
+            max_width = max(max_width, width)
+        ws.column_dimensions[get_column_letter(i)].width = min(max_width, 20) + 2
+
+    wb.save(path)
+    print("🎨 表格樣式與欄寬已自動調整")
+
+
+
 def save_analysis_files(result, uid):
     os.makedirs('json_data', exist_ok=True)
     os.makedirs('excel_result_Unclustered', exist_ok=True)  # ✅ 使用新的資料夾
@@ -1366,6 +1610,28 @@ def save_analysis_files(result, uid):
 
     # 儲存分析報表 Excel（只儲存 result['data']）
     df = pd.DataFrame(result['data'])
+    
+    print(f"匯入Excel 檔案：{df}")
+
+    # ✅ 僅保留並排序目標欄位（原始欄位名稱）
+    columns_to_keep = list(FIELD_MAPPING.keys())
+    for col in columns_to_keep:
+        if col not in df.columns:
+            df[col] = ""
+    df = df[columns_to_keep]
+
+    # ✅ 去重處理
+    df = deduplicate_by_id_and_time(df)
+
+    # ✅ 欄位轉換（左邊欄位 ➜ Sync 欄位名稱）
+# ✅ 欄位轉換
+    df = df.rename(columns=FIELD_MAPPING)
+
+    # ✅ 按照你想要的順序保留欄位（右邊的欄位名稱）
+    sync_columns_ordered = [FIELD_MAPPING[k] for k in FIELD_MAPPING if FIELD_MAPPING[k] in df.columns]
+    df = df[sync_columns_ordered]
+
+    
     # ✅ 儲存到 Unclustered 資料夾並加上 Unclustered 後綴
     excel_filename = f"{uid}_Unclustered.xlsx"
     excel_path = os.path.join(basedir, 'excel_result_Unclustered', excel_filename)    
@@ -1383,177 +1649,44 @@ def save_analysis_files(result, uid):
     timestamp = uid.replace("result_", "")
     original_excel_path = os.path.abspath(os.path.join(basedir, 'uploads', f"original_{timestamp}.xlsx"))
 
-        # ✅ 自動送出到 Power Automate
+    # ✅ 附加到同步的 Excel 檔案（不影響原有儲存流程）
     try:
-        send_to_power_automate_from_file(json_path)
-        print("✅ 已自動送出到 Power Automate")
-    except Exception as e:
-        print(f"⚠️ 發送到 Power Automate 失敗：{e}")
+        sync_target = r"C:\Users\tachang\Microsoft\MSTC ITG - Timmy\IncidentAnalysisDB.xlsx"
 
+        # ✅ 若資料夾不存在就先建立
+        folder_path = os.path.dirname(sync_target)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+            print(f"📁 已自動建立資料夾：{folder_path}")
 
-    if os.path.exists(original_excel_path):
-        print("📁 原始檔絕對路徑：", original_excel_path)
-    else:
-        print("⚠️ 找不到原始 Excel 路徑！")
-
-
-
-# ✅ Power Automate 的 URL（請換成你自己的）
-FLOW_URL = "https://prod-32.southeastasia.logic.azure.com:443/workflows/a016bdb3910146859b049fb7f0b6793b/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VefuSepIkpp5OhHGX7l6cgSs-rg7NykrpPhmXfKjnNk"
-
-# ✅ 欄位名稱對照：原始名稱 → 要送出的名稱
-FIELD_MAPPING = {
-    "id": "id",
-    "configurationItem": "configurationItem",
-    "roleComponent": "roleComponent",
-    "subcategory": "subcategory",
-    "aiSummary": "problem",  # ← 改這行
-    "solution": "solution",
-    "severityScore": "severityScore",
-    "frequencyScore": "frequencyScore",
-    "impactScore": "impactScore",
-    "severityScoreNorm": "severityScore",
-    "frequencyScoreNorm": "frequencyScore",
-    "impactScoreNorm": "impactScore",
-    "riskLevel": "riskLevel",
-    "location": "location",
-    "opened": "opened"
-}
-
-def default_value_for(field):
-    default_values = {
-        "id": "N/A",
-        "configurationItem": "Unknown",
-        "roleComponent": "Unknown",
-        "subcategory": "Unknown",
-        "problem": "（無原始描述）",
-        "solution": "（無原始描述）",
-        "severityScore": 0.0,
-        "frequencyScore": 0.0,
-        "impactScore": 0.0,
-        "riskLevel": "未知",
-        "location": "未填",
-        "opened": "1970-01-01T00:00:00"
-    }
-    return default_values.get(field, None)
-
-
-def enforce_schema_types(filtered_item):
-    for field in ["severityScore", "frequencyScore", "impactScore"]:
-        try:
-            filtered_item[field] = float(filtered_item.get(field, 0.0))
-        except:
-            filtered_item[field] = 0.0
-
-    for field in ["id", "configurationItem", "roleComponent", "subcategory",
-                  "problem", "solution", "riskLevel", "location", "opened"]:
-        val = filtered_item.get(field)
-        if val is not None:
-            filtered_item[field] = str(val)
+        if os.path.exists(sync_target):
+            print("📖 讀取歷史 Excel 中資料進行合併與去重")
+            old_df = pd.read_excel(sync_target, sheet_name="Sheet1", engine="openpyxl")
+            print(f"📄 歷史資料筆數：{len(old_df)}")
+            combined_df = pd.concat([old_df, df], ignore_index=True)
+            combined_df = deduplicate_by_id_and_time(combined_df)
         else:
-            filtered_item[field] = default_value_for(field)
+            print("🆕 無歷史檔案，直接使用本次資料")
+            combined_df = df
 
+        # ✅ 整體覆蓋寫入，不再使用 append
+        with pd.ExcelWriter(sync_target, engine="openpyxl", mode="w") as writer:
+            combined_df.to_excel(writer, sheet_name="Sheet1", index=False)
 
+        # ✅ 資料寫入完成後，再進行格式套用
+        apply_excel_formatting(sync_target)
+        print(f"📊 準備覆蓋寫入 {sync_target}，共 {len(combined_df)} 筆資料")
+        print(f"✅ 成功覆蓋寫入 Excel（共 {len(combined_df)} 筆）：{sync_target}")
 
+    except PermissionError:
+        print("⚠️ 無法寫入，請確認 Excel 檔案是否已關閉！")
+    except Exception as e:
+        print(f"⚠️ 無法寫入 Excel：{e}")
+        traceback.print_exc()
 
-
-# 🔒 加入你原始的 schema（放在程式開頭或一個變數中）
-SCHEMA = {
-    "type": "object",
-    "properties": {
-        "data": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string"},
-                    "configurationItem": {"type": "string"},
-                    "roleComponent": {"type": "string"},
-                    "subcategory": {"type": "string"},
-                    "problem": {"type": "string"},
-                    "solution": {"type": "string"},
-                    "severityScore": {"type": "number"},
-                    "frequencyScore": {"type": "number"},
-                    "impactScore": {"type": "number"},
-                    "riskLevel": {"type": "string"},
-                    "location": {"type": "string"},
-                    "opened": {"type": "string"}
-                },
-                "required": [
-                    "id", "configurationItem", "roleComponent", "subcategory",
-                    "problem", "solution", "severityScore", "frequencyScore",
-                    "impactScore", "riskLevel", "location", "opened"
-                ]
-            }
-        },
-        "analysisTime": {"type": "string"}
-    },
-    "required": ["data", "analysisTime"]
-}
-
-
-def send_to_power_automate_from_file(json_path):
-    if not os.path.exists(json_path):
-        print(f"❌ 找不到分析結果檔案：{json_path}")
-        return
-
-    def _post():
-        try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                raw_data = json.load(f)
-
-            filtered_data = []
-            for i, item in enumerate(raw_data.get("data", [])):
-                filtered_item = {}
-                for old_k, new_k in FIELD_MAPPING.items():
-                    if old_k in item:
-                        filtered_item[new_k] = item[old_k]
-                    else:
-                        default_val = default_value_for(new_k)
-                        print(f"⚠️ 第 {i+1} 筆資料欄位缺失：{old_k}（對應 {new_k}），已使用預設值：{default_val}")
-                        filtered_item[new_k] = default_val
-
-                enforce_schema_types(filtered_item)  # ✅ 型別與預設值保護
-                filtered_data.append(filtered_item)
-
-            payload = {
-                "data": filtered_data,
-                "analysisTime": raw_data.get("analysisTime")
-            }
-            print("📤 正在送出以下 payload 給 Power Automate：")
-            print(json.dumps(payload, indent=2, ensure_ascii=False))
-
-
-
-
-
-            # 檢查 schema 是否符合
-            try:
-                validate(instance=payload, schema=SCHEMA)
-                print("✅ JSON payload 符合指定 schema，可以送出。")
-            except ValidationError as ve:
-                print("❌ JSON payload 不符合 schema！")
-                print("📍 錯誤位置：", ve.json_path)
-                print("📋 詳細錯誤：", ve.message)
-                print("📌 發生於 payload 第", i+1, "筆（可能）資料")
-                return
-
-
-            headers = {"Content-Type": "application/json"}
-            response = requests.post(FLOW_URL, headers=headers, json=payload, timeout=120)
-
-            if response.status_code == 200:
-                print("✅ 成功送出資料給 Power Automate")
-            else:
-                print(f"⚠️ 已送出，但 HTTP 狀態：{response.status_code}")
-        except Exception as e:
-            print(f"⚠️ 發送 Power Automate 時錯誤（忽略回應）：{e}")
-
-    threading.Thread(target=_post).start()
-    
-    
-    
-    
+        
+        
+        
 @app.route("/compare-file", methods=["POST"])
 def compare_file():
     print("📥 收到檔案比對請求") 

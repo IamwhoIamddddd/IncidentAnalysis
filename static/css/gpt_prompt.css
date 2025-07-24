@@ -474,3 +474,157 @@ body.dark-mode #kbStatusBar .dots::after {
   color: #ffe082;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.custom-alert {
+  font-family: 'Inter', 'Segoe UI', 'Microsoft JhengHei', Arial, sans-serif;
+  border-radius: 1.15em !important;
+  box-shadow: 0 4px 20px 0 rgba(80,200,250,0.12);
+  background: linear-gradient(133deg, #e9f6fe 88%, #d3e6f6 100%);
+  padding: 0;
+  margin-bottom: 2.1em !important;
+  opacity: 0;
+  transform: translateY(18px) scale(0.98);
+  animation: customAlertFadeIn 0.88s cubic-bezier(.39,.64,.58,1.23) 0.15s 1 forwards;
+}
+@keyframes customAlertFadeIn {
+  0% { opacity: 0; transform: translateY(38px) scale(0.97);}
+  68% { opacity: 1; transform: translateY(-3px) scale(1.03);}
+  86% { transform: translateY(2px) scale(1.015);}
+  100% { opacity: 1; transform: translateY(0) scale(1);}
+}
+
+body.dark-mode .custom-alert {
+  background: linear-gradient(133deg, #222f3f 88%, #181e2a 100%) !important;
+  color: #e7f3fd !important;
+  box-shadow: 0 8px 32px 0 rgba(40,90,140,0.23);
+}
+.custom-alert > div {
+  padding: 30px 34px 22px 28px;
+  border-radius: 1.1em;
+  background: rgba(255,255,255,0.10);
+  transition: background 0.23s;
+}
+body.dark-mode .custom-alert > div {
+  background: rgba(30,44,66,0.18) !important;
+}
+
+.custom-alert strong { color:#186fb2; letter-spacing:0.01em; }
+body.dark-mode .custom-alert strong { color: #6bc8ff; }
+
+.custom-alert ul {
+  margin-top: 1.2em;
+  margin-bottom: 1em;
+  padding-left: 1.8em;
+}
+.custom-alert ul li {
+  margin-bottom: 1.2em;
+  font-size: 1.05em;
+  color: #194060;
+  background: none;
+}
+body.dark-mode .custom-alert ul li {
+  color: #b4d6ff;
+}
+
+.custom-alert ul li span[style*='#909'] {
+  display: inline-block;
+  margin-top: 0.15em;
+  font-size: 0.99em;
+  color: #bd6acc !important;
+  background: none;
+}
+body.dark-mode .custom-alert ul li span[style*='#909'] {
+  color: #e6aaff !important;
+}
+
+.custom-alert .fa-info-circle {
+  color: #409eff !important;
+  font-size: 1.28em;
+  margin-right: 8px;
+}
+.custom-alert .fa-lightbulb { color: #ffe066 !important; }
+.custom-alert .fa-robot { color: #33deca !important; }
+.custom-alert .fa-check-circle { color: #20c997 !important; }
+
+/* --- icon 呼吸動畫 --- */
+.custom-alert .fa-info-circle,
+.custom-alert .fa-lightbulb,
+.custom-alert .fa-robot,
+.custom-alert .fa-check-circle {
+  animation: gptIconPulse 2.6s ease-in-out infinite;
+}
+@keyframes gptIconPulse {
+  0%, 100% { filter: drop-shadow(0 0 3px #bae6ff); transform: scale(1);}
+  18% { filter: drop-shadow(0 0 8px #7dc3ff); transform: scale(1.12);}
+  32% { filter: drop-shadow(0 0 10px #bae6ff); transform: scale(1);}
+  100% { filter: drop-shadow(0 0 3px #bae6ff);}
+}
+/* --- icon hover 彈跳 --- */
+.custom-alert .fa-info-circle:hover,
+.custom-alert .fa-lightbulb:hover,
+.custom-alert .fa-robot:hover,
+.custom-alert .fa-check-circle:hover {
+  animation: gptIconBounce 0.44s cubic-bezier(.57,1.71,.38,.81) 1;
+}
+@keyframes gptIconBounce {
+  0% { transform: scale(1) translateY(0);}
+  42% { transform: scale(1.19, 0.82) translateY(-7px);}
+  56% { transform: scale(0.95, 1.13) translateY(2px);}
+  70% { transform: scale(1.04, 0.96) translateY(-1.5px);}
+  100% { transform: scale(1) translateY(0);}
+}
+
+/* .custom-alert 內容區小卡片/提示（如灰底區） */
+.custom-alert div[style*='#888'] {
+  background: linear-gradient(90deg, #f6fbff 70%, #e7f8ff 100%);
+  border-radius: 7px;
+  margin-top: 0.93em !important;
+  padding: 11px 15px 10px 15px;
+  font-size: 1em !important;
+  color: #2b3e54 !important;
+  box-shadow: 0 1.5px 6px rgba(110,180,255,0.06);
+}
+body.dark-mode .custom-alert div[style*='#888'] {
+  background: linear-gradient(90deg, #223448 65%, #2a3951 100%) !important;
+  color: #c7e6fa !important;
+  box-shadow: 0 1.5px 12px rgba(50,110,210,0.08);
+}
+.custom-alert div[style*='#888'] b,
+.custom-alert div[style*='#888'] u {
+  color: #1083bc;
+}
+body.dark-mode .custom-alert div[style*='#888'] b,
+body.dark-mode .custom-alert div[style*='#888'] u {
+  color: #4dd9fc !important;
+}
+
+/* 點狀亮綠分隔線（可選） */
+.custom-alert .fa-check-circle {
+  margin-right: 6px;
+  vertical-align: -2px;
+}
+
+/* 響應式 */
+@media (max-width: 900px) {
+  .custom-alert > div { padding: 16px 12px 12px 10px !important; }
+}
+@media (max-width: 600px) {
+  .custom-alert { font-size: 0.97em !important; }
+  .custom-alert > div { padding: 10px 6px 10px 7px !important; border-radius: 0.8em !important;}
+  .custom-alert ul { padding-left: 1.1em; }
+}
